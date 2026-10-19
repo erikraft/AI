@@ -1,6 +1,3 @@
-# Local Firebase web configuration
-assets/js/firebase-config.js
-
 # Secrets and local environment
 .env
 .env.*
