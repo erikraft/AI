@@ -1,4 +1,4 @@
-import { createHash, createHmac } from "node:crypto";
+import { createHmac } from "node:crypto";
 import { initializeApp, cert, getApps } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 import { getFirestore, Timestamp } from "firebase-admin/firestore";
