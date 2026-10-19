@@ -57,12 +57,13 @@ export default async function handler(req, res) {
     const spaceId = process.env.HF_SPACE_ID;
     if (!spaceId) return res.status(503).json({ error: "O Space de geração ainda não foi configurado." });
     const client = await Client.connect(spaceId, process.env.HF_TOKEN ? { hf_token: process.env.HF_TOKEN } : {});
-    const result = await client.predict("/generate_image", {
-      prompt: prompt.trim(),
-      width: Number(width),
-      height: Number(height),
-      steps: Number(steps)
-    });
+    // Pass positional values to match the declared Gradio Interface input order.
+    const result = await client.predict("/generate_image", [
+      prompt.trim(),
+      Number(width),
+      Number(height),
+      Number(steps)
+    ]);
     const first = result?.data?.[0];
     const imageUrl = typeof first === "string" ? first : (first?.url || first?.path || first?.image?.url);
     if (!imageUrl) {
