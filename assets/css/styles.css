@@ -3,3 +3,30 @@
 @media(max-width:1000px){.hero-art{right:2%;opacity:.48}.hero-copy{max-width:600px}.topbar{padding:12px 4%;gap:14px}.topbar nav{gap:12px}.account-label{display:none}.studio-section,.how-section{padding:65px 5%}}
 @media(max-width:720px){.topbar{flex-wrap:wrap;padding:10px 18px}.topbar nav{order:3;width:100%;justify-content:center;gap:18px;font-size:9px}.account-area{margin-left:auto}.hero{padding:65px 24px 55px;min-height:420px}.hero-art{display:none}.hero h1{font-size:clamp(45px,11vw,62px);letter-spacing:-3px}.lead{font-size:14px}.hero-meta{gap:10px;font-size:9px}.studio-section,.how-section{padding:55px 20px}.section-heading{display:block}.model-pill{display:inline-block;margin-top:15px}.studio-grid{grid-template-columns:1fr}.panel{padding:18px}.result-stage{min-height:310px}.feature-grid{grid-template-columns:1fr}.options-row{gap:9px}.field-footer{font-size:9px}footer{flex-wrap:wrap;padding:22px 20px}footer>span{order:3;width:100%}}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition:none!important}}
+
+
+/* Language selector and Bitcoin donation area */
+.language-picker{display:flex;align-items:center;gap:7px;padding:5px 8px;border:1px solid var(--border);border-radius:10px;background:rgba(255,255,255,.025);min-width:0}
+.language-picker img{width:25px;height:17px;object-fit:cover;border-radius:2px;flex:0 0 auto}
+.language-picker select{max-width:145px;background:transparent;color:var(--text);border:0;font:500 12px var(--sans);outline:none;cursor:pointer}
+.language-picker option{background:#111013;color:#f0f3fa}
+.donations{padding:clamp(38px,6vw,76px) clamp(18px,5vw,64px);border-top:1px solid var(--border)}
+.donation-heading{display:flex;align-items:flex-start;gap:18px;max-width:850px;margin:0 auto 28px}
+.bitcoin-logo{width:52px;height:52px;flex:0 0 auto}
+.donation-heading h2{margin:4px 0 10px;font-size:clamp(25px,4vw,38px);letter-spacing:-.04em}
+.donation-heading .muted{margin:0;line-height:1.7}
+.wallet-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;max-width:1000px;margin:0 auto}
+.wallet-card{min-width:0;padding:20px;border:1px solid var(--border);border-radius:18px;background:var(--panel);display:grid;grid-template-columns:minmax(0,1fr) minmax(130px,190px);align-items:center;gap:18px}
+.wallet-info{min-width:0;display:flex;flex-direction:column;align-items:flex-start;gap:12px}
+.wallet-label{color:var(--muted);font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.07em}
+.wallet-info code{max-width:100%;overflow-wrap:anywhere;font-size:12px;color:var(--text);line-height:1.6}
+.copy-wallet,.bitcoin-uri-link{font:600 12px var(--sans);text-decoration:none;border:1px solid var(--border);border-radius:9px;padding:9px 11px;color:var(--text);background:rgba(255,255,255,.03);cursor:pointer}
+.copy-wallet:hover,.bitcoin-uri-link:hover{border-color:var(--blue)}
+.qr-block{display:flex;flex-direction:column;align-items:center;gap:9px;text-align:center;font-size:11px;color:var(--muted)}
+.qr-wrap{width:100%;max-width:190px;aspect-ratio:1;background:#fff;border-radius:12px;padding:8px;display:grid;place-items:center;overflow:hidden}
+.bitcoin-qr-host{width:100%;line-height:0}
+.bitcoin-qr-host canvas,.bitcoin-qr-host svg{display:block!important;width:100%!important;height:auto!important}
+.qr-unavailable{font-size:11px;line-height:1.5;color:#111;text-align:center;overflow-wrap:anywhere}
+.donation-note{max-width:1000px;margin:18px auto 0;color:var(--muted);font-size:12px;line-height:1.7}
+@media(max-width:800px){.wallet-grid{grid-template-columns:1fr}.wallet-card{grid-template-columns:minmax(0,1fr) minmax(110px,160px)}.language-picker select{max-width:115px}}
+@media(max-width:520px){.topbar{flex-wrap:wrap;gap:10px}.topbar nav{order:3;width:100%;overflow-x:auto}.language-picker{padding:5px}.language-picker img{width:20px;height:14px}.language-picker select{max-width:92px;font-size:11px}.account-area{margin-left:auto}.donation-heading{gap:12px}.bitcoin-logo{width:42px;height:42px}.wallet-card{padding:14px;grid-template-columns:minmax(0,1fr) minmax(95px,125px);gap:10px}.wallet-info code{font-size:10px}.copy-wallet,.bitcoin-uri-link{font-size:11px;padding:8px}.qr-wrap{padding:5px}}
