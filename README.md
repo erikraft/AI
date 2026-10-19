@@ -1,12 +1,12 @@
 # ErikrafT AI
 
-A prompt-based AI image generation website with a responsive dark interface inspired by the visual language of [ErikrafT Wi-Fi™](https://github.com/erikraft/WiFi). The selected model is **`aoxo/flux.1dev-abliterated`**.
+A prompt-based AI image generation website with a responsive dark interface. The selected model is **`aoxo/flux.1dev-abliterated`**.
 
 - **Frontend:** static HTML/CSS/JavaScript, deployable on Vercel.
 - **Authentication:** Firebase Authentication with Google and GitHub providers.
-- **Generation:** Hugging Face Gradio Space running the exact selected model.
+- **Generation:** Hugging Face Gradio Space running the selected model.
 - **Abuse prevention:** Firebase ID-token verification and a Firestore-backed limit of five generation requests per account per hour.
-- **Cost goal:** use free tiers only. Provider quotas, availability, model compatibility, and GPU access are not guaranteed.
+- **Cost goal:** use free tiers where possible. Provider quotas, availability, model compatibility, and GPU access are not guaranteed.
 
 ## Architecture
 
@@ -20,76 +20,75 @@ Browser
                                   └── aoxo/flux.1dev-abliterated
 ```
 
-Vercel serves the frontend and the small API proxy. It does **not** load PyTorch or FLUX weights; the model needs compatible GPU infrastructure.
+Vercel serves the frontend and API proxy. It does **not** load PyTorch or FLUX weights; the model needs compatible GPU infrastructure.
 
 ## Repository layout
 
 - `index.html` — responsive image studio and sign-in modal.
-- `assets/css/styles.css` — dark, blue-accented styling based on the ErikrafT Wi-Fi design language.
+- `assets/css/styles.css` — dark, blue-accented styling.
 - `assets/js/app.js` — Firebase sign-in, prompt form, API request, result preview, and download.
-- `assets/js/firebase-config.js.example` — public Firebase Web configuration template.
+- `assets/js/firebase-config.js` — Firebase Web app configuration used by the browser.
+- `assets/js/firebase-config.js.example` — template for reference.
 - `api/generate.js` — authenticated generation endpoint and Firestore quota enforcement.
-- `app.py` and `requirements.txt` — Gradio Space entry point and Python dependencies for testing ZeroGPU.
+- `app.py` and `requirements.txt` — Gradio Space entry point and Python dependencies.
 - `vercel.json` — static-site response headers.
 
-## 1. Configure Firebase Authentication
+## 1. Firebase configuration
 
-1. Create a project in the [Firebase Console](https://console.firebase.google.com/).
-2. In **Authentication → Sign-in method**, enable **Google**.
-3. Enable **GitHub** and configure its OAuth Client ID and Client Secret in Firebase. Set the GitHub OAuth callback URL to the callback Firebase shows for your project.
-4. Add your Vercel production and preview domains in **Authentication → Settings → Authorized domains**.
-5. Create a Firestore database.
-6. Copy `assets/js/firebase-config.js.example` to `assets/js/firebase-config.js` and fill in the Firebase Web App configuration.
-7. The local config file is ignored by Git. The Firebase Web config is visible to browsers by design; never put a service-account JSON or OAuth client secret in it.
+The frontend is configured for the Firebase Web app in project `erikraft-account`. The public Web configuration is in `assets/js/firebase-config.js` and is loaded by `index.html` before `app.js`.
 
-## 2. Configure the Hugging Face Space
+Firebase Web config values (including `apiKey`, `authDomain`, `projectId`, and `appId`) identify the client application; they are **not** service-account credentials. Keep the following secrets out of the repository and browser code:
+- GitHub OAuth Client Secret
+- Firebase Admin service-account JSON/private key
+- Hugging Face access tokens and other server secrets
 
-The root `app.py` is the Gradio Space entry point and targets exactly `aoxo/flux.1dev-abliterated`. Create a Space configured for Gradio and select an eligible ZeroGPU/free hardware option if available. Confirm the repository root is used as the Space source.
+In Firebase Console:
 
-The Space exposes `generate_image` with the following input order:
+1. In **Authentication → Sign-in method**, enable **Google** and **GitHub**.
+2. Configure the GitHub OAuth Client ID and Client Secret in Firebase. Use the exact callback URL Firebase shows for the provider.
+3. Add the production and preview domains in **Authentication → Settings → Authorized domains**.
+4. Create a Firestore database.
+5. Configure appropriate Firebase API-key restrictions and Firestore security rules.
 
-1. `prompt` (string)
-2. `width` (integer)
-3. `height` (integer)
-4. `steps` (integer)
+The current static frontend imports the modular Firebase SDK from Google's official browser CDN modules. **You do not need `npm install firebase` for the current frontend.** Running `npm install` installs the server dependencies declared in `package.json`, including `@gradio/client` and `firebase-admin`.
 
-The API endpoint is named `/generate_image` for `@gradio/client`. Test a real generation in the Space before configuring the website. FLUX is a large model and may fail to load or run within free hardware limits. ZeroGPU eligibility, queue time, quotas, memory availability, and compatibility are controlled by Hugging Face; free and unlimited inference is not promised.
+## 2. Hugging Face Space
 
-If the Space uses a separate repository, set `HF_SPACE_ID` to that Space's `owner/space-name` and copy the root `app.py` and `requirements.txt` there. Make sure its endpoint and input schema match the API proxy.
+The root `app.py` targets `aoxo/flux.1dev-abliterated`. Create a Space configured for Gradio and select eligible ZeroGPU/free hardware if available. Test an actual generation in the Space before connecting the website. FLUX is a large model and may exceed free hardware limits; GPU access, queue times, quotas, memory, and model compatibility are controlled by Hugging Face. Free and unlimited inference is not guaranteed.
 
-## 3. Deploy the website to Vercel
+The Space endpoint used by `@gradio/client` is `/generate_image`, with inputs in this order: prompt (string), width (integer), height (integer), steps (integer). If the Space is hosted in another repository, set `HF_SPACE_ID` to its `owner/space-name` and ensure the app exposes the same endpoint and inputs.
 
-Import this repository into Vercel. The root is a static site and `api/generate.js` is a Node.js serverless function. Add these environment variables under **Project → Settings → Environment Variables**:
+## 3. Deploy to Vercel
+
+Import the repository into Vercel. The root is a static site and `api/generate.js` is a Node.js serverless function. Under **Project → Settings → Environment Variables**, configure:
 
 | Variable | Required | Description |
 |---|---|---|
-| `FIREBASE_SERVICE_ACCOUNT_JSON` | Yes | Full Firebase Admin service-account JSON, stored only as a server secret |
-| `HF_SPACE_ID` | Yes | Hugging Face Space ID, in `owner/space-name` format |
-| `HF_TOKEN` | Only for private/gated Space access | Hugging Face access token; keep server-side |
+| `FIREBASE_SERVICE_ACCOUNT_JSON` | Yes | Full Firebase Admin service-account JSON; store only as a server secret |
+| `HF_SPACE_ID` | Yes | Hugging Face Space ID in `owner/space-name` format |
+| `HF_TOKEN` | If private/gated access is needed | Hugging Face access token; keep server-side |
 
-Use a Firebase service account with the minimum permissions needed to verify ID tokens and access the Firestore quota collection. Redeploy after setting environment variables. Do not use a `NEXT_PUBLIC_` prefix for server secrets.
+Use a service account with only the permissions needed for the API. Redeploy after changing environment variables. Never expose service-account JSON or tokens through frontend variables.
 
-For local dependency installation, run:
+Install the server dependencies with:
 
 ```bash
 npm install
 ```
 
-There is no build step required for the static HTML frontend. Vercel deploys `api/generate.js` as the API route.
+No frontend build step is required for the static HTML app.
 
 ## 4. Limits and abuse prevention
 
-- The API rejects requests without a valid Firebase ID token.
+- Requests without a valid Firebase ID token are rejected.
 - Default quota: **5 generation requests per authenticated account per rolling hour**.
 - Firestore transactions reserve quota slots across concurrent serverless invocations.
-- A quota slot is reserved before contacting the model provider. Failed provider calls may consume a slot; this prevents repeated failed requests from bypassing limits.
-- Account-based limits cannot fully prevent people from creating multiple accounts. Consider Firebase App Check, monitoring, stricter concurrency controls, and abuse reporting before a public launch.
-- Do not send personal or confidential information in prompts. Image URLs returned by Gradio may be temporary.
+- A slot is reserved before contacting the model provider, so failed provider calls may consume a slot.
+- Account-based limits cannot fully prevent users from creating multiple accounts. Consider Firebase App Check and monitoring before public launch.
+- Generated image URLs may be temporary. Avoid sending personal or confidential information in prompts.
 
-## 5. Model and licensing
+## 5. Model and readiness
 
-This project specifically targets `aoxo/flux.1dev-abliterated`. Review the model card and upstream FLUX.1-dev terms before commercial use; do not assume model metadata alone settles all applicable licensing terms.
+Review the model card and upstream FLUX.1-dev terms before commercial use; do not assume the model metadata alone settles licensing.
 
-## Status
-
-The site UI, Firebase client integration, server-side authentication/quota flow, and Gradio client call are implemented in the repository. **A live service is not ready until Firebase, Firestore, a compatible Hugging Face Space, and Vercel environment variables are configured and an end-to-end generation is tested.** No successful production deployment or real image generation is claimed yet.
+**The code is not a verified production deployment.** The site is not ready for end-to-end use until Firebase Authentication and Firestore, a compatible Hugging Face Space, and Vercel environment variables are configured and an actual image generation has been tested.
