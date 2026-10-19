@@ -1,6 +1,6 @@
 # ErikrafT AI
 
-A prompt-based AI image generation website with a responsive dark interface inspired by the visual language of [ErikrafT Wi-Fi™](https://github.com/erikraft/WiFi). The selected model is **`aoxo/flux.1dev-abliterated`**.
+A prompt-based AI image generation website with a responsive dark interface. The selected model is **`aoxo/flux.1dev-abliterated`**.
 
 - **Frontend:** static HTML/CSS/JavaScript, deployable on Vercel.
 - **Authentication:** Firebase Authentication with Google and GitHub providers.
@@ -25,7 +25,7 @@ Vercel serves the frontend and API proxy. It does **not** load PyTorch or FLUX w
 ## Repository layout
 
 - `index.html` — responsive image studio and sign-in modal.
-- `assets/css/styles.css` — dark, blue-accented styling inspired by the ErikrafT Wi-Fi design language.
+- `assets/css/styles.css` — dark, blue-accented styling.
 - `assets/js/app.js` — Firebase sign-in, prompt form, API request, result preview, and download.
 - `assets/js/firebase-config.js` — Firebase Web app configuration used by the browser.
 - `assets/js/firebase-config.js.example` — template for reference.
