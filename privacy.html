@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="Política de Privacidade do ErikrafT AI: informações sobre autenticação, prompts, geração de imagens e tratamento de dados.">
+<meta name="theme-color" content="#0a090b">
+<title>Política de Privacidade — ErikrafT AI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" referrerpolicy="no-referrer">
+<style>
+:root{color-scheme:dark;--bg:#0a090b;--panel:#141216;--text:#f4f0e9;--muted:#b4adb8;--accent:#867d6c;--line:#302b32}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:16px/1.75 'DM Sans',sans-serif}a{color:#d7c7a9;text-underline-offset:4px}.top{max-width:900px;margin:auto;padding:26px 22px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:16px;align-items:center}.brand{color:var(--text);font-weight:800;text-decoration:none;letter-spacing:-.04em}.brand span{color:#c9b99b}.back{font-size:.92rem}.wrap{max-width:900px;margin:44px auto;padding:0 22px 64px}.eyebrow{font:12px 'Space Mono',monospace;letter-spacing:.12em;color:#c9b99b;text-transform:uppercase}.hero h1{font-size:clamp(2rem,6vw,3.4rem);line-height:1.1;letter-spacing:-.05em;margin:.5rem 0 1rem}.updated,.muted{color:var(--muted)}.notice{border:1px solid var(--line);background:var(--panel);border-radius:14px;padding:18px;margin:26px 0}.notice i{color:#d7c7a9;margin-right:8px}h2{font-size:1.35rem;line-height:1.3;margin-top:2.2rem}li{margin:.45rem 0}.foot{border-top:1px solid var(--line);padding-top:22px;margin-top:45px;color:var(--muted);font-size:.9rem}.foot a{margin-right:16px}@media(max-width:600px){.top{align-items:flex-start;flex-direction:column}.wrap{margin-top:28px}}
+</style>
+</head>
+<body>
+<header class="top"><a class="brand" href="/">ErikrafT <span>AI</span></a><a class="back" href="/"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Voltar ao estúdio</a></header>
+<main class="wrap">
+<div class="hero"><p class="eyebrow"><i class="fa-solid fa-shield-halved" aria-hidden="true"></i> Transparência e dados</p><h1>Política de Privacidade</h1><p class="updated">Última atualização: 19 de outubro de 2026</p><p>Esta Política foi redigida para usuários do ErikrafT AI em qualquer país. Explica como o serviço trata informações quando você acessa o site, entra na sua conta ou solicita a geração de imagens por inteligência artificial. Ela deve ser interpretada em conjunto com as leis de proteção de dados aplicáveis à pessoa e à operação, incluindo, quando pertinente, a LGPD, o GDPR/UK GDPR e outras normas locais. Nenhum texto único substitui as obrigações específicas que possam existir em cada jurisdição.</p></div>
+<div class="notice"><i class="fa-solid fa-circle-info" aria-hidden="true"></i><strong>Importante:</strong> esta página é uma declaração informativa inicial, não uma garantia de conformidade legal. Antes do lançamento público, os responsáveis devem confirmar os fluxos reais de dados, fornecedores, prazos de retenção e obrigações legais aplicáveis.</div>
+<h2>1. Quem opera o serviço</h2>
+<p>O projeto é publicado sob a identidade ErikrafT e destina-se a usuários internacionalmente. Para questões de privacidade ou exercício de direitos, utilize os canais oficiais disponibilizados em <a href="https://erikraft.com/">erikraft.com</a>. O responsável deve disponibilizar os dados de identificação e contato exigidos pela legislação aplicável em cada mercado atendido.</p>
+<h2>2. Informações tratadas</h2>
+<ul>
+<li><strong>Autenticação:</strong> quando você entra com Google ou GitHub, o Firebase Authentication processa os dados necessários à autenticação. O backend verifica um token de autenticação e utiliza o identificador de usuário (UID) para aplicar limites de uso.</li>
+<li><strong>Prompts e parâmetros:</strong> o texto que você envia, as dimensões escolhidas e as etapas de geração são encaminhados pelo backend ao Hugging Face Space configurado para gerar a imagem.</li>
+<li><strong>Limites e registros técnicos:</strong> o backend usa o Firestore para registrar a contagem e o horário da janela de limite por conta. A Vercel, o Firebase/Google e o Hugging Face podem processar registros técnicos, segurança, diagnósticos e metadados conforme suas configurações e políticas.</li>
+<li><strong>Imagem gerada:</strong> o provedor devolve um resultado ou URL que o site apresenta a você. A disponibilidade e a duração dessa URL dependem do provedor. O site não promete armazenamento permanente, galeria privada ou exclusão de cópias mantidas por terceiros.</li>
+</ul>
+<h2>3. Finalidades e bases legais</h2>
+<p>As informações podem ser tratadas para autenticar usuários, prestar a função de geração, aplicar limites contra abuso, manter a segurança, diagnosticar falhas e cumprir obrigações legais. A base legal deve ser determinada para cada operação e jurisdição, podendo incluir execução de contrato, interesse legítimo quando permitido, consentimento quando exigido e cumprimento de obrigação legal. A menção à LGPD, ao GDPR/UK GDPR ou a outras leis não significa que uma única base legal ou regra seja aplicável a todos os usuários.</p>
+<h2>4. Fornecedores e transferências</h2>
+<p>O serviço integra Firebase Authentication e Firestore (Google/Firebase), infraestrutura e funções da Vercel e um Space hospedado no Hugging Face. Esses fornecedores podem processar dados em diferentes países, sujeitos às suas próprias condições, medidas de segurança e regras de transferência internacional. Consulte as políticas de cada fornecedor. O operador deve verificar contratos, configurações, localização de dados e mecanismos de transferência aplicáveis antes do lançamento.</p>
+<ul>
+<li><a href="https://policies.google.com/privacy" rel="noopener noreferrer">Política de Privacidade do Google</a></li>
+<li><a href="https://vercel.com/legal/privacy-policy" rel="noopener noreferrer">Política de Privacidade da Vercel</a></li>
+<li><a href="https://huggingface.co/privacy" rel="noopener noreferrer">Política de Privacidade do Hugging Face</a></li>
+<li><a href="https://docs.github.com/site-policy/privacy-policies/github-privacy-statement" rel="noopener noreferrer">Declaração de Privacidade do GitHub</a></li>
+</ul>
+<h2>5. Prompts e conteúdo enviado</h2>
+<p>Não inclua senhas, documentos, dados financeiros, dados de saúde, informações confidenciais ou dados pessoais de terceiros nos prompts. O prompt é enviado ao provedor de inferência para executar a geração e, portanto, não deve ser considerado confidencial. Não podemos prometer que o provedor não registre ou processe o conteúdo de acordo com sua própria infraestrutura e política.</p>
+<h2>6. Retenção e segurança</h2>
+<p>O sistema usa registros de contagem e horário para impor o limite de geração por conta. Logs operacionais podem existir nos fornecedores. Os prazos efetivos de retenção, backups e exclusão dependem das configurações e políticas desses serviços e precisam ser confirmados pelo operador. São adotadas medidas técnicas razoáveis no código, mas nenhum sistema é completamente seguro e não é possível garantir segurança absoluta.</p>
+<h2>7. Seus direitos</h2>
+<p>Conforme a legislação aplicável à sua localização e ao tratamento, você pode ter direitos como confirmação, acesso, correção, eliminação, portabilidade, oposição, restrição do tratamento, informação sobre compartilhamento e revisão de determinadas decisões automatizadas. O alcance, os prazos, as exceções e os meios de exercício variam por jurisdição. No Brasil, podem aplicar-se os direitos previstos na LGPD; no Espaço Econômico Europeu e no Reino Unido, podem aplicar-se os regimes GDPR correspondentes; outros países podem prever direitos diferentes. Para exercer direitos, entre em contato pelos canais oficiais do projeto. Poderemos precisar verificar sua identidade e esclarecer quais dados estão sob nosso controle. Pedidos relativos a dados mantidos diretamente por terceiros também podem precisar ser encaminhados a esses fornecedores.</p>
+<h2>8. Crianças e adolescentes</h2>
+<p>O serviço não deve ser utilizado por crianças sem a autorização e supervisão exigidas pela legislação aplicável. Se o tratamento envolver crianças ou adolescentes, deverão ser observadas as regras específicas de proteção, o melhor interesse e eventuais requisitos de consentimento. O operador deve definir e implementar uma política de idade e mecanismos apropriados antes do lançamento público.</p>
+<h2>9. Cookies e tecnologias semelhantes</h2>
+<p>O site pode utilizar mecanismos de sessão e armazenamento necessários à autenticação e ao funcionamento. Os fornecedores de autenticação e hospedagem podem usar tecnologias adicionais conforme a configuração. Se forem introduzidos cookies não essenciais, análises ou publicidade, esta Política deverá ser atualizada e os consentimentos exigidos deverão ser obtidos.</p>
+<h2>10. Alterações e contato</h2>
+<p>Esta Política pretende informar usuários em todo o mundo, sem afastar normas obrigatórias de proteção de dados, privacidade, defesa do consumidor ou outras leis da jurisdição aplicável. Quando normas locais concederem direitos ou impuserem deveres adicionais, essas normas prevalecerão na medida exigida. Esta Política pode ser atualizada para refletir mudanças no serviço ou na legislação; a versão vigente será publicada nesta página com a data de atualização. O uso continuado não substitui o consentimento quando ele for legalmente exigido.</p>
+<footer class="foot"><p>Esta página não constitui aconselhamento jurídico nem garante conformidade integral com todas as leis. O operador deve revisar o texto com profissional jurídico qualificado, confirmar os fatos técnicos e preencher os dados de contato aplicáveis.</p><a href="/terms.html"><i class="fa-solid fa-file-contract" aria-hidden="true"></i> Termos de Uso</a><a href="/"><i class="fa-solid fa-house" aria-hidden="true"></i> Início</a></footer>
+</main>
+</body>
+</html>
