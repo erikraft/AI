@@ -1,0 +1,12 @@
+{
+  "name": "erikraft-ai-image-studio",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Prompt-based AI image generation website using aoxo/flux.1dev-abliterated",
+  "engines": { "node": ">=20" },
+  "dependencies": {
+    "@gradio/client": "^1.15.0",
+    "firebase-admin": "^13.4.0"
+  }
+}
