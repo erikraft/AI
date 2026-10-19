@@ -26,3 +26,4 @@ jobs:
           repo_type: space
           space_sdk: gradio
           private: true
+          subdirectory: huggingface

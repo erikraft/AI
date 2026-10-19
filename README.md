@@ -30,7 +30,7 @@ Vercel serves the frontend and API proxy. It does **not** load PyTorch or FLUX w
 - `assets/js/firebase-config.js` — Firebase Web app configuration used by the browser.
 - `assets/js/firebase-config.js.example` — template for reference.
 - `api/generate.js` — authenticated generation endpoint and Firestore quota enforcement.
-- `app.py` and `requirements.txt` — Gradio Space entry point and Python dependencies.
+- `huggingface/app.py`, `huggingface/requirements.txt`, and `huggingface/README.md` — Gradio Space entry point, dependencies, and Space metadata. The GitHub Actions workflow syncs only this directory to Hugging Face, keeping Python entrypoint files out of Vercel's project root.
 - `vercel.json` — static-site response headers.
 
 ## 1. Firebase configuration
@@ -54,7 +54,7 @@ The current static frontend imports the modular Firebase SDK from Google's offic
 
 ## 2. Hugging Face Space
 
-The root `app.py` targets `aoxo/flux.1dev-abliterated`. Create a Space configured for Gradio and select eligible ZeroGPU/free hardware if available. Test an actual generation in the Space before connecting the website. FLUX is a large model and may exceed free hardware limits; GPU access, queue times, quotas, memory, and model compatibility are controlled by Hugging Face. Free and unlimited inference is not guaranteed.
+The Gradio Space source lives in `huggingface/` and targets `aoxo/flux.1dev-abliterated`. The workflow `.github/workflows/sync-to-huggingface.yml` syncs only this directory to `ErikrafT/erikraft-ai`, keeping the Python entrypoint out of Vercel's project root. Create a Space configured for Gradio and select eligible ZeroGPU/free hardware if available. Test an actual generation in the Space before connecting the website. FLUX is a large model and may exceed free hardware limits; GPU access, queue times, quotas, memory, and model compatibility are controlled by Hugging Face. Free and unlimited inference is not guaranteed.
 
 The Space endpoint used by `@gradio/client` is `/generate_image`, with inputs in this order: prompt (string), width (integer), height (integer), steps (integer). If the Space is hosted in another repository, set `HF_SPACE_ID` to its `owner/space-name` and ensure the app exposes the same endpoint and inputs.
 
