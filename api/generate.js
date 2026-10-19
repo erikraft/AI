@@ -19,8 +19,8 @@ function getAdminApp() {
 
 function getClientIp(req) {
   // Vercel's proxy-populated forwarding headers are used; raw addresses are never stored.
-  const forwarded = req.headers["x-vercel-forwarded-for"] || req.headers["x-forwarded-for"];
-  const candidate = Array.isArray(forwarded) ? forwarded[0] : String(forwarded || "").split(",")[0];
+  const forwarded = req.headers["x-vercel-forwarded-for"] || req.headers["x-real-ip"] || req.headers["x-forwarded-for"];
+  const candidate = Array.isArray(forwarded) ? forwarded[forwarded.length - 1] : String(forwarded || "").split(",").map(value => value.trim()).filter(Boolean).at(-1);
   return (candidate || "unknown").trim().slice(0, 128) || "unknown";
 }
 
@@ -61,7 +61,7 @@ export default async function handler(req, res) {
     const db = getFirestore(app);
     const isAnonymous = !user;
     const limit = isAnonymous ? ANONYMOUS_MAX_PER_WINDOW : ACCOUNT_MAX_PER_WINDOW;
-    const key = isAnonymous ? "ip_" + anonymousRateLimitId(getClientIp(req)) : "user_" + user.uid;
+    const key = isAnonymous ? "ip_" + anonymousRateLimitId(getClientIp(req)) : user.uid;
     const ref = db.collection("generation_limits").doc(key);
     const now = Date.now();
     const reservation = await db.runTransaction(async (tx) => {
