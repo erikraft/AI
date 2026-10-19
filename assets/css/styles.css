@@ -30,3 +30,6 @@
 .donation-note{max-width:1000px;margin:18px auto 0;color:var(--muted);font-size:12px;line-height:1.7}
 @media(max-width:800px){.wallet-grid{grid-template-columns:1fr}.wallet-card{grid-template-columns:minmax(0,1fr) minmax(110px,160px)}.language-picker select{max-width:115px}}
 @media(max-width:520px){.topbar{flex-wrap:wrap;gap:10px}.topbar nav{order:3;width:100%;overflow-x:auto}.language-picker{padding:5px}.language-picker img{width:20px;height:14px}.language-picker select{max-width:92px;font-size:11px}.account-area{margin-left:auto}.donation-heading{gap:12px}.bitcoin-logo{width:42px;height:42px}.wallet-card{padding:14px;grid-template-columns:minmax(0,1fr) minmax(95px,125px);gap:10px}.wallet-info code{font-size:10px}.copy-wallet,.bitcoin-uri-link{font-size:11px;padding:8px}.qr-wrap{padding:5px}}
+
+/* Google sign-in provider brand icon */
+.google-provider-icon{width:26px;height:26px;display:block;flex:0 0 26px}
