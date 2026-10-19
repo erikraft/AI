@@ -1,0 +1,9 @@
+// Copie este arquivo para firebase-config.js e preencha com as credenciais Web
+// do seu projeto Firebase. A configuração Web não é um segredo; proteja os dados
+// usando Firebase Authentication, regras do Firestore e restrições de API.
+window.ERIKRAFT_FIREBASE_CONFIG = {
+  apiKey: "YOUR_FIREBASE_WEB_API_KEY",
+  authDomain: "YOUR_PROJECT.firebaseapp.com",
+  projectId: "YOUR_PROJECT_ID",
+  appId: "YOUR_FIREBASE_APP_ID"
+};

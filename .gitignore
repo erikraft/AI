@@ -1,0 +1,19 @@
+# Local Firebase web configuration
+assets/js/firebase-config.js
+
+# Secrets and local environment
+.env
+.env.*
+!.env.example
+service-account*.json
+firebase-adminsdk*.json
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Node
+node_modules/
+.vercel/
