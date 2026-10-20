@@ -184,7 +184,6 @@ function updateModelSelection() {
   $("aspect").disabled = qwythos;
   $("generate").querySelector("span").textContent = languageText(qwythos ? "qwythos_button" : "generate");
   $("model-help").textContent = languageText(qwythos ? "qwythos_help" : "model_help");
-  updateQwythosButton();
   $("result-title").textContent = languageText(qwythos ? "qwythos_result_title" : "result_title");
   $("download").classList.toggle("hidden", qwythos);
   if (!qwythos) { $("qwythos-result-text").classList.add("hidden"); $("empty-result").classList.remove("hidden"); $("result-status").textContent = languageText("ready_status"); }
