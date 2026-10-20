@@ -1,16 +1,23 @@
-# Qwythos model compatibility
+# Model compatibility and selector behavior
 
-## Model identity
+## Image generation: FLUX
 
-Requested checkpoint: [fluffy12222/Qwythos-9B-Claude-Mythos-5-1M-heretic-abliterated](https://huggingface.co/fluffy12222/Qwythos-9B-Claude-Mythos-5-1M-heretic-abliterated).
+- Model: [`aoxo/flux.1dev-abliterated`](https://huggingface.co/aoxo/flux.1dev-abliterated)
+- Task: text-to-image
+- Pipeline: Diffusers `DiffusionPipeline`
+- Endpoint: `/generate_image`
 
-The Hugging Face model page identifies this checkpoint as a 9B-parameter `qwen3_5` model and does not provide a verified Diffusers image-generation pipeline or working image-generation example. It must not be passed to the existing `DiffusionPipeline.from_pretrained` image endpoint as if it were a compatible replacement for `aoxo/flux.1dev-abliterated`.
+This remains the active image-generation model and is not replaced by Qwythos.
 
-## Safe integration boundary
+## Prompt improvement: Qwythos
 
-- Keep `aoxo/flux.1dev-abliterated` as the active image-generation model.
-- Do not silently replace the current image model or claim Qwythos generates images until its actual task and supported inference path are confirmed.
-- Qwythos may be integrated as a separate text/prompt assistant in the same Space, but that requires its own Transformers loading path, endpoint, memory budget, and testing. Its 9B weights are roughly 18.8 GB on the Hub before runtime overhead; free ZeroGPU compatibility is not guaranteed.
-- The two models must be selected by task, not exposed as interchangeable image-generation choices.
+- Model: [`fluffy12222/Qwythos-9B-Claude-Mythos-5-1M-heretic-abliterated`](https://huggingface.co/fluffy12222/Qwythos-9B-Claude-Mythos-5-1M-heretic-abliterated)
+- Architecture: `qwen3_5`, approximately 9.4B parameters and 18.8 GB of BF16 weights on the Hub
+- Endpoint: `/generate_prompt`
+- Task in this implementation: text-only prompt improvement with Transformers
 
-This note records the compatibility constraint so future changes do not break the existing FLUX endpoint.
+Although the Hub currently tags the checkpoint as `image-text-to-image`, the model page has no verified image-decoder pipeline or working image-generation example. Official Qwen3.5 Transformers documentation demonstrates text generation and multimodal input/understanding, not image synthesis. The site therefore does not falsely advertise Qwythos as a second image generator. Users can select its full model ID to improve a prompt, then switch to FLUX to render an image.
+
+## Runtime constraints
+
+The Space loads one checkpoint on demand and unloads the other to reduce memory use. This does not guarantee that Qwythos will fit the current Space hardware: its BF16 weights alone are about 18.8 GB, before activations, KV cache, Python, and other runtime overhead. Free hardware may not have enough RAM/VRAM or execution time. Validate actual Space logs and inference after deploying; if it fails from memory/runtime limits, upgrade hardware or use a suitable quantized checkpoint rather than silently breaking FLUX.
