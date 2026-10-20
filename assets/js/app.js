@@ -262,7 +262,7 @@ $("generator-form").addEventListener("submit", async (event) => {
     $("result-status").className = "result-status status-error";
   } finally {
     button.disabled = false;
-    button.querySelector("span").textContent = languageText("generate");
+    button.querySelector("span").textContent = languageText(modelSelect.value === QWYTHOS_MODEL ? "qwythos_image_button" : "generate");
   }
 });
 $("download").addEventListener("click", async () => {
