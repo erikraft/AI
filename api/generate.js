@@ -88,7 +88,7 @@ export default async function handler(req, res) {
       });
     }
 
-    const { prompt, model = "aoxo/flux.1dev-abliterated", width = 768, height = 768, steps = 20 } = req.body || {};
+    const { prompt, model = "aoxo/flux.1dev-abliterated", width = 768, height = 768, steps = 20, referenceImage = null } = req.body || {};
     if (typeof prompt !== "string" || !prompt.trim() || prompt.trim().length > MAX_PROMPT_LENGTH) {
       return res.status(400).json({
         error: localized(req, "O prompt deve ter entre 1 e 1500 caracteres.", "The prompt must contain between 1 and 1500 characters.")
@@ -96,6 +96,9 @@ export default async function handler(req, res) {
     }
 
     const allowedModels = new Set(["aoxo/flux.1dev-abliterated", "fluffy12222/Qwythos-9B-Claude-Mythos-5-1M-heretic-abliterated"]);
+    if (referenceImage !== null && (model !== "fluffy12222/Qwythos-9B-Claude-Mythos-5-1M-heretic-abliterated" || typeof referenceImage !== "string" || !/^data:image\/(png|jpeg|webp);base64,/i.test(referenceImage) || referenceImage.length > 4_200_000)) {
+      return res.status(400).json({ error: localized(req, "Imagem inválida. Use PNG, JPG ou WebP de até 3 MB com o modelo Qwythos.", "Invalid image. Use a PNG, JPG, or WebP up to 3 MB with the Qwythos model.") });
+    }
     if (!allowedModels.has(model)) return res.status(400).json({ error: localized(req, "O modelo selecionado não é compatível.", "The selected model is not supported.") });
     const allowedSizes = new Set(["768x768", "1024x768", "768x1024"]);
     if (model === "aoxo/flux.1dev-abliterated" && (!allowedSizes.has(width + "x" + height) || ![20, 28].includes(Number(steps)))) {
@@ -152,11 +155,13 @@ export default async function handler(req, res) {
     phase = "space-generate";
     const isQwythos = model === "fluffy12222/Qwythos-9B-Claude-Mythos-5-1M-heretic-abliterated";
     const result = isQwythos
-      ? await client.predict("/generate_prompt", [prompt.trim(), requestLanguage(req)])
+      ? referenceImage
+        ? await client.predict("/generate_image_from_image", [prompt.trim(), { url: referenceImage }, Number(width), Number(height), Number(steps), requestLanguage(req)])
+        : await client.predict("/generate_prompt", [prompt.trim(), requestLanguage(req)])
       : await client.predict("/generate_image", [prompt.trim(), Number(width), Number(height), Number(steps)]);
 
     const first = result?.data?.[0];
-    if (isQwythos) {
+    if (isQwythos && !referenceImage) {
       const text = typeof first === "string" ? first : (first?.text || first?.value || "");
       if (!text.trim()) {
         await releaseGenerationReservation(db, quotaRef, reservation);
