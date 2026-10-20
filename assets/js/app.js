@@ -184,39 +184,11 @@ function updateModelSelection() {
   $("aspect").disabled = qwythos;
   $("generate").querySelector("span").textContent = languageText(qwythos ? "qwythos_button" : "generate");
   $("model-help").textContent = languageText(qwythos ? "qwythos_help" : "model_help");
-  $("qwythos-image-input").classList.toggle("hidden", !qwythos);
-  updateQwythosButton();
   $("result-title").textContent = languageText(qwythos ? "qwythos_result_title" : "result_title");
   $("download").classList.toggle("hidden", qwythos);
   if (!qwythos) { $("qwythos-result-text").classList.add("hidden"); $("empty-result").classList.remove("hidden"); $("result-status").textContent = languageText("ready_status"); }
 }
 modelSelect.addEventListener("change", updateModelSelection);
-const referenceImageInput = $("reference-image");
-function updateQwythosButton() {
-  const isQwythos = modelSelect.value === QWYTHOS_MODEL;
-  const hasImage = Boolean(referenceImageInput?.files?.[0]);
-  $("generate").querySelector("span").textContent = languageText(isQwythos && hasImage ? "qwythos_image_button" : isQwythos ? "qwythos_button" : "generate");
-}
-referenceImageInput?.addEventListener("change", () => {
-  $("reference-image-error").textContent = "";
-  const file = referenceImageInput.files?.[0];
-  if (file && file.size > 3 * 1024 * 1024) {
-    $("reference-image-error").textContent = languageText("reference_image_too_large");
-    referenceImageInput.value = "";
-  } else if (file && !["image/png", "image/jpeg", "image/webp"].includes(file.type)) {
-    $("reference-image-error").textContent = languageText("reference_image_type");
-    referenceImageInput.value = "";
-  }
-  updateQwythosButton();
-});
-function readImageAsDataUrl(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => typeof reader.result === "string" ? resolve(reader.result) : reject(new Error(languageText("reference_image_read_error")));
-    reader.onerror = () => reject(new Error(languageText("reference_image_read_error")));
-    reader.readAsDataURL(file);
-  });
-}
 promptInput.addEventListener("input", () => $("char-count").textContent = promptInput.value.length + " / 1500");
 $("generator-form").addEventListener("submit", async (event) => {
   event.preventDefault();
@@ -238,13 +210,10 @@ $("generator-form").addEventListener("submit", async (event) => {
   $("result-status").textContent = languageText("validating");
   try {
     const headers = { "Content-Type": "application/json", Authorization: "Bearer " + await currentUser.getIdToken() };
-    const referenceFile = modelSelect.value === QWYTHOS_MODEL ? referenceImageInput.files?.[0] : null;
-    if (referenceFile && referenceFile.size > 3 * 1024 * 1024) throw new Error(languageText("reference_image_too_large"));
-    const referenceImage = referenceFile ? await readImageAsDataUrl(referenceFile) : null;
     const response = await fetch("/api/generate", {
       method: "POST",
       headers,
-      body: JSON.stringify({ prompt, model: modelSelect.value, width: dimensions[0], height: dimensions[1], steps: Number($("quality").value), language: document.documentElement.lang, ...(referenceImage ? { referenceImage } : {}) })
+      body: JSON.stringify({ prompt, model: modelSelect.value, width: dimensions[0], height: dimensions[1], steps: Number($("quality").value), language: document.documentElement.lang })
     });
     const data = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(data.error || languageText("generation_http_error") + " (" + response.status + ").");
