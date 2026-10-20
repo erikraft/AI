@@ -7,12 +7,11 @@ pinned: false
 
 # ErikrafT AI — Hugging Face Space
 
-This Space runs the image-generation backend for the ErikrafT AI website using `aoxo/flux.1dev-abliterated`.
+This single Space exposes two task-specific model endpoints:
 
-The Gradio API endpoint is `/generate_image`. Inputs, in order: prompt, width, height, and inference steps.
+- **Image generation:** `aoxo/flux.1dev-abliterated` via Diffusers at `/generate_image`. Inputs: prompt, width, height, inference steps.
+- **Prompt improvement (text only):** `fluffy12222/Qwythos-9B-Claude-Mythos-5-1M-heretic-abliterated` via Transformers at `/generate_prompt`. Inputs: prompt and language (`pt-BR` or `en`). Qwythos does not return an image; it rewrites the prompt for use with FLUX.
 
-GPU availability, quotas, model compatibility, and queue times depend on Hugging Face hardware and service limits. This Space is not a guarantee of free or unlimited generation.
+Both checkpoints are loaded on demand, and the other model is unloaded to reduce memory pressure. Qwythos has approximately 18.8 GB of BF16 weights before runtime overhead. The Space therefore needs enough RAM/VRAM and a compatible Transformers/PyTorch runtime; free-tier hardware may fail to load or run it, and no free availability is guaranteed.
 
-## Additional model request and compatibility
-
-The requested checkpoint [`fluffy12222/Qwythos-9B-Claude-Mythos-5-1M-heretic-abliterated`](https://huggingface.co/fluffy12222/Qwythos-9B-Claude-Mythos-5-1M-heretic-abliterated) is a 9B-parameter `qwen3_5` Transformers checkpoint (roughly 18.8 GB of weights on the Hub). Its model card is empty and does not provide a verified Diffusers image-generation pipeline or inference example. The current `/generate_image` endpoint therefore continues to use `aoxo/flux.1dev-abliterated`; Qwythos is not exposed as an interchangeable image model. A separate prompt/text endpoint would need its own implementation and hardware validation before being enabled.
+The website's model selector shows the full repository IDs and the actual task for each choice. Provider quotas, hardware availability, queue times, and cold starts depend on Hugging Face.
