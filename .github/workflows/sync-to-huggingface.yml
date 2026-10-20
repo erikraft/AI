@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - fix/qwythos-zerogpu-duration-overhead
   workflow_dispatch:
 
 permissions:
