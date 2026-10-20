@@ -1,0 +1,32 @@
+name: Validate ErikrafT AI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  syntax:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Validate JavaScript syntax
+        run: |
+          node --check assets/js/app.js
+          node --check api/generate.js
+      - name: Validate Hugging Face Python syntax
+        run: python -m py_compile huggingface/app.py
