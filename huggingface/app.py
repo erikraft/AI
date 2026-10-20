@@ -40,7 +40,7 @@ def _load_qwythos():
     if qwythos_model is None or qwythos_tokenizer is None:
         qwythos_tokenizer = AutoTokenizer.from_pretrained(QWYTHOS_MODEL_ID)
         qwythos_model = AutoModelForCausalLM.from_pretrained(
-            QWYTHOS_MODEL_ID, torch_dtype=torch.bfloat16, low_cpu_mem_usage=True, device_map="cpu"
+            QWYTHOS_MODEL_ID, torch_dtype=torch.bfloat16, low_cpu_mem_usage=True
         )
     return qwythos_model, qwythos_tokenizer
 
