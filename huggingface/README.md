@@ -17,6 +17,6 @@ Both checkpoints are loaded on demand, and the other model is unloaded to reduce
 The website's model selector shows the full repository IDs and the actual task for each choice. Provider quotas, hardware availability, queue times, and cold starts depend on Hugging Face.
 
 
-### Reference-image upload status
+### Experimental image + text endpoint
 
-Reference-image processing is disabled until a compatible multimodal pipeline is demonstrated with a successful live inference. The supported Qwythos endpoint is text-only (`/generate_prompt`); FLUX remains the image generator (`/generate_image`).
+The Space exposes `/generate_image_from_image` for the website's reference-image workflow. It attempts Qwythos multimodal interpretation of the uploaded image and instructions, then asks FLUX to render the final image. This endpoint is experimental and may fail if the model architecture, processor, Gradio payload schema, or available RAM/VRAM/GPU time is incompatible. Keep this endpoint and upload feature in place while validating live inference; `/generate_prompt` and `/generate_image` remain independent options.
