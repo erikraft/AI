@@ -177,13 +177,16 @@ const QWYTHOS_MODEL = "fluffy12222/Qwythos-9B-Claude-Mythos-5-1M-heretic-abliter
 function updateModelSelection() {
   const qwythos = modelSelect.value === QWYTHOS_MODEL;
   $("selected-model-label").textContent = modelSelect.value;
+  const english = document.documentElement.lang === "en";
+  modelSelect.options[0].textContent = english ? FLUX_MODEL + " — image generation" : FLUX_MODEL + " — geração de imagens";
+  modelSelect.options[1].textContent = english ? QWYTHOS_MODEL + " — prompt assistant (text)" : QWYTHOS_MODEL + " — assistente de prompt (texto)";
   $("quality").disabled = qwythos;
   $("aspect").disabled = qwythos;
   $("generate").querySelector("span").textContent = languageText(qwythos ? "qwythos_button" : "generate");
   $("model-help").textContent = languageText(qwythos ? "qwythos_help" : "model_help");
   $("result-title").textContent = languageText(qwythos ? "qwythos_result_title" : "result_title");
   $("download").classList.toggle("hidden", qwythos);
-  if (!qwythos) $("qwythos-result-text").classList.add("hidden");
+  if (!qwythos) { $("qwythos-result-text").classList.add("hidden"); $("empty-result").classList.remove("hidden"); $("result-status").textContent = languageText("ready_status"); }
 }
 modelSelect.addEventListener("change", updateModelSelection);
 promptInput.addEventListener("input", () => $("char-count").textContent = promptInput.value.length + " / 1500");
@@ -280,7 +283,7 @@ function setLanguage(language){
   try{localStorage.setItem("erikraft-ai-language",selected);}catch{}
 }
 function languageText(key){return translations[document.documentElement.lang]?.[key]||translations["pt-BR"][key]||key;}
-$("language-select").addEventListener("change",()=>setLanguage($("language-select").value));
+$("language-select").addEventListener("change",()=>{setLanguage($("language-select").value);updateModelSelection();});
 try{const saved=localStorage.getItem("erikraft-ai-language");setLanguage(saved&&translations[saved]?saved:detectBrowserLanguage());}catch{setLanguage(detectBrowserLanguage());}
 updateModelSelection();
 if (!configured) $("studio-auth-error").textContent = languageText("auth_unavailable");
