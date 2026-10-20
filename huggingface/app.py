@@ -9,7 +9,9 @@ from transformers import AutoModelForImageTextToText, AutoProcessor
 
 FLUX_MODEL_ID = "aoxo/flux.1dev-abliterated"
 QWYTHOS_MODEL_ID = "fluffy12222/Qwythos-9B-Claude-Mythos-5-1M-heretic-abliterated"
-MAX_QWYTHOS_GPU_SECONDS = 300
+# The deployed ZeroGPU request surfaced 300 seconds as a 450-second reservation.
+# Keep Qwythos below the observed 300-second ceiling, with headroom for scheduler overhead.
+MAX_QWYTHOS_GPU_SECONDS = 180
 
 pipe = None
 qwythos_vision_model = None
