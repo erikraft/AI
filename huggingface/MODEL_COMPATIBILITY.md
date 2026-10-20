@@ -1,28 +1,28 @@
 # Model compatibility and selector behavior
 
-## Image generation: FLUX
+## FLUX: image synthesis
 
 - Model: [`aoxo/flux.1dev-abliterated`](https://huggingface.co/aoxo/flux.1dev-abliterated)
 - Task: text-to-image
 - Pipeline: Diffusers `DiffusionPipeline`
 - Endpoint: `/generate_image`
+- Maximum requested GPU duration: 120 seconds
 
-This remains the active image-generation model and is not replaced by Qwythos.
+FLUX is responsible for rendering the final pixels, both for ordinary prompts and for prompts interpreted by Qwythos.
 
-## Prompt improvement: Qwythos
+## Qwythos: reference image + instructions
 
 - Model: [`fluffy12222/Qwythos-9B-Claude-Mythos-5-1M-heretic-abliterated`](https://huggingface.co/fluffy12222/Qwythos-9B-Claude-Mythos-5-1M-heretic-abliterated)
 - Architecture: `qwen3_5`, approximately 9.4B parameters and 18.8 GB of BF16 weights on the Hub
-- Endpoint: `/generate_prompt`
-- Task in this implementation: text-only prompt improvement with Transformers
+- Endpoint: `/generate_image_from_image`
+- Inputs: reference image, user instructions, and output language
+- Output: a detailed image-generation prompt, which is sent to the separate FLUX endpoint
+- Maximum requested GPU duration: 300 seconds
 
-Although the Hub currently tags the checkpoint as `image-text-to-image`, the model page has no verified image-decoder pipeline or working image-generation example. Official Qwen3.5 Transformers documentation demonstrates text generation and multimodal input/understanding, not image synthesis. The site therefore does not falsely advertise Qwythos as a second image generator. Users can select its full model ID to improve a prompt, then switch to FLUX to render an image.
+The standalone text-only Qwythos prompt assistant has been removed. Qwythos is now used only to understand a supplied image together with the user's instructions. It does not itself render the final image; FLUX does.
 
-## Runtime constraints
+## GPU duration and memory
 
-The Space loads one checkpoint on demand and unloads the other to reduce memory use. This does not guarantee that Qwythos will fit the current Space hardware: its BF16 weights alone are about 18.8 GB, before activations, KV cache, Python, and other runtime overhead. Free hardware may not have enough RAM/VRAM or execution time. Validate actual Space logs and inference after deploying; if it fails from memory/runtime limits, upgrade hardware or use a suitable quantized checkpoint rather than silently breaking FLUX.
+The previous image + text operation requested 450 seconds in a single GPU reservation, which the Space rejected because it exceeds the allowed maximum. The implementation now runs Qwythos interpretation and FLUX synthesis as two sequential GPU requests, with declared durations of 300 seconds and 120 seconds respectively. No function should request 450 seconds or combine both stages into one 450-second reservation.
 
-
-## Experimental Qwythos image + text workflow
-
-The upload UI and `/generate_image_from_image` endpoint are intentionally retained. The intended pipeline is Qwythos multimodal image/text interpretation → detailed prompt → FLUX image synthesis. It is experimental and still requires a successful live inference to confirm the model architecture, processor, Gradio payload schema, and hardware capacity. Keep the feature available while troubleshooting; clearly communicate errors rather than silently removing the upload mode. Free-tier RAM/VRAM and GPU-time limits may prevent completion.
+Splitting the requests resolves the invalid duration declaration. It does not guarantee that cold model loads or inference finish before each deadline. Qwythos's BF16 weights alone are approximately 18.8 GB, before activations and runtime overhead; the currently available hardware may still be insufficient. Validate the actual Space logs and end-to-end inference after deployment. Do not remove the reference-image workflow merely because a live model or hardware issue still needs diagnosis.
