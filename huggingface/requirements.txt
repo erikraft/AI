@@ -1,5 +1,5 @@
 diffusers>=0.35.0,<1.0.0
-transformers>=4.57.0,<5.0.0
+transformers>=5.2.0,<6.0.0
 accelerate>=1.10.0,<2.0.0
 safetensors
 gradio>=5.45.0,<7.0.0
