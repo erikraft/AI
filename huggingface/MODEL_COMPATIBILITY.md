@@ -23,10 +23,6 @@ Although the Hub currently tags the checkpoint as `image-text-to-image`, the mod
 The Space loads one checkpoint on demand and unloads the other to reduce memory use. This does not guarantee that Qwythos will fit the current Space hardware: its BF16 weights alone are about 18.8 GB, before activations, KV cache, Python, and other runtime overhead. Free hardware may not have enough RAM/VRAM or execution time. Validate actual Space logs and inference after deploying; if it fails from memory/runtime limits, upgrade hardware or use a suitable quantized checkpoint rather than silently breaking FLUX.
 
 
-## Experimental Qwythos image + text
+## Reference-image upload status
 
-- Intended UI: optional reference image plus user instructions.
-- Runtime path: Qwythos multimodal image/text interpretation → prompt text → FLUX image synthesis.
-- The public `image-text-to-image` tag alone is not treated as proof of a working native image decoder. The pipeline is experimental until a live inference succeeds.
-- Expected dependencies: a Transformers version that exposes `AutoModelForImageTextToText` and `AutoProcessor` for this repository's `qwen3_5` architecture, plus enough RAM/VRAM to load the model.
-- FLUX text-to-image remains the independent default path.
+Reference-image processing is disabled until the model architecture, processor, Gradio payload schema, and hardware requirements are validated by a successful live inference. Do not enable the upload UI or call an image-to-image endpoint until those tests pass.
