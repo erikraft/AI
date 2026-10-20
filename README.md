@@ -1,6 +1,6 @@
 # ErikrafT AI
 
-A prompt-based AI image generation website with a responsive dark interface. The selected model is **`aoxo/flux.1dev-abliterated`**.
+A prompt-based AI image generation website with a responsive dark interface. The image-generation model is **`aoxo/flux.1dev-abliterated`**. The same Hugging Face Space also exposes **`fluffy12222/Qwythos-9B-Claude-Mythos-5-1M-heretic-abliterated`** as a text-only prompt-improvement assistant; it is not advertised as a second image generator.
 
 - **Frontend:** static HTML/CSS/JavaScript, deployable on Vercel.
 - **Authentication:** Firebase Authentication with Google, GitHub, and email/password; email/password accounts must verify their address before generating images.
@@ -95,3 +95,8 @@ Review the model card and upstream FLUX.1-dev terms before commercial use; do no
 
 
 Email/password registration sends a Firebase verification email and signs the newly created account out until the address is verified. The generation API independently rejects password-provider tokens whose `email_verified` claim is not `true`. Firebase Authentication handles verification; no separate application database is required for that step.
+
+
+## Model selector
+
+The UI lists both full Hugging Face model IDs. Select `aoxo/flux.1dev-abliterated` to generate an image. Select `fluffy12222/Qwythos-9B-Claude-Mythos-5-1M-heretic-abliterated` to rewrite/improve the prompt as text, then switch back to FLUX to render it. Qwythos has about 18.8 GB of BF16 weights before runtime overhead; the Space may require more capable hardware than the free tier provides. See [model compatibility](huggingface/MODEL_COMPATIBILITY.md).
