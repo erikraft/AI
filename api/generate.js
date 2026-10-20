@@ -79,9 +79,9 @@ export default async function handler(req, res) {
     }
 
     const signInProvider = user.firebase?.sign_in_provider;
-    if (!["google.com", "github.com"].includes(signInProvider)) {
+    if (!["google.com", "github.com", "password"].includes(signInProvider)) {
       return res.status(403).json({
-        error: localized(req, "Use uma conta conectada pelo Google ou GitHub para gerar imagens.", "Use an account signed in with Google or GitHub to generate images.")
+        error: localized(req, "Use Google, GitHub ou e-mail e senha para gerar imagens.", "Use Google, GitHub, or email and password to generate images.")
       });
     }
 
