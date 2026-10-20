@@ -44,8 +44,14 @@ def _load_flux():
     return pipe
 
 def _load_qwythos():
-    global qwythos_model, qwythos_tokenizer
+    global qwythos_model, qwythos_tokenizer, qwythos_vision_model, qwythos_processor
     _clear_models("qwythos")
+    if qwythos_vision_model is not None:
+        del qwythos_vision_model
+        qwythos_vision_model = None
+    if qwythos_processor is not None:
+        del qwythos_processor
+        qwythos_processor = None
     if qwythos_model is None or qwythos_tokenizer is None:
         qwythos_tokenizer = AutoTokenizer.from_pretrained(QWYTHOS_MODEL_ID)
         qwythos_model = AutoModelForCausalLM.from_pretrained(
@@ -85,6 +91,15 @@ def generate_image_from_image(prompt: str, reference_image: Image.Image, width: 
         raise gr.Error("Unsupported image settings.")
     language = "en" if str(language).lower().startswith("en") else "pt-BR"
     _clear_models("qwythos")
+    if qwythos_model is not None:
+        del qwythos_model
+        qwythos_model = None
+    if qwythos_tokenizer is not None:
+        del qwythos_tokenizer
+        qwythos_tokenizer = None
+    gc.collect()
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
     if qwythos_vision_model is None or qwythos_processor is None:
         try:
             qwythos_processor = AutoProcessor.from_pretrained(QWYTHOS_MODEL_ID)
