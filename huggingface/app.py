@@ -87,7 +87,7 @@ def generate_prompt(prompt: str, language: str = "pt-BR"):
         generated = tokenizer.decode(output[0][inputs["input_ids"].shape[-1]:], skip_special_tokens=True).strip()
         if not generated:
             raise gr.Error("Qwythos returned an empty prompt.")
-        return generated[:4000]
+        return generated[:1500]
     finally:
         model.to("cpu")
         del inputs
