@@ -328,20 +328,72 @@ document.querySelectorAll(".copy-wallet").forEach(button=>button.addEventListene
 }));
 function renderBitcoinQrs(){
   const hosts=[...document.querySelectorAll(".bitcoin-qr-host")];
-  const markUnavailable=()=>hosts.forEach(host=>{host.setAttribute("aria-label","QR code unavailable. Use the visible Bitcoin address or open it in your wallet.");host.classList.add("qr-unavailable");host.textContent="";});
-  const draw=()=>{
-    if(typeof window.QRCodeStyling!=="function"){markUnavailable();return;}
-    hosts.forEach(host=>{
-      const address=host.dataset.address;
-      if(!address)return;
-      host.replaceChildren();
+  if(!hosts.length)return;
+  const addresses=hosts.map(host=>({host,address:host.dataset.address})).filter(item=>item.address);
+  const renderWithStyling=(includeLogo)=>{
+    if(typeof window.QRCodeStyling!=="function")return false;
+    let rendered=false;
+    for(const {host,address} of addresses){
       try{
-        const qr=new window.QRCodeStyling({width:440,height:440,type:"svg",data:"bitcoin:"+address,image:"/assets/bitcoin-logo.svg",margin:10,qrOptions:{errorCorrectionLevel:"H",typeNumber:0,mode:"Byte"},dotsOptions:{color:"#0a090b",type:"square"},cornersSquareOptions:{color:"#0a090b",type:"square"},cornersDotOptions:{color:"#0a090b",type:"square"},backgroundOptions:{color:"#ffffff"},imageOptions:{hideBackgroundDots:true,imageSize:0.22,margin:5,crossOrigin:"anonymous",saveAsBlob:true}});
-        qr.append(host);host.setAttribute("aria-label","Bitcoin payment QR code with Bitcoin logo. Amount is not preset.");host.classList.remove("qr-unavailable");
-      }catch(error){console.error("Unable to render Bitcoin QR code:",error);host.setAttribute("aria-label","QR code unavailable. Use the visible Bitcoin address or open it in your wallet.");host.classList.add("qr-unavailable");}
-    });
+        host.replaceChildren();
+        const options={width:440,height:440,type:"svg",data:"bitcoin:"+address,margin:10,qrOptions:{errorCorrectionLevel:"H",typeNumber:0,mode:"Byte"},dotsOptions:{color:"#0a090b",type:"square"},cornersSquareOptions:{color:"#0a090b",type:"square"},cornersDotOptions:{color:"#0a090b",type:"square"},backgroundOptions:{color:"#ffffff"}};
+        if(includeLogo){
+          options.image="/assets/bitcoin-logo.svg";
+          options.imageOptions={hideBackgroundDots:true,imageSize:0.18,margin:5,crossOrigin:"anonymous",saveAsBlob:false};
+        }
+        const qr=new window.QRCodeStyling(options);
+        qr.append(host);
+        host.setAttribute("aria-label",includeLogo?"Bitcoin donation QR code with Bitcoin logo":"Bitcoin donation QR code");
+        host.classList.remove("qr-unavailable");
+        rendered=true;
+      }catch(error){console.error("Bitcoin QR render failed:",error);host.replaceChildren();}
+    }
+    return rendered;
   };
-  if(typeof window.QRCodeStyling==="function"){draw();return;}
-  const fallback=document.createElement("script");fallback.src="https://unpkg.com/qr-code-styling@1.9.2/lib/qr-code-styling.js";fallback.async=true;fallback.onload=draw;fallback.onerror=markUnavailable;document.head.appendChild(fallback);
+  const renderLegacy=()=>{
+    if(typeof window.QRCode!=="function")return false;
+    let rendered=false;
+    for(const {host,address} of addresses){
+      try{
+        host.replaceChildren();
+        host.style.position="relative";
+        const target=document.createElement("div");
+        target.className="bitcoin-qr-legacy";
+        target.style.cssText="width:100%;aspect-ratio:1;display:grid;place-items:center";
+        host.appendChild(target);
+        new window.QRCode(target,{text:"bitcoin:"+address,width:440,height:440,colorDark:"#0a090b",colorLight:"#ffffff",correctLevel:window.QRCode.CorrectLevel.H});
+        const logo=document.createElement("img");
+        logo.src="/assets/bitcoin-logo.svg";logo.alt="";logo.setAttribute("aria-hidden","true");
+        logo.style.cssText="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:18%;height:18%;padding:5px;background:#fff;border-radius:5px;object-fit:contain;pointer-events:none";
+        host.appendChild(logo);
+        host.setAttribute("aria-label","Bitcoin donation QR code with Bitcoin logo");
+        host.classList.remove("qr-unavailable");
+        rendered=true;
+      }catch(error){console.error("Legacy Bitcoin QR render failed:",error);host.replaceChildren();}
+    }
+    return rendered;
+  };
+  const markUnavailable=()=>addresses.forEach(({host})=>{host.setAttribute("aria-label","QR code unavailable. Use the visible Bitcoin address or open it in your wallet.");host.classList.add("qr-unavailable");});
+  const finish=()=>{
+    // Prefer a QR without an embedded image if the logo-based render fails.
+    if(renderWithStyling(true))return;
+    if(renderWithStyling(false))return;
+    if(renderLegacy())return;
+    markUnavailable();
+  };
+  if(typeof window.QRCodeStyling==="function"){finish();return;}
+  const loadScript=(src,onload,onerror)=>{
+    const script=document.createElement("script");script.src=src;script.async=true;script.onload=onload;script.onerror=onerror;document.head.appendChild(script);
+  };
+  loadScript("https://cdn.jsdelivr.net/npm/qr-code-styling@1.9.2/lib/qr-code-styling.js",()=>{
+    if(typeof window.QRCodeStyling==="function"){finish();return;}
+    loadLegacy();
+  },loadLegacy);
+  function loadLegacy(){
+    if(typeof window.QRCode==="function"){if(!renderLegacy())markUnavailable();return;}
+    loadScript("https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js",()=>{
+      if(!renderLegacy())markUnavailable();
+    },markUnavailable);
+  }
 }
 renderBitcoinQrs();
