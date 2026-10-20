@@ -23,6 +23,6 @@ Although the Hub currently tags the checkpoint as `image-text-to-image`, the mod
 The Space loads one checkpoint on demand and unloads the other to reduce memory use. This does not guarantee that Qwythos will fit the current Space hardware: its BF16 weights alone are about 18.8 GB, before activations, KV cache, Python, and other runtime overhead. Free hardware may not have enough RAM/VRAM or execution time. Validate actual Space logs and inference after deploying; if it fails from memory/runtime limits, upgrade hardware or use a suitable quantized checkpoint rather than silently breaking FLUX.
 
 
-## Reference-image upload status
+## Experimental Qwythos image + text workflow
 
-Reference-image processing is disabled until the model architecture, processor, Gradio payload schema, and hardware requirements are validated by a successful live inference. Do not enable the upload UI or call an image-to-image endpoint until those tests pass.
+The upload UI and `/generate_image_from_image` endpoint are intentionally retained. The intended pipeline is Qwythos multimodal image/text interpretation → detailed prompt → FLUX image synthesis. It is experimental and still requires a successful live inference to confirm the model architecture, processor, Gradio payload schema, and hardware capacity. Keep the feature available while troubleshooting; clearly communicate errors rather than silently removing the upload mode. Free-tier RAM/VRAM and GPU-time limits may prevent completion.
