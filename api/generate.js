@@ -244,6 +244,14 @@ export default async function handler(req, res) {
       });
     }
 
+    if (/requested gpu duration|larger than the maximum allowed/.test(normalized)) {
+      return res.status(503).json({
+        error: localized(req,
+          "O Space do Hugging Face parece estar executando uma versão antiga que solicita mais tempo de GPU do que o permitido. Confirme se a sincronização do Space foi concluída e tente novamente.",
+          "The Hugging Face Space appears to be running an older revision that requests more GPU time than allowed. Verify that the Space sync completed, then try again.")
+      });
+    }
+
     if (/quota|rate.?limit|too many requests|resource exhausted|gpu.?time|\b429\b/.test(normalized)) {
       return res.status(429).json({
         error: localized(req,
