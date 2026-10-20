@@ -15,3 +15,8 @@ This single Space exposes two task-specific model endpoints:
 Both checkpoints are loaded on demand, and the other model is unloaded to reduce memory pressure. Qwythos has approximately 18.8 GB of BF16 weights before runtime overhead. The Space therefore needs enough RAM/VRAM and a compatible Transformers/PyTorch runtime; free-tier hardware may fail to load or run it, and no free availability is guaranteed.
 
 The website's model selector shows the full repository IDs and the actual task for each choice. Provider quotas, hardware availability, queue times, and cold starts depend on Hugging Face.
+
+
+### Experimental image + text mode
+
+The Qwythos option accepts an optional PNG/JPEG/WebP reference image (up to 3 MB) together with the user's text. The Space attempts multimodal interpretation with Qwythos, then uses `aoxo/flux.1dev-abliterated` to render the final image. This is an experimental two-stage workflow, **not a verified claim that Qwythos itself synthesizes the output pixels**. The model's Transformers architecture, processor, free-tier RAM/VRAM, and Gradio input schema must be validated in the live Space; failures should be reported through the Space logs. FLUX's normal text-to-image flow remains unchanged.
