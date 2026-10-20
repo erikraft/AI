@@ -88,15 +88,17 @@ export default async function handler(req, res) {
       });
     }
 
-    const { prompt, width = 768, height = 768, steps = 20 } = req.body || {};
+    const { prompt, model = "aoxo/flux.1dev-abliterated", width = 768, height = 768, steps = 20 } = req.body || {};
     if (typeof prompt !== "string" || !prompt.trim() || prompt.trim().length > MAX_PROMPT_LENGTH) {
       return res.status(400).json({
         error: localized(req, "O prompt deve ter entre 1 e 1500 caracteres.", "The prompt must contain between 1 and 1500 characters.")
       });
     }
 
+    const allowedModels = new Set(["aoxo/flux.1dev-abliterated", "fluffy12222/Qwythos-9B-Claude-Mythos-5-1M-heretic-abliterated"]);
+    if (!allowedModels.has(model)) return res.status(400).json({ error: localized(req, "O modelo selecionado não é compatível.", "The selected model is not supported.") });
     const allowedSizes = new Set(["768x768", "1024x768", "768x1024"]);
-    if (!allowedSizes.has(width + "x" + height) || ![20, 28].includes(Number(steps))) {
+    if (model === "aoxo/flux.1dev-abliterated" && (!allowedSizes.has(width + "x" + height) || ![20, 28].includes(Number(steps)))) {
       return res.status(400).json({
         error: localized(req, "A configuração da imagem é inválida.", "The image settings are invalid.")
       });
@@ -148,14 +150,21 @@ export default async function handler(req, res) {
     const client = await Client.connect(spaceId, clientOptions);
 
     phase = "space-generate";
-    const result = await client.predict("/generate_image", [
-      prompt.trim(),
-      Number(width),
-      Number(height),
-      Number(steps)
-    ]);
+    const isQwythos = model === "fluffy12222/Qwythos-9B-Claude-Mythos-5-1M-heretic-abliterated";
+    const result = isQwythos
+      ? await client.predict("/generate_prompt", [prompt.trim(), requestLanguage(req)])
+      : await client.predict("/generate_image", [prompt.trim(), Number(width), Number(height), Number(steps)]);
 
     const first = result?.data?.[0];
+    if (isQwythos) {
+      const text = typeof first === "string" ? first : (first?.text || first?.value || "");
+      if (!text.trim()) {
+        await releaseGenerationReservation(db, quotaRef, reservation);
+        reservation = null;
+        return res.status(502).json({ error: localized(req, "Qwythos não retornou texto. Verifique o estado do Space e tente novamente.", "Qwythos returned no text. Check the Space status and try again.") });
+      }
+      return res.status(200).json({ text: text.trim(), model, limit, remaining: Math.max(0, limit - reservation.count), tier: "account" });
+    }
     const imageUrl = typeof first === "string"
       ? first
       : (first?.url || first?.path || first?.image?.url);
