@@ -6,6 +6,8 @@ import { Client } from "@gradio/client";
 const WINDOW_MS = 60 * 60 * 1000;
 const ACCOUNT_MAX_PER_WINDOW = 5;
 const MAX_PROMPT_LENGTH = 1500;
+const FLUX_MODEL_ID = "aoxo/flux.1dev-abliterated";
+const QWYTHOS_MODEL_ID = "fluffy12222/Qwythos-9B-Claude-Mythos-5-1M-heretic-abliterated";
 
 function getAdminApp() {
   if (getApps().length) return getApps()[0];
@@ -95,13 +97,19 @@ export default async function handler(req, res) {
       });
     }
 
-    const allowedModels = new Set(["aoxo/flux.1dev-abliterated", "fluffy12222/Qwythos-9B-Claude-Mythos-5-1M-heretic-abliterated"]);
-    if (referenceImage !== null && (model !== "fluffy12222/Qwythos-9B-Claude-Mythos-5-1M-heretic-abliterated" || typeof referenceImage !== "string" || !/^data:image\/(png|jpeg|webp);base64,/i.test(referenceImage) || referenceImage.length > 4_200_000)) {
-      return res.status(400).json({ error: localized(req, "Imagem inválida. Use PNG, JPG ou WebP de até 3 MB com o modelo Qwythos.", "Invalid image. Use a PNG, JPG, or WebP up to 3 MB with the Qwythos model.") });
-    }
+    const allowedModels = new Set([FLUX_MODEL_ID, QWYTHOS_MODEL_ID]);
+    const isQwythos = model === QWYTHOS_MODEL_ID;
     if (!allowedModels.has(model)) return res.status(400).json({ error: localized(req, "O modelo selecionado não é compatível.", "The selected model is not supported.") });
+    if (isQwythos && !referenceImage) {
+      return res.status(400).json({
+        error: localized(req, "Envie uma imagem de referência para usar Qwythos com instruções.", "Upload a reference image to use Qwythos with instructions.")
+      });
+    }
+    if (referenceImage !== null && (!isQwythos || typeof referenceImage !== "string" || !/^data:image\/(png|jpeg|webp);base64,/i.test(referenceImage) || referenceImage.length > 4_200_000)) {
+      return res.status(400).json({ error: localized(req, "Imagem inválida. Use PNG, JPG ou WebP de até 3 MB com o modo Qwythos imagem + instruções.", "Invalid image. Use a PNG, JPG, or WebP up to 3 MB with Qwythos image + instructions mode.") });
+    }
     const allowedSizes = new Set(["768x768", "1024x768", "768x1024"]);
-    if (model === "aoxo/flux.1dev-abliterated" && (!allowedSizes.has(width + "x" + height) || ![20, 28].includes(Number(steps)))) {
+    if (!allowedSizes.has(width + "x" + height) || ![20, 28].includes(Number(steps))) {
       return res.status(400).json({
         error: localized(req, "A configuração da imagem é inválida.", "The image settings are invalid.")
       });
@@ -152,24 +160,37 @@ export default async function handler(req, res) {
     const clientOptions = process.env.HF_TOKEN ? { token: process.env.HF_TOKEN } : {};
     const client = await Client.connect(spaceId, clientOptions);
 
-    phase = "space-generate";
-    const isQwythos = model === "fluffy12222/Qwythos-9B-Claude-Mythos-5-1M-heretic-abliterated";
-    const result = isQwythos
-      ? referenceImage
-        ? await client.predict("/generate_image_from_image", [prompt.trim(), { url: referenceImage }, Number(width), Number(height), Number(steps), requestLanguage(req)])
-        : await client.predict("/generate_prompt", [prompt.trim(), requestLanguage(req)])
-      : await client.predict("/generate_image", [prompt.trim(), Number(width), Number(height), Number(steps)]);
+    let result;
+    if (isQwythos) {
+      phase = "space-interpret";
+      const interpretation = await client.predict(
+        "/generate_image_from_image",
+        [prompt.trim(), { url: referenceImage }, requestLanguage(req)]
+      );
+      const interpreted = interpretation?.data?.[0];
+      const generatedPrompt = typeof interpreted === "string"
+        ? interpreted
+        : (interpreted?.text || interpreted?.value || "");
+      if (typeof generatedPrompt !== "string" || !generatedPrompt.trim()) {
+        throw new Error("Qwythos returned no usable image-generation prompt.");
+      }
+
+      // Keep model calls separate: Qwythos interpretation and FLUX rendering each use
+      // their own GPU duration budget instead of requesting 450 seconds in one call.
+      phase = "space-generate";
+      result = await client.predict(
+        "/generate_image",
+        [generatedPrompt.trim().slice(0, MAX_PROMPT_LENGTH), Number(width), Number(height), Number(steps)]
+      );
+    } else {
+      phase = "space-generate";
+      result = await client.predict(
+        "/generate_image",
+        [prompt.trim(), Number(width), Number(height), Number(steps)]
+      );
+    }
 
     const first = result?.data?.[0];
-    if (isQwythos && !referenceImage) {
-      const text = typeof first === "string" ? first : (first?.text || first?.value || "");
-      if (!text.trim()) {
-        await releaseGenerationReservation(db, quotaRef, reservation);
-        reservation = null;
-        return res.status(502).json({ error: localized(req, "Qwythos não retornou texto. Verifique o estado do Space e tente novamente.", "Qwythos returned no text. Check the Space status and try again.") });
-      }
-      return res.status(200).json({ text: text.trim(), model, limit, remaining: Math.max(0, limit - reservation.count), tier: "account" });
-    }
     const imageUrl = typeof first === "string"
       ? first
       : (first?.url || first?.path || first?.image?.url);
@@ -220,6 +241,14 @@ export default async function handler(req, res) {
         error: localized(req,
           "Não foi possível consultar ou atualizar a cota da conta no Firestore. Isso não significa que a cota do Hugging Face acabou; verifique as permissões e os logs do Firebase.",
           "The account quota could not be read or updated in Firestore. This does not mean the Hugging Face quota is exhausted; check Firebase permissions and logs.")
+      });
+    }
+
+    if (/requested gpu duration|larger than the maximum allowed/.test(normalized)) {
+      return res.status(503).json({
+        error: localized(req,
+          "O Space do Hugging Face parece estar executando uma versão antiga que solicita mais tempo de GPU do que o permitido. Confirme se a sincronização do Space foi concluída e tente novamente.",
+          "The Hugging Face Space appears to be running an older revision that requests more GPU time than allowed. Verify that the Space sync completed, then try again.")
       });
     }
 

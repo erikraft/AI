@@ -1,6 +1,6 @@
 # ErikrafT AI
 
-A prompt-based AI image generation website with a responsive dark interface. The image-generation model is **`aoxo/flux.1dev-abliterated`**. The same Hugging Face Space also exposes **`fluffy12222/Qwythos-9B-Claude-Mythos-5-1M-heretic-abliterated`** as a text-only prompt-improvement assistant; it is not advertised as a second image generator.
+An AI image studio with a responsive dark interface. **`aoxo/flux.1dev-abliterated`** generates images from text. **`fluffy12222/Qwythos-9B-Claude-Mythos-5-1M-heretic-abliterated`** is used only for the image + instructions workflow: it interprets a user-provided reference image and instructions, then a separate FLUX request renders the final image. Qwythos is not exposed as a standalone text-only prompt assistant or as a native pixel generator.
 
 - **Frontend:** static HTML/CSS/JavaScript, deployable on Vercel.
 - **Authentication:** Firebase Authentication with Google, GitHub, and email/password; email/password accounts must verify their address before generating images.
@@ -54,7 +54,7 @@ The current static frontend imports the modular Firebase SDK from Google's offic
 
 ## 2. Hugging Face Space
 
-The Gradio Space source lives in `huggingface/` and targets `aoxo/flux.1dev-abliterated`. The requested `fluffy12222/Qwythos-9B-Claude-Mythos-5-1M-heretic-abliterated` checkpoint is a 9B `qwen3_5` Transformers model, not a verified drop-in Diffusers image-generation pipeline; see `huggingface/MODEL_COMPATIBILITY.md`. It must not be advertised as a second image generator unless a compatible image-generation path is implemented and tested. The workflow `.github/workflows/sync-to-huggingface.yml` syncs only this directory to `ErikrafT/erikraft-ai`, keeping the Python entrypoint out of Vercel's project root. Create a Space configured for Gradio and select eligible ZeroGPU/free hardware if available. Test an actual generation in the Space before connecting the website. FLUX is a large model and may exceed free hardware limits; GPU access, queue times, quotas, memory, and model compatibility are controlled by Hugging Face. Free and unlimited inference is not guaranteed.
+The Gradio Space source lives in `huggingface/`; `.github/workflows/sync-to-huggingface.yml` syncs only this directory to `ErikrafT/erikraft-ai`, keeping the Python entrypoint out of Vercel's project root. FLUX generates pixels from either a typed prompt or the prompt returned by Qwythos after multimodal reference-image interpretation. The Qwythos step requests at most 300 seconds of GPU time, and FLUX rendering is a separate 120-second GPU request; the pipeline no longer requests 450 seconds in one GPU call. Actual inference can still fail if the model, processor, memory, or provider quota is incompatible. Free and unlimited inference is not guaranteed.
 
 The Space endpoint used by `@gradio/client` is `/generate_image`, with inputs in this order: prompt (string), width (integer), height (integer), steps (integer). If the Space is hosted in another repository, set `HF_SPACE_ID` to its `owner/space-name` and ensure the app exposes the same endpoint and inputs.
 
@@ -99,9 +99,9 @@ Email/password registration sends a Firebase verification email and signs the ne
 
 ## Model selector
 
-The UI lists both full Hugging Face model IDs. Select `aoxo/flux.1dev-abliterated` to generate an image. Select `fluffy12222/Qwythos-9B-Claude-Mythos-5-1M-heretic-abliterated` to rewrite/improve the prompt as text, then switch back to FLUX to render it. Qwythos has about 18.8 GB of BF16 weights before runtime overhead; the Space may require more capable hardware than the free tier provides. See [model compatibility](huggingface/MODEL_COMPATIBILITY.md).
+The model selector offers two workflows: **FLUX text-to-image**, or **Qwythos image + instructions → FLUX image generation**. In Qwythos mode, uploading a reference image is required; Qwythos interprets the image and instructions, and the website then calls the independent FLUX endpoint to render the output image. The standalone Qwythos text-only assistant has been removed. The Qwythos BF16 weights require substantial memory, so see [model compatibility](huggingface/MODEL_COMPATIBILITY.md).
 
 
 ### Experimental image + text mode
 
-The UI supports uploading a PNG/JPEG/WebP reference image (up to 3 MB) with user instructions. The Space attempts a two-stage workflow: Qwythos multimodal image/text interpretation creates a detailed prompt, then FLUX renders the output image. This remains experimental and has not been verified end-to-end on the live Space; model architecture, processor compatibility, free-tier RAM/VRAM, GPU time, and Gradio payload handling may cause failures. The upload mode is intentionally retained in the interface and API; do not remove it merely because live inference still needs validation. FLUX text-to-image remains available independently.
+The UI supports uploading a PNG/JPEG/WebP reference image (up to 3 MB) with user instructions. The two model stages run as separate GPU requests: Qwythos multimodal interpretation (maximum requested duration 300 seconds) followed by FLUX rendering (120 seconds). This avoids the rejected 450-second reservation. The image + instructions mode is still experimental; model architecture, processor compatibility, available RAM/VRAM, provider quotas, and Gradio payload handling may still cause runtime failures. FLUX text-to-image remains available independently.
