@@ -7,16 +7,23 @@ pinned: false
 
 # ErikrafT AI — Hugging Face Space
 
-This single Space exposes two task-specific model endpoints:
+This Space provides two image-generation workflows using two model checkpoints:
 
-- **Image generation:** `aoxo/flux.1dev-abliterated` via Diffusers at `/generate_image`. Inputs: prompt, width, height, inference steps.
-- **Prompt improvement (text only):** `fluffy12222/Qwythos-9B-Claude-Mythos-5-1M-heretic-abliterated` via Transformers at `/generate_prompt`. Inputs: prompt and language (`pt-BR` or `en`). Qwythos does not return an image; it rewrites the prompt for use with FLUX.
+- **Text-to-image:** `aoxo/flux.1dev-abliterated` via Diffusers at `/generate_image`. Inputs: prompt, width, height, and inference steps. Requested GPU duration: 120 seconds.
+- **Reference image + instructions → image:** `fluffy12222/Qwythos-9B-Claude-Mythos-5-1M-heretic-abliterated` interprets the uploaded image and instructions at `/generate_image_from_image`, returning a detailed image prompt. The caller then invokes `/generate_image` as a separate FLUX GPU request to render the image. Qwythos requested GPU duration: 300 seconds maximum.
 
-Both checkpoints are loaded on demand, and the other model is unloaded to reduce memory pressure. Qwythos has approximately 18.8 GB of BF16 weights before runtime overhead. The Space therefore needs enough RAM/VRAM and a compatible Transformers/PyTorch runtime; free-tier hardware may fail to load or run it. GPU execution is limited to a maximum 300-second request window in this app; a longer load or inference can still fail.
+The old standalone Qwythos text-only prompt-assistant endpoint (`/generate_prompt`) has been removed. Qwythos is used only when the user supplies a reference image and instructions. It interprets the input but does not generate the final image pixels; FLUX performs that separate stage.
 
-The website's model selector shows the full repository IDs and the actual task for each choice. Provider quotas, hardware availability, queue times, and cold starts depend on Hugging Face.
+## Why GPU calls are split
 
+The previous combined flow requested a 450-second GPU window, which is above the maximum permitted by the Space and caused:
 
-### Experimental image + text endpoint
+```text
+The requested GPU duration (450s) is larger than the maximum allowed
+```
 
-The Space exposes `/generate_image_from_image` for the website's reference-image workflow. It attempts Qwythos multimodal interpretation of the uploaded image and instructions, then asks FLUX to render the final image. This endpoint is experimental and may fail if the model architecture, processor, Gradio payload schema, or available RAM/VRAM/GPU time is incompatible. Keep this endpoint and upload feature in place while validating live inference; `/generate_prompt` and `/generate_image` remain independent options.
+The updated flow uses two sequential requests with independent durations, Qwythos at 300 seconds and FLUX at 120 seconds. This fixes the invalid duration request; it does not guarantee that the models will finish loading or inference within those windows.
+
+Both checkpoints are large and are loaded on demand to reduce memory pressure. Qwythos has approximately 18.8 GB of BF16 weights before runtime overhead. The Space still requires compatible Transformers/PyTorch versions and adequate RAM/VRAM. Free hardware, quotas, queue times, and successful live inference are not guaranteed.
+
+The repository workflow `.github/workflows/sync-to-huggingface.yml` syncs this directory to `ErikrafT/erikraft-ai` when changes reach `main`.
