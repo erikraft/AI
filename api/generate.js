@@ -247,8 +247,8 @@ export default async function handler(req, res) {
     if (/requested gpu duration|larger than the maximum allowed/.test(normalized)) {
       return res.status(503).json({
         error: localized(req,
-          "O Space do Hugging Face parece estar executando uma versão antiga que solicita mais tempo de GPU do que o permitido. Confirme se a sincronização do Space foi concluída e tente novamente.",
-          "The Hugging Face Space appears to be running an older revision that requests more GPU time than allowed. Verify that the Space sync completed, then try again.")
+          "O ZeroGPU rejeitou a reserva de GPU do Qwythos. O código atualizado limita a duração declarada a 180 segundos; se o erro ainda mencionar 450 s, confira se o Space concluiu o rebuild e está usando o commit mais recente.",
+          "ZeroGPU rejected the Qwythos GPU reservation. The updated code caps its declared duration at 180 seconds; if the error still reports 450s, verify that the Space finished rebuilding and is running the latest commit.")
       });
     }
 
