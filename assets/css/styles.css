@@ -12,7 +12,6 @@
 .language-picker option{background:#111013;color:#f0f3fa}
 .donations{padding:clamp(38px,6vw,76px) clamp(18px,5vw,64px);border-top:1px solid var(--border)}
 .donation-heading{display:flex;align-items:flex-start;gap:18px;max-width:850px;margin:0 auto 28px}
-.bitcoin-logo{width:52px;height:52px;flex:0 0 auto}
 .donation-heading h2{margin:4px 0 10px;font-size:clamp(25px,4vw,38px);letter-spacing:-.04em}
 .donation-heading .muted{margin:0;line-height:1.7}
 .wallet-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;max-width:1000px;margin:0 auto}
