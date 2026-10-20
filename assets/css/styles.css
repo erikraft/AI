@@ -65,3 +65,22 @@
 .studio-login-actions .provider-button{margin-top:0;min-height:48px;}
 .studio-login-panel .error-text{margin-bottom:0;}
 @media(max-width:520px){.studio-login-actions{grid-template-columns:1fr;gap:9px}.studio-login-actions .provider-button{min-height:46px}}
+
+
+/* Firebase email/password sign-in and account creation */
+.email-auth-divider{display:flex;align-items:center;gap:12px;margin:20px 0 14px;color:var(--muted);font:700 9px/1.6 var(--mono);letter-spacing:.7px;text-align:center;}
+.email-auth-divider::before,.email-auth-divider::after{content:"";height:1px;flex:1;background:var(--border);}
+.email-auth-form{display:grid;gap:12px;}
+.email-auth-field{min-width:0;}
+.email-auth-field label{display:block;margin:0 0 6px;color:var(--text);font-size:11px;font-weight:700;}
+.email-auth-field input{display:block;width:100%;min-height:43px;padding:10px 12px;border:1px solid #30394b;border-radius:10px;background:#0b0e15;color:var(--text);font:12px var(--sans);outline:none;}
+.email-auth-field input::placeholder{color:#66748a;}
+.email-auth-field input:focus{border-color:var(--blue);box-shadow:0 0 0 3px #4285f41c;}
+.email-auth-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;}
+.email-auth-actions .button{min-height:43px;padding:10px;font-size:11px;}
+.email-auth-form button:disabled{opacity:.55;cursor:wait;}
+.link-button{justify-self:center;padding:5px 8px;border:0;background:transparent;color:#9dc2ff;font-size:11px;text-decoration:underline;text-underline-offset:3px;cursor:pointer;}
+.link-button:hover{color:#fff;}
+.link-button:focus-visible,.email-auth-form button:focus-visible{outline:2px solid var(--blue);outline-offset:3px;}
+.modal-card .email-auth-divider{margin-top:18px;}
+@media(max-width:520px){.email-auth-actions{grid-template-columns:1fr}.email-auth-actions .button{min-height:45px}.email-auth-divider{margin-top:17px}}
