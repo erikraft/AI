@@ -102,6 +102,6 @@ Email/password registration sends a Firebase verification email and signs the ne
 The UI lists both full Hugging Face model IDs. Select `aoxo/flux.1dev-abliterated` to generate an image. Select `fluffy12222/Qwythos-9B-Claude-Mythos-5-1M-heretic-abliterated` to rewrite/improve the prompt as text, then switch back to FLUX to render it. Qwythos has about 18.8 GB of BF16 weights before runtime overhead; the Space may require more capable hardware than the free tier provides. See [model compatibility](huggingface/MODEL_COMPATIBILITY.md).
 
 
-### Reference-image upload status
+### Experimental image + text mode
 
-Reference-image upload is disabled until a compatible Qwythos multimodal pipeline passes a real inference test on the configured Hugging Face hardware. The supported workflow is text-only Qwythos prompt improvement followed by FLUX image generation.
+The UI supports uploading a PNG/JPEG/WebP reference image (up to 3 MB) with user instructions. The Space attempts a two-stage workflow: Qwythos multimodal image/text interpretation creates a detailed prompt, then FLUX renders the output image. This remains experimental and has not been verified end-to-end on the live Space; model architecture, processor compatibility, free-tier RAM/VRAM, GPU time, and Gradio payload handling may cause failures. The upload mode is intentionally retained in the interface and API; do not remove it merely because live inference still needs validation. FLUX text-to-image remains available independently.
