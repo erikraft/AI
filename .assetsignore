@@ -1,0 +1,15 @@
+# Repository metadata and build/deployment configuration
+.git
+.github
+cloudflare
+huggingface
+api
+node_modules
+package.json
+package-lock.json
+vercel.json
+README.md
+.env
+.env.*
+*.pem
+*.key
