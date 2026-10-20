@@ -24,7 +24,7 @@
 .qr-block{display:flex;flex-direction:column;align-items:center;gap:9px;text-align:center;font-size:11px;color:var(--muted)}
 .qr-wrap{width:100%;max-width:190px;aspect-ratio:1;background:#fff;border-radius:12px;padding:8px;display:grid;place-items:center;overflow:hidden}
 .bitcoin-qr-host{width:100%;line-height:0}
-.bitcoin-qr-host canvas,.bitcoin-qr-host svg{display:block!important;width:100%!important;height:auto!important}
+.bitcoin-qr-host img{display:block!important;width:100%!important;height:auto!important;aspect-ratio:1;object-fit:contain}
 .qr-unavailable{font-size:11px;line-height:1.5;color:#111;text-align:center;overflow-wrap:anywhere}
 .donation-note{max-width:1000px;margin:18px auto 0;color:var(--muted);font-size:12px;line-height:1.7}
 @media(max-width:800px){.wallet-grid{grid-template-columns:1fr}.wallet-card{grid-template-columns:minmax(0,1fr) minmax(110px,160px)}.language-picker select{max-width:115px}}
