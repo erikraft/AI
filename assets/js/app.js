@@ -307,10 +307,41 @@ try{const saved=localStorage.getItem("erikraft-ai-language");setLanguage(saved&&
 updateModelSelection();
 if (!configured) $("studio-auth-error").textContent = languageText("auth_unavailable");
 
-// Bitcoin donation address copying. The QR codes are local, pre-generated SVG assets.
+// Bitcoin donation address copying and QR generation.
+// Both QR codes use the shared /assets/bitcoin-logo.svg as their embedded center logo.
 document.querySelectorAll(".copy-wallet").forEach(button=>button.addEventListener("click",async()=>{
   const original=button.textContent;
   try{await navigator.clipboard.writeText(button.dataset.copy);button.textContent=languageText("copied");}
   catch{const field=document.createElement("textarea");field.value=button.dataset.copy;field.setAttribute("readonly","");field.style.position="fixed";field.style.opacity="0";document.body.appendChild(field);field.select();const copied=document.execCommand("copy");field.remove();button.textContent=copied?languageText("copied"):original;}
   setTimeout(()=>{button.textContent=languageText("copy_address");},1800);
 }));
+
+function renderBitcoinQrs(){
+  document.querySelectorAll(".bitcoin-qr-host").forEach(host=>{
+    const address=host.dataset.address;
+    if(!address)return;
+    if(typeof QRCodeStyling!=="function"){
+      host.innerHTML='<p class="qr-unavailable">QR indisponível. Use o botão para copiar o endereço.</p>';
+      return;
+    }
+    try{
+      const qr=new QRCodeStyling({
+        width:512,height:512,type:"svg",data:"bitcoin:"+address,
+        image:"/assets/bitcoin-logo.svg",
+        margin:8,
+        qrOptions:{errorCorrectionLevel:"H"},
+        imageOptions:{hideBackgroundDots:true,imageSize:0.22,margin:4,crossOrigin:"anonymous"},
+        dotsOptions:{color:"#0a090b",type:"square"},
+        cornersSquareOptions:{color:"#0a090b",type:"square"},
+        cornersDotOptions:{color:"#0a090b",type:"square"},
+        backgroundOptions:{color:"#ffffff"}
+      });
+      host.replaceChildren();
+      qr.append(host);
+    }catch(error){
+      console.error("Bitcoin QR generation failed",error);
+      host.innerHTML='<p class="qr-unavailable">QR indisponível. Use o botão para copiar o endereço.</p>';
+    }
+  });
+}
+renderBitcoinQrs();
