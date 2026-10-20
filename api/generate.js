@@ -58,7 +58,7 @@ export default async function handler(req, res) {
   const match = authorization.match(/^Bearer\s+(.+)$/i);
   if (!match) {
     return res.status(401).json({
-      error: localized(req, "Entre com Google ou GitHub para gerar imagens.", "Sign in with Google or GitHub to generate images.")
+      error: localized(req, "Entre com Google, GitHub ou e-mail e senha com endereço verificado para gerar imagens.", "Sign in with Google, GitHub, or email and password with a verified address to generate images.")
     });
   }
 
@@ -79,6 +79,9 @@ export default async function handler(req, res) {
     }
 
     const signInProvider = user.firebase?.sign_in_provider;
+    if (signInProvider === "password" && user.email_verified !== true) {
+      return res.status(403).json({ error: localized(req, "Verifique seu e-mail antes de gerar imagens.", "Verify your email before generating images.") });
+    }
     if (!["google.com", "github.com", "password"].includes(signInProvider)) {
       return res.status(403).json({
         error: localized(req, "Use Google, GitHub ou e-mail e senha para gerar imagens.", "Use Google, GitHub, or email and password to generate images.")

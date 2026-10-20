@@ -3,7 +3,7 @@
 A prompt-based AI image generation website with a responsive dark interface. The selected model is **`aoxo/flux.1dev-abliterated`**.
 
 - **Frontend:** static HTML/CSS/JavaScript, deployable on Vercel.
-- **Authentication:** Firebase Authentication with Google and GitHub providers.
+- **Authentication:** Firebase Authentication with Google, GitHub, and email/password; email/password accounts must verify their address before generating images.
 - **Generation:** Hugging Face Gradio Space running the selected model.
 - **Abuse prevention:** Firebase ID-token verification and a Firestore-backed limit of five generation requests per account per hour.
 - **Cost goal:** use free tiers where possible. Provider quotas, availability, model compatibility, and GPU access are not guaranteed.
@@ -12,7 +12,7 @@ A prompt-based AI image generation website with a responsive dark interface. The
 
 ```text
 Browser
-  ├── Firebase Authentication (Google / GitHub)
+  ├── Firebase Authentication (Google / GitHub / verified email-password)
   └── POST /api/generate + Firebase ID token
           ├── Verify token with Firebase Admin
           ├── Reserve a per-user quota slot in Firestore
@@ -44,7 +44,7 @@ Firebase Web config values (including `apiKey`, `authDomain`, `projectId`, and `
 
 In Firebase Console:
 
-1. In **Authentication → Sign-in method**, enable **Google** and **GitHub**.
+1. In **Authentication → Sign-in method**, enable **Google**, **GitHub**, and **Email/Password**.
 2. Configure the GitHub OAuth Client ID and Client Secret in Firebase. Use the exact callback URL Firebase shows for the provider.
 3. Add the production and preview domains in **Authentication → Settings → Authorized domains**.
 4. Create a Firestore database.
@@ -54,7 +54,7 @@ The current static frontend imports the modular Firebase SDK from Google's offic
 
 ## 2. Hugging Face Space
 
-The Gradio Space source lives in `huggingface/` and targets `aoxo/flux.1dev-abliterated`. The workflow `.github/workflows/sync-to-huggingface.yml` syncs only this directory to `ErikrafT/erikraft-ai`, keeping the Python entrypoint out of Vercel's project root. Create a Space configured for Gradio and select eligible ZeroGPU/free hardware if available. Test an actual generation in the Space before connecting the website. FLUX is a large model and may exceed free hardware limits; GPU access, queue times, quotas, memory, and model compatibility are controlled by Hugging Face. Free and unlimited inference is not guaranteed.
+The Gradio Space source lives in `huggingface/` and targets `aoxo/flux.1dev-abliterated`. The requested `fluffy12222/Qwythos-9B-Claude-Mythos-5-1M-heretic-abliterated` checkpoint is a 9B `qwen3_5` Transformers model, not a verified drop-in Diffusers image-generation pipeline; see `huggingface/MODEL_COMPATIBILITY.md`. It must not be advertised as a second image generator unless a compatible image-generation path is implemented and tested. The workflow `.github/workflows/sync-to-huggingface.yml` syncs only this directory to `ErikrafT/erikraft-ai`, keeping the Python entrypoint out of Vercel's project root. Create a Space configured for Gradio and select eligible ZeroGPU/free hardware if available. Test an actual generation in the Space before connecting the website. FLUX is a large model and may exceed free hardware limits; GPU access, queue times, quotas, memory, and model compatibility are controlled by Hugging Face. Free and unlimited inference is not guaranteed.
 
 The Space endpoint used by `@gradio/client` is `/generate_image`, with inputs in this order: prompt (string), width (integer), height (integer), steps (integer). If the Space is hosted in another repository, set `HF_SPACE_ID` to its `owner/space-name` and ensure the app exposes the same endpoint and inputs.
 
@@ -87,8 +87,11 @@ No frontend build step is required for the static HTML app.
 - Account-based limits cannot fully prevent users from creating multiple accounts. Consider Firebase App Check and monitoring before public launch.
 - Generated image URLs may be temporary. Avoid sending personal or confidential information in prompts.
 
-## 5. Model and readiness
+## 5. Model compatibility and readiness
 
 Review the model card and upstream FLUX.1-dev terms before commercial use; do not assume the model metadata alone settles licensing.
 
 **The code is not a verified production deployment.** The site is not ready for end-to-end use until Firebase Authentication and Firestore, a compatible Hugging Face Space, and Vercel environment variables are configured and an actual image generation has been tested.
+
+
+Email/password registration sends a Firebase verification email and signs the newly created account out until the address is verified. The generation API independently rejects password-provider tokens whose `email_verified` claim is not `true`. Firebase Authentication handles verification; no separate application database is required for that step.
