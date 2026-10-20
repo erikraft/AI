@@ -42,6 +42,39 @@
 </section>
 <section id="how" class="how-section"><p class="eyebrow" data-i18n="how_eyebrow">SIMPLES E TRANSPARENTE</p><h2 data-i18n="how_title">Do texto à imagem.</h2><div class="feature-grid"><article class="feature-card"><span class="feature-number">01</span><h3 data-i18n="step1_title">Escreva sua ideia</h3><p data-i18n="step1_desc">Use um prompt original. Você controla a descrição, sem texto fixo escondido no código.</p></article><article class="feature-card"><span class="feature-number">02</span><h3 data-i18n="step2_title">Gere com FLUX</h3><p data-i18n="step2_desc">O backend encaminha a solicitação para um Space compatível com o modelo selecionado.</p></article><article class="feature-card"><span class="feature-number">03</span><h3 data-i18n="step3_title">Salve o resultado</h3><p data-i18n="step3_desc">Visualize a imagem e baixe o arquivo quando a geração terminar.</p></article></div>
 <div class="security-strip"><div class="security-icon"><svg viewBox="0 0 24 24"><path d="M12 3 20 6v5c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V6z"/><path d="m9 12 2 2 4-4"/></svg></div><div><strong data-i18n="security_title">Limites de uso · proteção contra abuso</strong><p data-i18n="security_desc">Visitantes podem gerar sem conta com limite por IP. Contas autenticadas têm limite maior por usuário. A API aplica limites transacionais no Firestore antes de encaminhar a geração.</p></div></div>
+
+<aside class="quota-information" aria-labelledby="quota-title">
+  <div class="quota-information-heading">
+    <div class="quota-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5m0-8h.01"/></svg></div>
+    <div>
+      <h3 id="quota-title" data-i18n="quota_title">Cota gratuita e limites do provedor</h3>
+      <p data-i18n="quota_intro">O ErikrafT AI envia as solicitações para um Space do Hugging Face. Os limites do site e os limites de computação do provedor são diferentes.</p>
+    </div>
+  </div>
+  <div class="quota-grid">
+    <article class="quota-item">
+      <span class="quota-label" data-i18n="quota_site_label">LIMITES DO ERIKRAFT AI</span>
+      <strong data-i18n="quota_site_value">Até 2 por hora sem login · até 5 com login</strong>
+      <p data-i18n="quota_site_desc">Sem conta, até 2 gerações por hora por IP. Com conta autenticada, até 5 gerações por hora por usuário. Esses limites são aplicados pelo backend do site para reduzir abuso.</p>
+    </article>
+    <article class="quota-item">
+      <span class="quota-label" data-i18n="quota_gpu_label">HUGGING FACE ZEROGPU · SE APLICÁVEL</span>
+      <strong data-i18n="quota_gpu_value">2 min/dia sem autenticação · 5 min/dia para conta Free</strong>
+      <p data-i18n="quota_gpu_desc">Quando o Space usa ZeroGPU, o Hugging Face documenta cotas diárias de tempo de GPU por categoria de conta. É tempo de computação, não um número garantido de imagens; cada geração pode consumir um tempo diferente.</p>
+    </article>
+    <article class="quota-item">
+      <span class="quota-label" data-i18n="quota_availability_label">DISPONIBILIDADE DO SPACE</span>
+      <strong data-i18n="quota_availability_value">Filas, inicializações e suspensões podem ocorrer</strong>
+      <p data-i18n="quota_availability_desc">O hardware gratuito pode ficar temporariamente indisponível ou precisar ser reiniciado após inatividade. No hardware CPU Basic, o Hugging Face informa suspensão após 48 horas sem atividade. Carregar um modelo grande também pode demorar.</p>
+    </article>
+  </div>
+  <p class="quota-footnote" data-i18n="quota_note">A cota ZeroGPU só se aplica se este Space estiver usando esse hardware. A cota do provedor é independente dos limites do ErikrafT AI e não garante uma quantidade de imagens por dia nem um tempo de resposta.</p>
+  <div class="quota-links">
+    <a href="https://huggingface.co/spaces/ErikrafT/erikraft-ai" target="_blank" rel="noreferrer" data-i18n="quota_link_space">Abrir Space utilizado pelo ErikrafT AI ↗</a>
+    <a href="https://huggingface.co/docs/hub/spaces-zerogpu" target="_blank" rel="noreferrer" data-i18n="quota_link_zerogpu">Cotas oficiais do ZeroGPU ↗</a>
+    <a href="https://huggingface.co/docs/hub/spaces-gpus#sleep-time" target="_blank" rel="noreferrer" data-i18n="quota_link_sleep">Regras de suspensão dos Spaces ↗</a>
+  </div>
+</aside>
 </section>
 <section id="donate" class="donations">
 <div class="donation-heading"><img class="bitcoin-logo" src="/assets/bitcoin-logo.svg" alt="Bitcoin"><div><p class="eyebrow" data-i18n="support_project">APOIE O PROJETO</p><h2 data-i18n="donate_title">Ajude a manter o projeto aberto.</h2><p class="muted" data-i18n="donate_desc">Se o ErikrafT AI™ é útil para você, contribua com Bitcoin. Confira a carteira antes de enviar; transações na blockchain são irreversíveis.</p></div></div>
