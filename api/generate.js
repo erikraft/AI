@@ -1,11 +1,9 @@
-import { createHmac } from "node:crypto";
 import { initializeApp, cert, getApps } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 import { getFirestore, Timestamp } from "firebase-admin/firestore";
 import { Client } from "@gradio/client";
 
 const WINDOW_MS = 60 * 60 * 1000;
-const ANONYMOUS_MAX_PER_WINDOW = 2;
 const ACCOUNT_MAX_PER_WINDOW = 5;
 const MAX_PROMPT_LENGTH = 1500;
 
@@ -17,34 +15,30 @@ function getAdminApp() {
   return initializeApp({ credential: cert(serviceAccount) });
 }
 
-function getClientIp(req) {
-  // Vercel's proxy-populated forwarding headers are used; raw addresses are never stored.
-  const forwarded = req.headers["x-vercel-forwarded-for"] || req.headers["x-real-ip"] || req.headers["x-forwarded-for"];
-  const candidate = Array.isArray(forwarded) ? forwarded[forwarded.length - 1] : String(forwarded || "").split(",").map(value => value.trim()).filter(Boolean).at(-1);
-  return (candidate || "unknown").trim().slice(0, 128) || "unknown";
-}
-
-function anonymousRateLimitId(ip) {
-  const raw = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
-  const serviceAccount = JSON.parse(raw);
-  const secret = process.env.IP_RATE_LIMIT_SECRET || serviceAccount.private_key || serviceAccount.project_id;
-  return createHmac("sha256", secret).update(ip).digest("hex");
-}
-
 export default async function handler(req, res) {
   res.setHeader("Cache-Control", "no-store");
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");
     return res.status(405).json({ error: "Method not allowed." });
   }
+  const authorization = req.headers.authorization || "";
+  const match = authorization.match(/^Bearer\s+(.+)$/i);
+  if (!match) {
+    return res.status(401).json({ error: "Autentique-se com Google ou GitHub para gerar imagens." });
+  }
+
   try {
     const app = getAdminApp();
-    const authorization = req.headers.authorization || "";
-    const match = authorization.match(/^Bearer\s+(.+)$/i);
-    let user = null;
-    if (match) {
-      try { user = await getAuth(app).verifyIdToken(match[1]); }
-      catch { return res.status(401).json({ error: "Sessão inválida. Entre novamente." }); }
+    let user;
+    try {
+      user = await getAuth(app).verifyIdToken(match[1]);
+    } catch {
+      return res.status(401).json({ error: "Sessão inválida ou expirada. Entre novamente." });
+    }
+
+    const signInProvider = user.firebase?.sign_in_provider;
+    if (!["google.com", "github.com"].includes(signInProvider)) {
+      return res.status(403).json({ error: "Use uma conta conectada pelo Google ou GitHub para gerar imagens." });
     }
 
     const { prompt, width = 768, height = 768, steps = 20 } = req.body || {};
@@ -59,10 +53,8 @@ export default async function handler(req, res) {
     if (!spaceId) return res.status(503).json({ error: "O Space de geração ainda não foi configurado." });
 
     const db = getFirestore(app);
-    const isAnonymous = !user;
-    const limit = isAnonymous ? ANONYMOUS_MAX_PER_WINDOW : ACCOUNT_MAX_PER_WINDOW;
-    const key = isAnonymous ? "ip_" + anonymousRateLimitId(getClientIp(req)) : user.uid;
-    const ref = db.collection("generation_limits").doc(key);
+    const limit = ACCOUNT_MAX_PER_WINDOW;
+    const ref = db.collection("generation_limits").doc(user.uid);
     const now = Date.now();
     const reservation = await db.runTransaction(async (tx) => {
       const snap = await tx.get(ref);
@@ -75,15 +67,13 @@ export default async function handler(req, res) {
       tx.set(ref, {
         count: count + 1,
         windowStartedAt: Timestamp.fromMillis(windowStartedAt),
-        tier: isAnonymous ? "anonymous" : "account",
+        tier: "account",
         updatedAt: Timestamp.now()
       }, { merge: true });
       return { allowed: true, count: count + 1, startedAt: windowStartedAt };
     });
     if (!reservation.allowed) {
-      const message = isAnonymous
-        ? "Limite de visitante atingido: até 2 imagens por hora por IP. Entre com Google ou GitHub para ter até 5 gerações por hora por conta."
-        : "Limite gratuito atingido: até 5 gerações por hora por conta. Tente novamente mais tarde.";
+      const message = "Limite gratuito atingido: até 5 gerações por hora por conta. Tente novamente mais tarde.";
       return res.status(429).json({ error: message, limit, remaining: 0, resetAt: reservation.startedAt + WINDOW_MS });
     }
 
@@ -99,8 +89,8 @@ export default async function handler(req, res) {
       imageUrl,
       limit,
       remaining: Math.max(0, limit - reservation.count),
-      tier: isAnonymous ? "anonymous" : "account",
-      message: isAnonymous ? "Limite de visitante: 2 gerações por hora por IP." : "Limite de conta: 5 gerações por hora."
+      tier: "account",
+      message: "Limite de conta: 5 gerações por hora."
     });
   } catch (error) {
     console.error("Image generation failed:", error?.message || error);
