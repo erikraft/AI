@@ -4,6 +4,9 @@
   "main": "./cloudflare/worker.js",
   "compatibility_date": "2026-10-20",
   "compatibility_flags": ["nodejs_compat"],
+  "secrets": {
+    "required": ["FIREBASE_SERVICE_ACCOUNT_JSON"]
+  },
   "previews": {},
   "assets": {
     "directory": "./",
