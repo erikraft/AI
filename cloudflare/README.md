@@ -6,8 +6,11 @@ This configuration serves the public ErikrafT AI frontend and routes API request
 
 - `POST /api/generate` validates Firebase ID-token signatures against Google's Secure Token JWKS, checks issuer/audience/expiry and permitted sign-in providers, and requires verified email for password accounts.
 - Firestore REST transactions reserve up to five generations per account in a rolling hour.
+- `GET /api/models` exposes experimental selectors when the Space ID and server-side `HF_SPACE_API_SECRET` are configured.
 - FLUX text-to-image calls the Gradio `/generate_image` endpoint.
 - Qwythos image + instructions uploads the reference image, calls `/generate_image_from_image`, then calls FLUX separately to render the returned prompt.
+- Cosmos3 Nano text-to-video calls `/generate_video`; the Space enforces `ENABLE_COSMOS_VIDEO`, VRAM and disk checks.
+- Qwen3.8 text generation calls `/generate_text`; the Space enforces `ENABLE_QWEN_TEXT`, CPU runtime, RAM and disk checks.
 - Input model, prompt length, image dimensions, steps, request size, and uploaded image type/size are validated.
 - Responses are marked `Cache-Control: no-store`.
 - Static requests are routed through the Worker. Only the site entrypoint, `/assets/*`, and explicitly listed public root files are served; repository metadata, backend source, and config files return 404.
@@ -24,7 +27,7 @@ Set these under **Workers & Pages → erikraft-ai → Settings → Variables and
 
 The service account's `project_id` must match the Firebase project used by the website's ID tokens. Grant only the permissions required for Firestore quota documents. Never commit the JSON or place secrets in browser code.
 
-`HF_SPACE_API_SECRET` is not used by the two enabled image-generation endpoints in this Worker version. Cosmos and Qwen remain unsupported/disabled in this route and must not be enabled by changing browser-side values. Keep their server-side feature gates in place if they are added in a later change.
+`HF_SPACE_API_SECRET` is used only for the protected Cosmos and Qwen endpoints; keep it as a secret in both Cloudflare Worker and the Hugging Face Space. The Worker exposes their selectors when that secret and `HF_SPACE_ID=ErikrafT/erikraft-ai` are configured. The Space still controls runtime availability with `ENABLE_COSMOS_VIDEO` and `ENABLE_QWEN_TEXT`; a visible selector alone does not guarantee inference will succeed.
 
 ## Hugging Face Space build/runtime status
 
@@ -43,5 +46,5 @@ Use a preview hostname first. Firebase ID tokens must be issued for the same Fir
 - No live end-to-end test was possible as part of this repository change. Verify the Gradio event-stream response format and upload payload against the currently running Space; Hugging Face may change API response formats between Gradio versions.
 - Provider failures currently consume the reserved Firestore quota slot until its rolling window resets. A follow-up should implement a transaction-safe quota refund for failed inference calls.
 - Concurrent quota reservations rely on Firestore transaction conflict detection; if a transaction conflicts, the request fails closed rather than retrying automatically.
-- The Worker supports FLUX and Qwythos image workflows only. Experimental Cosmos video and Qwen text remain unavailable through this endpoint.
+- The Worker routes FLUX, Qwythos image-to-text-to-image, Cosmos video, and Qwen text. Cosmos and Qwen still depend on Space-side feature flags and resource checks.
 - The Space's reported `Build error — Job timeout` must be diagnosed from the latest Hugging Face build logs separately. Large model downloads happen at inference time in the current Space design and are not proof of a successful runtime.

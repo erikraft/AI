@@ -5,6 +5,8 @@
 const NO_STORE = { "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" };
 const FLUX_MODEL = "aoxo/flux.1dev-abliterated";
 const QWYTHOS_MODEL = "fluffy12222/Qwythos-9B-Claude-Mythos-5-1M-heretic-abliterated";
+const COSMOS_MODEL = "DuoNeural/Cosmos3-Nano-Abliterated";
+const QWEN_MODEL = "0bserverx/Qwen3.8-27B-Heretic-Abliterated-Uncensored-GGUF";
 const MAX_PROMPT = 1500;
 const MAX_IMAGE_BYTES = 3 * 1024 * 1024;
 const WINDOW_MS = 60 * 60 * 1000;
@@ -172,11 +174,17 @@ async function hfCall(env, apiName, data) {
   }
   throw new Error("hf-empty-result");
 }
-function getOutputUrl(output) {
+function getOutputUrl(output, mediaType = "image") {
   const first = output?.[0];
-  const url = typeof first === "string" ? first : first?.url || first?.image?.url || first?.path;
+  const url = typeof first === "string"
+    ? first
+    : mediaType === "video"
+      ? first?.url || first?.path || first?.video?.url || first?.video?.path || first?.video || first?.value?.url || first?.value?.path
+      : first?.url || first?.image?.url || first?.image?.path || first?.path || first?.value?.url;
   if (typeof url !== "string" || !url) throw new Error("hf-invalid-output");
-  if (url.startsWith("/")) return "https://erikraft-erikraft-ai.hf.space" + url;
+  const host = "https://erikraft-erikraft-ai.hf.space";
+  if (url.startsWith("/")) return host + url;
+  if (!/^https:\/\//i.test(url)) return host + "/" + url.replace(/^\/+/, "");
   const parsed = new URL(url);
   if (parsed.hostname !== "erikraft-erikraft-ai.hf.space" && parsed.hostname !== "huggingface.co") throw new Error("hf-untrusted-output-url");
   return parsed.toString();
@@ -228,10 +236,16 @@ async function generate(request, env) {
     return json({ error: "O prompt deve conter de 1 a 1500 caracteres." }, 400);
   }
   const model = body.model || FLUX_MODEL;
-  if (![FLUX_MODEL, QWYTHOS_MODEL].includes(model)) return json({ error: "Modelo não suportado nesta versão do Worker." }, 400);
+  if (![FLUX_MODEL, QWYTHOS_MODEL, COSMOS_MODEL, QWEN_MODEL].includes(model)) return json({ error: "Modelo não suportado." }, 400);
+  const isImageModel = model === FLUX_MODEL || model === QWYTHOS_MODEL;
+  const isCosmos = model === COSMOS_MODEL;
+  const isQwen = model === QWEN_MODEL;
   const width = Number(body.width ?? 768), height = Number(body.height ?? 768), steps = Number(body.steps ?? 20);
-  if (![[768,768],[1024,768],[768,1024]].some(([w,h]) => w === width && h === height) || ![20,28].includes(steps)) {
+  if (isImageModel && (![[768,768],[1024,768],[768,1024]].some(([w,h]) => w === width && h === height) || ![20,28].includes(steps))) {
     return json({ error: "Dimensões ou passos de inferência inválidos." }, 400);
+  }
+  if ((isCosmos || isQwen) && (typeof env.HF_SPACE_API_SECRET !== "string" || env.HF_SPACE_API_SECRET.trim().length < 32)) {
+    return json({ error: "Os modelos experimentais exigem HF_SPACE_API_SECRET como segredo no Worker e no Hugging Face Space." }, 503);
   }
   if (model === QWYTHOS_MODEL && (typeof body.referenceImage !== "string" || body.referenceImage.length > 4_200_000)) {
     return json({ error: "Envie uma imagem de referência válida de até 3 MiB." }, 400);
@@ -243,6 +257,18 @@ async function generate(request, env) {
     const user = await firebaseUser(match[1], projectId);
     reservation = await reserveQuota(env, user);
     if (!reservation.allowed) return json({ error: "Você atingiu o limite de 5 gerações por hora.", limit: ACCOUNT_LIMIT, remaining: 0, resetAt: reservation.resetAt }, 429);
+    if (isCosmos) {
+      const videoData = await hfCall(env, "generate_video", [body.prompt.trim(), env.HF_SPACE_API_SECRET]);
+      const videoUrl = getOutputUrl(videoData, "video");
+      return json({ type: "video", videoUrl, limit: ACCOUNT_LIMIT, remaining: reservation.remaining, tier: "account" });
+    }
+    if (isQwen) {
+      const textData = await hfCall(env, "generate_text", [body.prompt.trim(), body.language === "en" ? "en" : "pt-BR", env.HF_SPACE_API_SECRET]);
+      const first = textData?.[0];
+      const answer = typeof first === "string" ? first : first?.text || first?.value || first?.content || "";
+      if (typeof answer !== "string" || !answer.trim()) throw new Error("hf-qwen-empty");
+      return json({ type: "text", text: answer.trim().slice(0, 12000), limit: ACCOUNT_LIMIT, remaining: reservation.remaining, tier: "account" });
+    }
     let imageData;
     if (model === QWYTHOS_MODEL) {
       const reference = await uploadReferenceImage(env, body.referenceImage);
@@ -262,7 +288,7 @@ async function generate(request, env) {
     if (message.includes("unsupported-provider")) return json({ error: "Use Google, GitHub ou e-mail verificado." }, 403);
     if (message.includes("email-not-verified")) return json({ error: "Verifique seu e-mail antes de gerar imagens." }, 403);
     if (message.includes("firestore") || message.includes("firebase-")) return json({ error: "Não foi possível validar a conta ou reservar a cota. Verifique as credenciais e permissões do Firebase/Firestore." }, 503);
-    if (message.startsWith("hf-upload-") || message.startsWith("hf-start-") || message.startsWith("hf-result-") || message.startsWith("hf-empty") || message.startsWith("hf-qwythos")) return json({ error: "O Hugging Face Space está iniciando, ocupado ou indisponível. Confira os logs do Space e tente novamente." }, 503);
+    if (message.startsWith("hf-upload-") || message.startsWith("hf-start-") || message.startsWith("hf-result-") || message.startsWith("hf-empty") || message.startsWith("hf-qwythos") || message === "hf-inference-failed" || message === "hf-qwen-empty" || message === "hf-invalid-output" || message === "invalid-space-id") return json({ error: "O Hugging Face Space não concluiu a solicitação. Verifique as flags ENABLE_COSMOS_VIDEO/ENABLE_QWEN_TEXT, os logs, os recursos do runtime e a disponibilidade do provedor." }, 503);
     if (message.includes("invalid-reference-image")) return json({ error: "Imagem de referência inválida. Use PNG, JPEG ou WebP de até 3 MiB." }, 400);
     return json({ error: "A geração falhou na integração com o Space. Consulte os logs do Worker para identificar a causa." }, 502);
   }
@@ -272,6 +298,19 @@ const PUBLIC_ROOT_FILES = new Set(["/", "/index.html", "/favicon.ico", "/robots.
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+    if (url.pathname === "/api/models") {
+      if (request.method !== "GET") return json({ error: "Método não permitido. Use GET." }, 405, { Allow: "GET" });
+      const configuredSpace = String(env.HF_SPACE_ID || "ErikrafT/erikraft-ai").toLowerCase() === "erikraft/erikraft-ai";
+      const configuredSecret = typeof env.HF_SPACE_API_SECRET === "string" && env.HF_SPACE_API_SECRET.trim().length >= 32;
+      const experimentalConfigured = configuredSpace && configuredSecret;
+      return json({
+        models: {
+          [COSMOS_MODEL]: experimentalConfigured,
+          [QWEN_MODEL]: experimentalConfigured
+        },
+        runtimeChecksRequired: true
+      });
+    }
     if (url.pathname === "/api/generate") {
       if (request.method !== "POST") return json({ error: "Método não permitido. Use POST." }, 405, { Allow: "POST" });
       return generate(request, env);
