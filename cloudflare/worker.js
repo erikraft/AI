@@ -42,7 +42,6 @@ export default {
       url.pathname.startsWith("/huggingface") ||
       url.pathname === "/package.json" ||
       url.pathname === "/package-lock.json" ||
-      url.pathname === "/vercel.json" ||
       url.pathname.startsWith("/api/")
     ) {
       return new Response("Not found", { status: 404 });
