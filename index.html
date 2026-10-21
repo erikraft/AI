@@ -118,15 +118,21 @@
   <div class="model-select-shell"><select id="model-select" aria-describedby="model-help model-runtime-notice">
     <option value="aoxo/flux.1dev-abliterated">FLUX.1-dev — texto → imagem</option>
     <option value="fluffy12222/Qwythos-9B-Claude-Mythos-5-1M-heretic-abliterated">Qwythos — imagem → texto → imagem</option>
-    <option value="DuoNeural/Cosmos3-Nano-Abliterated" disabled>Cosmos3 Nano — texto → vídeo (aguarda hardware)</option>
-    <option value="0bserverx/Qwen3.8-27B-Heretic-Abliterated-Uncensored-GGUF" disabled>Qwen3.8 27B — assistente de texto (aguarda recursos)</option>
+    <option value="DuoNeural/Cosmos3-Nano-Abliterated">Cosmos3 Nano — texto → vídeo (aguarda hardware)</option>
+    <option value="0bserverx/Qwen3.8-27B-Heretic-Abliterated-Uncensored-GGUF">Qwen3.8 27B — assistente de texto (aguarda recursos)</option>
   </select><svg class="model-select-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></div>
   <div class="model-selector-meta"><span id="model-task-badge" class="model-task-badge">TEXTO → IMAGEM</span><span id="model-runtime-pill" class="model-runtime-pill">Disponibilidade conforme a configuração do backend</span></div>
   <p id="model-help" class="small-note" data-i18n="model_help">O FLUX transforma texto em imagem. Se quiser usar uma imagem de referência, selecione Qwythos; os campos se adaptam ao modelo escolhido.</p>
   <p id="model-runtime-notice" class="model-runtime-notice" role="status" aria-live="polite">Modo de texto para imagem. Filas e limites do provedor podem variar.</p>
   <div id="qwythos-image-input" class="field qwythos-image-input hidden">
-  <label for="reference-image" data-i18n="reference_image_label">Imagem de entrada (obrigatória neste modo)</label>
-  <input id="reference-image" name="reference-image" type="file" accept="image/*">
+  <label data-i18n="reference_image_label">Imagem de entrada (obrigatória neste modo)</label>
+  <div id="reference-image-dropzone" class="reference-image-dropzone" role="group" tabindex="0" data-i18n-aria-label="reference_drop_title" aria-label="Selecionar ou arrastar uma imagem de referência">
+    <svg class="reference-drop-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4m-5 5 5-5 5 5"/><path d="M4 15v4a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4"/></svg>
+    <strong data-i18n="reference_drop_title">Arraste uma imagem para cá</strong>
+    <span data-i18n="reference_drop_hint">ou escolha um arquivo do seu dispositivo · PNG, JPG ou WebP · até 12 MB</span>
+    <button id="reference-image-browse" class="button secondary small" type="button" data-i18n="reference_browse">Escolher imagem</button>
+    <input id="reference-image" class="reference-file-input" name="reference-image" type="file" accept="image/png,image/jpeg,image/webp" tabindex="-1" aria-hidden="true">
+  </div>
   <p class="small-note" data-i18n="reference_image_help">Envie qualquer imagem em um formato compatível com seu navegador (arquivo original de até 12 MB) e descreva a alteração desejada. Ela será convertida para JPEG e enviada ao Qwythos; o FLUX renderiza a imagem final.</p>
   <div class="reference-image-preview-row">
     <img id="reference-image-preview" class="reference-image-preview hidden" alt="" aria-hidden="true">

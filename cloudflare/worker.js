@@ -206,7 +206,9 @@ async function uploadReferenceImage(env, dataUrl) {
   return { path: paths[0] };
 }
 async function generate(request, env) {
-  if (!env.FIREBASE_SERVICE_ACCOUNT_JSON) return json({ error: "Firebase/Firestore não está configurado no Worker." }, 503);
+  if (!env.FIREBASE_SERVICE_ACCOUNT_JSON) return json({
+    error: "O Worker não recebeu o Secret FIREBASE_SERVICE_ACCOUNT_JSON. Configure-o em Cloudflare → Workers & Pages → erikraft-ai → Settings → Variables and Secrets, no ambiente que está atendendo este domínio (Production e, se usar, Preview), e publique novamente."
+  }, 503);
   const authorization = request.headers.get("Authorization") || "";
   const match = /^Bearer\s+(.+)$/i.exec(authorization);
   if (!match) return json({ error: "Entre na sua conta para gerar imagens." }, 401);
@@ -299,6 +301,24 @@ const PUBLIC_ROOT_FILES = new Set(["/", "/index.html", "/privacy.html", "/terms.
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+    if (url.pathname === "/api/health") {
+      if (request.method !== "GET") return json({ error: "Método não permitido. Use GET." }, 405, { Allow: "GET" });
+      let firebaseJsonValid = false;
+      let firebaseProjectMatches = false;
+      try {
+        const serviceAccount = JSON.parse(env.FIREBASE_SERVICE_ACCOUNT_JSON || "");
+        firebaseJsonValid = Boolean(serviceAccount?.project_id && serviceAccount?.client_email && serviceAccount?.private_key);
+        firebaseProjectMatches = serviceAccount?.project_id === "erikraft-account";
+      } catch {}
+      return json({
+        ok: firebaseJsonValid && firebaseProjectMatches,
+        firebaseServiceAccountConfigured: Boolean(env.FIREBASE_SERVICE_ACCOUNT_JSON),
+        firebaseServiceAccountJsonValid: firebaseJsonValid,
+        firebaseProjectMatches: firebaseProjectMatches,
+        hfSpaceConfigured: String(env.HF_SPACE_ID || "ErikrafT/erikraft-ai").toLowerCase() === "erikraft/erikraft-ai",
+        experimentalSecretConfigured: typeof env.HF_SPACE_API_SECRET === "string" && env.HF_SPACE_API_SECRET.trim().length >= 32
+      });
+    }
     if (url.pathname === "/api/models") {
       if (request.method !== "GET") return json({ error: "Método não permitido. Use GET." }, 405, { Allow: "GET" });
       const configuredSpace = String(env.HF_SPACE_ID || "ErikrafT/erikraft-ai").toLowerCase() === "erikraft/erikraft-ai";
@@ -309,6 +329,7 @@ export default {
           [COSMOS_MODEL]: experimentalConfigured,
           [QWEN_MODEL]: experimentalConfigured
         },
+        selectableModels: [FLUX_MODEL, QWYTHOS_MODEL, COSMOS_MODEL, QWEN_MODEL],
         runtimeChecksRequired: true
       });
     }
