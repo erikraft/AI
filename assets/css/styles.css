@@ -103,3 +103,12 @@
 .qwythos-image-input input[type=file]::file-selector-button{max-width:100%;margin:0 10px 8px 0;padding:9px 11px;border:1px solid var(--border);border-radius:8px;background:#111722;color:var(--text);font:600 11px var(--sans);cursor:pointer;}
 .qwythos-image-input .error-text{margin:8px 0 0;overflow-wrap:anywhere;}
 @media(max-width:520px){.model-selector-field select{font-size:10px;padding:10px}.model-selector-field .small-note,.qwythos-image-input .small-note{font-size:10px;line-height:1.65}.qwythos-image-input{padding:11px}.qwythos-image-input input[type=file]{font-size:10px}}
+
+/* Keep the complete Hugging Face model ID readable on narrow screens. */
+.section-heading,
+.section-heading>div{min-width:0;max-width:100%}
+.section-heading>div{flex:1 1 auto}
+.model-pill{display:inline-flex;align-items:flex-start;gap:4px;max-width:min(42%,420px);min-width:0;white-space:normal;overflow-wrap:anywhere;word-break:break-word;line-height:1.5}
+.model-pill .dot{flex:0 0 7px;margin:.38em 4px 0 0}
+.model-pill #selected-model-label{min-width:0;overflow-wrap:anywhere;word-break:break-word}
+@media(max-width:720px){.section-heading{display:block}.model-pill{display:flex;width:fit-content;max-width:100%;margin-top:15px}}

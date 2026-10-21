@@ -1,6 +1,6 @@
 # ErikrafT AI
 
-An AI image studio with a responsive dark interface. **`aoxo/flux.1dev-abliterated`** generates images from text. **`fluffy12222/Qwythos-9B-Claude-Mythos-5-1M-heretic-abliterated`** is used only for the image + instructions workflow: it interprets a user-provided reference image and instructions, then a separate FLUX request renders the final image. Qwythos is not exposed as a standalone text-only prompt assistant or as a native pixel generator.
+An AI image studio with a responsive dark interface. **`aoxo/flux.1dev-abliterated`** generates images from text. The Hugging Face card tags **`fluffy12222/Qwythos-9B-Claude-Mythos-5-1M-heretic-abliterated`** as `image-text-to-image`; this site exposes an experimental image + text → image workflow where Qwythos interprets a reference image and instructions, then a separate FLUX request renders the final pixels. In this integration Qwythos returns a text prompt rather than image pixels, so the feature is a two-stage workflow—not direct pixel synthesis by Qwythos. Qwythos is not exposed as a standalone text-only prompt assistant.
 
 - **Frontend:** static HTML/CSS/JavaScript, deployable on Vercel.
 - **Authentication:** Firebase Authentication with Google, GitHub, and email/password; email/password accounts must verify their address before generating images.
@@ -17,7 +17,9 @@ Browser
           ├── Verify token with Firebase Admin
           ├── Reserve a per-user quota slot in Firestore
           └── @gradio/client → Hugging Face Space
-                                  └── aoxo/flux.1dev-abliterated
+                 ├── FLUX-only: text prompt → generated image
+                 └── Qwythos mode: reference image + instructions → text prompt
+                         └── separate FLUX request → final image
 ```
 
 Vercel serves the frontend and API proxy. It does **not** load PyTorch or FLUX weights; the model needs compatible GPU infrastructure.
@@ -99,7 +101,7 @@ Email/password registration sends a Firebase verification email and signs the ne
 
 ## Model selector
 
-The model selector offers two workflows: **FLUX text-to-image**, or **Qwythos image + instructions → FLUX image generation**. In Qwythos mode, uploading a reference image is required; Qwythos interprets the image and instructions, and the website then calls the independent FLUX endpoint to render the output image. The standalone Qwythos text-only assistant has been removed. The Qwythos BF16 weights require substantial memory, so see [model compatibility](huggingface/MODEL_COMPATIBILITY.md).
+The model selector offers two workflows: **FLUX text-to-image**, or **Qwythos Image-Text-to-Image (experimental; image + instructions → Qwythos interpretation → FLUX image generation)**. In Qwythos mode, uploading a reference image is required; Qwythos interprets the image and instructions, and the website then calls the independent FLUX endpoint to render the output image. The standalone Qwythos text-only assistant has been removed. The Qwythos BF16 weights require substantial memory, so see [model compatibility](huggingface/MODEL_COMPATIBILITY.md).
 
 
 ### Experimental image + text mode
