@@ -17,7 +17,7 @@ This configuration serves the public ErikrafT AI frontend and routes API request
 
 ## Required Cloudflare secrets and variables
 
-Set these under **Workers & Pages → erikraft-ai → Settings → Variables and Secrets → Production**:
+The production hostname `ai.erikraft.com` is attached to Worker `erikraft-ai` in the **Production** environment. Set these under **Workers & Pages → erikraft-ai → Settings → Variables and Secrets → Production**. A value saved only under another Worker or Preview is not available to this production binding:
 
 | Name | Type | Purpose |
 | --- | --- | --- |
@@ -26,6 +26,8 @@ Set these under **Workers & Pages → erikraft-ai → Settings → Variables and
 | `HF_TOKEN` | Secret (optional) | Only if the Space requires authenticated access |
 
 The service account's `project_id` must match the Firebase project used by the website's ID tokens. Grant only the permissions required for Firestore quota documents. Never commit the JSON or place secrets in browser code.
+
+**Important:** saving a secret in the dashboard is not enough; select **Deploy** to publish a Worker version containing it. The repository's `wrangler.jsonc` declares `FIREBASE_SERVICE_ACCOUNT_JSON` under `secrets.required`, so `wrangler deploy`/Workers Builds will fail clearly if that required secret is absent instead of publishing a version that cannot generate. This declaration records the required *name* only; it does not contain or create the secret value. As an alternative, run `npx wrangler secret put FIREBASE_SERVICE_ACCOUNT_JSON` from the repository root and paste the full service-account JSON only into Wrangler's interactive prompt (never into source control or chat).
 
 `HF_SPACE_API_SECRET` is used only for the protected Cosmos and Qwen endpoints; keep it as a secret in both Cloudflare Worker and the Hugging Face Space. The Worker exposes their selectors when that secret and `HF_SPACE_ID=ErikrafT/erikraft-ai` are configured. The Space still controls runtime availability with `ENABLE_COSMOS_VIDEO` and `ENABLE_QWEN_TEXT`; a visible selector alone does not guarantee inference will succeed.
 
@@ -37,7 +39,7 @@ This repository branch cannot repair an account-side Hugging Face job timeout wi
 
 ## Deployment
 
-The canonical Wrangler config is `wrangler.jsonc` at the repository root. Workers Builds should run from `/`; leave the build command empty unless a separate build step is introduced, and use `npx wrangler deploy` as the deploy command.
+The canonical Wrangler config is `wrangler.jsonc` at the repository root. Workers Builds should run from `/`; leave the build command empty unless a separate build step is introduced, and use `npx wrangler deploy` as the deploy command. The config requires `FIREBASE_SERVICE_ACCOUNT_JSON` and validates that it exists before deployment. It intentionally does not store the secret value.
 
 Use a preview hostname first. Firebase ID tokens must be issued for the same Firebase project; the Cloudflare hostname must be allowed by Firebase Authentication's authorized domains where applicable. Test login, quota, both image flows, invalid-token rejection, and static-file 404s before switching production traffic.
 
