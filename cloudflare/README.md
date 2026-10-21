@@ -1,6 +1,8 @@
 # Cloudflare Workers + Assets migration
 
-This directory is a **migration scaffold, not a production replacement** for Vercel yet. It deliberately returns HTTP 503 for `POST /api/generate` until the Firebase verification, Firestore quota, and Hugging Face adapters have been ported and tested. Do not attach `ai.erikraft.com` to this Worker at this stage.
+This directory contains the Worker entrypoint and is a **migration scaffold, not a production replacement** for Vercel yet. The root-level `wrangler.jsonc` is the canonical Wrangler configuration because Cloudflare Workers Builds executes its commands from the repository root by default. It includes the required `previews: {}` setting for `npx wrangler preview`.
+
+The Worker deliberately returns HTTP 503 for `POST /api/generate` until the Firebase verification, Firestore quota, and Hugging Face adapters have been ported and tested. Do not attach `ai.erikraft.com` to this Worker at this stage.
 
 ## Target architecture
 
@@ -31,12 +33,12 @@ Until all four are implemented and tested, the current Vercel API remains the wo
 ## Cloudflare setup (after the API port is ready)
 
 1. Install Node.js 20+ and Wrangler in a local clone.
-2. From the repository root, run `npx wrangler deploy --config cloudflare/wrangler.jsonc` only after completing the API port and tests.
+2. From the repository root, run `npx wrangler deploy` only after completing the API port and tests. For a non-production branch, Workers Builds can run `npx wrangler preview`; the root configuration includes `previews: {}` for this command.
 3. Configure server-side secrets through Wrangler/Cloudflare, never in the frontend or Git:
    - `FIREBASE_SERVICE_ACCOUNT_JSON` (or the final least-privilege credential format selected by the implementation)
    - `HF_TOKEN` only if the Space requires authenticated access
    - `HF_SPACE_ID=ErikrafT/erikraft-ai`
-4. Verify Firebase Authentication authorized domains include the Worker preview hostname.
+4. Firebase OAuth authorized domains must include the Worker preview hostname.
 5. Run the test checklist below on the temporary `workers.dev` hostname.
 6. Only after passing all checks, configure the custom domain and switch DNS/traffic.
 
@@ -59,7 +61,7 @@ Do not commit credentials, service-account JSON, private keys, or Hugging Face t
 
 ## Current status
 
-- [x] Add a dedicated Worker entrypoint and configuration.
+- [x] Add a dedicated Worker entrypoint and root-level Wrangler configuration.
 - [x] Route API paths through the Worker before static asset fallback.
 - [x] Keep the current Vercel deployment untouched.
 - [ ] Implement Worker-compatible Firebase token validation.
