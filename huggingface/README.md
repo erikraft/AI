@@ -38,3 +38,10 @@ This Space also defines two separate tasks:
 - Both flags are **off by default**. The Vercel API additionally requires its corresponding environment variable before accepting requests. Do not enable either switch until build logs and a real inference test show the Space has adequate hardware/storage. Free-tier availability is not guaranteed.
 
 The new model weights and fine-tunes are third-party artifacts; ErikrafT did not create or train them.
+
+
+## Direct API protection and output cleanup
+
+The Cosmos and Qwen endpoints require `HF_SPACE_API_SECRET` (at least 32 characters) to be configured as a Space secret and as a server-side Vercel environment variable. Vercel supplies the secret as a hidden Gradio input; direct callers who do not know it are rejected. The handlers fail closed if the secret is missing. Do not enable either model until both secrets match. The Space remains public for the existing image workflows; this shared secret specifically protects the new experimental endpoints.
+
+Cosmos preflight checks run before any model cache is evicted. Failed preflight requests therefore do not force FLUX/Qwythos to cold-load again. Generated videos are placed in Gradio's managed cache and old cache files are pruned hourly after 24 hours; partial files are removed immediately on failure.

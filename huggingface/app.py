@@ -1,4 +1,5 @@
 import gc
+import hmac
 import os
 import shutil
 import tempfile
@@ -26,6 +27,15 @@ qwythos_vision_model = None
 qwythos_processor = None
 cosmos_pipe = None
 qwen_text_model = None
+
+
+def _authorize_experimental_api(candidate: str):
+    """Fail closed unless the caller supplies the server-side shared secret."""
+    expected = os.getenv("HF_SPACE_API_SECRET", "").strip()
+    if len(expected) < 32:
+        raise gr.Error("Experimental API is locked: configure a strong HF_SPACE_API_SECRET on this Space and Vercel.")
+    if not isinstance(candidate, str) or not hmac.compare_digest(candidate, expected):
+        raise gr.Error("Unauthorized experimental model endpoint.")
 
 
 def _clear_models(except_model: str):
@@ -243,15 +253,15 @@ def generate_image_from_image(
 
 
 @spaces.GPU(duration=180)
-def generate_video(prompt: str):
+def generate_video(prompt: str, api_secret: str):
     """Short, low-resolution Cosmos video; disabled unless hardware is explicitly approved."""
     global cosmos_pipe
     prompt = (prompt or "").strip()
     if not ENABLE_COSMOS_VIDEO:
         raise gr.Error("Cosmos video is disabled. Enable ENABLE_COSMOS_VIDEO only after validating GPU and disk capacity.")
+    _authorize_experimental_api(api_secret)
     if not prompt or len(prompt) > 1500:
         raise gr.Error("Prompt must contain 1–1500 characters.")
-    _clear_models("cosmos")
     if not torch.cuda.is_available():
         raise gr.Error("Cosmos requires a compatible CUDA GPU.")
     total_gib = torch.cuda.get_device_properties(0).total_memory / (1024 ** 3)
@@ -265,6 +275,10 @@ def generate_video(prompt: str):
         raise gr.Error(
             f"Cosmos needs tens of gigabytes of model cache; only {_disk_free_gib():.1f} GiB free disk space is available and the detected model cache is {cached_size_gib:.1f} GiB."
         )
+    # Do not evict working models until the request has passed every cheap preflight check.
+    _clear_models("cosmos")
+    path = None
+    keep_path_for_gradio = False
     try:
         from diffusers import Cosmos3OmniPipeline
         from diffusers.utils import export_to_video
@@ -280,8 +294,11 @@ def generate_video(prompt: str):
             guidance_scale=6.0,
             fps=8.0,
         )
-        path = tempfile.NamedTemporaryFile(prefix="erikraft-cosmos-", suffix=".mp4", delete=False).name
+        cache_dir = getattr(demo, "GRADIO_CACHE", tempfile.gettempdir())
+        os.makedirs(cache_dir, exist_ok=True)
+        path = tempfile.NamedTemporaryFile(prefix="erikraft-cosmos-", suffix=".mp4", dir=cache_dir, delete=False).name
         export_to_video(result.video, path, fps=8, macro_block_size=1)
+        keep_path_for_gradio = True
         return path
     except gr.Error:
         raise
@@ -290,6 +307,12 @@ def generate_video(prompt: str):
     except Exception as exc:
         raise gr.Error("Cosmos video generation failed: " + str(exc)[:280]) from exc
     finally:
+        # Remove partial files on failure; successful outputs are in Gradio's managed cache.
+        if path and not keep_path_for_gradio:
+            try:
+                os.remove(path)
+            except OSError:
+                pass
         # Do not move the entire video model to CPU RAM during teardown; release it instead.
         cosmos_pipe = None
         gc.collect()
@@ -297,20 +320,22 @@ def generate_video(prompt: str):
             torch.cuda.empty_cache()
 
 
-def generate_text(prompt: str, language: str = "pt-BR"):
+def generate_text(prompt: str, language: str = "pt-BR", api_secret: str = ""):
     """CPU-only GGUF inference; intentionally has no GPU offload."""
     global qwen_text_model
     prompt = (prompt or "").strip()
     if not ENABLE_QWEN_TEXT:
         raise gr.Error("Qwen text generation is disabled. Enable ENABLE_QWEN_TEXT only after validating system RAM and disk.")
+    _authorize_experimental_api(api_secret)
     if not prompt or len(prompt) > 1500:
         raise gr.Error("Prompt must contain 1–1500 characters.")
-    _clear_models("qwen")
     if not _has_cached_repo("models--0bserverx--Qwen3.8-27B-Heretic-Abliterated-Uncensored-GGUF") and _disk_free_gib() < 11:
         raise gr.Error(f"Qwen needs about 9.1 GB for its selected GGUF plus cache overhead; only {_disk_free_gib():.1f} GiB free disk space is available.")
     available_ram = _available_ram_gib()
     if qwen_text_model is None and available_ram < 12:
         raise gr.Error(f"Qwen CPU inference needs roughly 12 GiB free RAM; only {available_ram:.1f} GiB appears available.")
+    # Preserve warm image models when disk/RAM preflight rejects this request.
+    _clear_models("qwen")
     try:
         if qwen_text_model is None:
             from llama_cpp import Llama
@@ -348,7 +373,7 @@ def generate_text(prompt: str, language: str = "pt-BR"):
         raise gr.Error("Qwen text generation failed: " + str(exc)[:280]) from exc
 
 
-with gr.Blocks(title="ErikrafT AI — FLUX + Qwythos") as demo:
+with gr.Blocks(title="ErikrafT AI — FLUX + Qwythos", delete_cache=(3600, 86400)) as demo:
     gr.Markdown(
         "# ErikrafT AI — Image + Text to Image\n"
         "Choose FLUX for text-to-image generation, or upload a reference image and instructions "
@@ -408,9 +433,10 @@ with gr.Blocks(title="ErikrafT AI — FLUX + Qwythos") as demo:
             "Initial outputs are restricted to 16 frames at 256×256."
         )
         video_prompt = gr.Textbox(label="Video prompt", lines=4, max_lines=8, max_length=1500)
+        experimental_api_secret = gr.Textbox(value="", visible=False, label="Internal API credential")
         video_button = gr.Button("Generate short video")
         video_output = gr.Video(label="Generated video")
-        video_button.click(generate_video, [video_prompt], video_output, api_name="generate_video")
+        video_button.click(generate_video, [video_prompt, experimental_api_secret], video_output, api_name="generate_video")
 
     with gr.Tab("Qwen3.8 text assistant"):
         gr.Markdown(
@@ -425,7 +451,7 @@ with gr.Blocks(title="ErikrafT AI — FLUX + Qwythos") as demo:
         )
         text_button = gr.Button("Ask Qwen")
         text_output = gr.Textbox(label="Qwen response", lines=12, max_lines=24, interactive=False)
-        text_button.click(generate_text, [text_prompt, text_language], text_output, api_name="generate_text")
+        text_button.click(generate_text, [text_prompt, text_language, experimental_api_secret], text_output, api_name="generate_text")
 
 demo.queue()
 demo.launch()
