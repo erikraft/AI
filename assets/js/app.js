@@ -324,7 +324,7 @@ async function loadSelectedImage(file) {
 }
 
 async function normalizeImageForInference(file) {
-  if (!file || !file.type?.toLowerCase().startsWith("image/")) throw new Error(languageText("reference_image_type"));
+  if (!file) throw new Error(languageText("reference_image_type"));
   if (file.size > MAX_REFERENCE_FILE_BYTES) throw new Error(languageText("reference_image_too_large"));
   const { image, cleanup } = await loadSelectedImage(file);
   try {
