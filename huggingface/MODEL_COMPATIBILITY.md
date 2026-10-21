@@ -32,7 +32,7 @@ The lower Qwythos duration is intended to prevent the invalid 450-second reserva
 
 - Checkpoint: [DuoNeural/Cosmos3-Nano-Abliterated](https://huggingface.co/DuoNeural/Cosmos3-Nano-Abliterated)
 - Task/API: `/generate_video`; `Cosmos3OmniPipeline`; 16 frames, 256×256, 12 steps, declared GPU duration 180 seconds.
-- The implementation refuses to load on runtimes reporting less than 42 GiB total or 34 GiB free VRAM; it also asks for 36 GiB free disk for the cold cache. These thresholds reduce foreseeable OOM/disk failures but cannot guarantee a successful request. The upstream model is around 15.2B parameters and calls for roughly 48 GB VRAM; do not expect it to run reliably on arbitrary free/shared hardware.
+- The implementation refuses to load on runtimes reporting less than 48 GiB total or 40 GiB free VRAM; it also asks for 36 GiB free disk for the cold cache. These thresholds reduce foreseeable OOM/disk failures but cannot guarantee a successful request. The upstream model is around 15.2B parameters and calls for roughly 48 GB VRAM; do not expect it to run reliably on arbitrary free/shared hardware.
 - `ENABLE_COSMOS_VIDEO` is off unless explicitly enabled in both Hugging Face Space and Vercel environment settings.
 
 ## Qwen3.8 27B — experimental text generation
