@@ -39,7 +39,7 @@ This repository branch cannot repair an account-side Hugging Face job timeout wi
 
 ## Deployment
 
-The canonical Wrangler config is `wrangler.jsonc` at the repository root. Workers Builds should run from `/`; leave the build command empty unless a separate build step is introduced, and use `npx wrangler deploy` as the deploy command. The config requires `FIREBASE_SERVICE_ACCOUNT_JSON` and validates that it exists before deployment. It intentionally does not store the secret value.
+The canonical Wrangler config is `wrangler.jsonc` at the repository root. Workers Builds should run from `/`; leave the build command empty unless a separate build step is introduced, and use `npx wrangler deploy` as the deploy command. The config requires `FIREBASE_SERVICE_ACCOUNT_JSON` and validates that it exists before deployment. It intentionally does not store the secret value. After deployment, open `https://ai.erikraft.com/api/health`; `firebaseServiceAccountConfigured`, `firebaseServiceAccountJsonValid`, and `firebaseProjectMatches` should all be `true`. The endpoint returns booleans only, never the secret.
 
 Use a preview hostname first. Firebase ID tokens must be issued for the same Firebase project; the Cloudflare hostname must be allowed by Firebase Authentication's authorized domains where applicable. Test login, quota, both image flows, invalid-token rejection, and static-file 404s before switching production traffic.
 
