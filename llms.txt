@@ -6,6 +6,8 @@
 - Source repository: https://github.com/erikraft/AI
 - Privacy policy: https://ai.erikraft.com/privacy.html
 - Terms of use: https://ai.erikraft.com/terms.html
+- Website hosting: Cloudflare Workers + Static Assets. AI model inference runs in the Hugging Face Space.
+- API readiness: the checked-in Cloudflare Worker currently responds HTTP 503 to POST /api/generate until its Firebase/Firestore/Hugging Face API route is implemented.
 - Hugging Face Space (image backend): https://huggingface.co/spaces/ErikrafT/erikraft-ai
 - Text-to-image model: aoxo/flux.1dev-abliterated
 - Experimental image → text → image workflow: fluffy12222/Qwythos-9B-Claude-Mythos-5-1M-heretic-abliterated interprets an uploaded reference image and instructions into a text prompt; FLUX renders the final pixels in a separate GPU request.
