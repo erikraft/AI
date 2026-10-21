@@ -252,31 +252,38 @@ def generate_image_from_image(
             torch.cuda.empty_cache()
 
 
-@spaces.GPU(duration=180)
 def generate_video(prompt: str, api_secret: str):
-    """Short, low-resolution Cosmos video; disabled unless hardware is explicitly approved."""
-    global cosmos_pipe
+    """Authorize and validate before ZeroGPU can reserve GPU capacity."""
+    _authorize_experimental_api(api_secret)
     prompt = (prompt or "").strip()
     if not ENABLE_COSMOS_VIDEO:
         raise gr.Error("Cosmos video is disabled. Enable ENABLE_COSMOS_VIDEO only after validating GPU and disk capacity.")
-    _authorize_experimental_api(api_secret)
     if not prompt or len(prompt) > 1500:
         raise gr.Error("Prompt must contain 1–1500 characters.")
+    return _generate_video_with_gpu(prompt)
+
+
+@spaces.GPU(duration=180)
+def _generate_video_with_gpu(prompt: str):
+    """Run Cosmos only after the public handler has authorized the caller."""
+    global cosmos_pipe
+    prompt = (prompt or "").strip()
     if not torch.cuda.is_available():
         raise gr.Error("Cosmos requires a compatible CUDA GPU.")
+    cached_size_gib = _cached_repo_size_gib("models--DuoNeural--Cosmos3-Nano-Abliterated")
+    free_disk_gib = _disk_free_gib()
+    if cached_size_gib < 28 and free_disk_gib < 36:
+        raise gr.Error(
+            f"Cosmos needs tens of gigabytes of model cache; only {free_disk_gib:.1f} GiB free disk space is available and the detected model cache is {cached_size_gib:.1f} GiB."
+        )
+    # Free memory occupied by other models before measuring VRAM available to Cosmos.
+    _clear_models("cosmos")
     total_gib = torch.cuda.get_device_properties(0).total_memory / (1024 ** 3)
     free_gib = torch.cuda.mem_get_info()[0] / (1024 ** 3)
     if total_gib < 48 or free_gib < 40:
         raise gr.Error(
             f"Cosmos needs roughly 48 GB VRAM. This runtime reports {total_gib:.1f} GiB total and {free_gib:.1f} GiB free; refusing to load to reduce OOM risk."
         )
-    cached_size_gib = _cached_repo_size_gib("models--DuoNeural--Cosmos3-Nano-Abliterated")
-    if cached_size_gib < 28 and _disk_free_gib() < 36:
-        raise gr.Error(
-            f"Cosmos needs tens of gigabytes of model cache; only {_disk_free_gib():.1f} GiB free disk space is available and the detected model cache is {cached_size_gib:.1f} GiB."
-        )
-    # Do not evict working models until the request has passed every cheap preflight check.
-    _clear_models("cosmos")
     path = None
     keep_path_for_gradio = False
     try:
@@ -331,11 +338,11 @@ def generate_text(prompt: str, language: str = "pt-BR", api_secret: str = ""):
         raise gr.Error("Prompt must contain 1–1500 characters.")
     if not _has_cached_repo("models--0bserverx--Qwen3.8-27B-Heretic-Abliterated-Uncensored-GGUF") and _disk_free_gib() < 11:
         raise gr.Error(f"Qwen needs about 9.1 GB for its selected GGUF plus cache overhead; only {_disk_free_gib():.1f} GiB free disk space is available.")
+    # Release other models before measuring RAM available for the CPU-only Qwen model.
+    _clear_models("qwen")
     available_ram = _available_ram_gib()
     if qwen_text_model is None and available_ram < 12:
         raise gr.Error(f"Qwen CPU inference needs roughly 12 GiB free RAM; only {available_ram:.1f} GiB appears available.")
-    # Preserve warm image models when disk/RAM preflight rejects this request.
-    _clear_models("qwen")
     try:
         if qwen_text_model is None:
             from llama_cpp import Llama
