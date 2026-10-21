@@ -237,7 +237,7 @@ function updateModelSelection() {
       : (english ? "Available · provider limits apply" : "Disponível · sujeito aos limites do provedor");
   $("model-runtime-notice").textContent = isCosmos
     ? (english
-        ? (enabled ? "The Space checks available VRAM and cache disk before loading. Successful inference is not guaranteed." : "Blocked to reduce GPU/disk failures. Enabling requires explicit Vercel and Space flags, ≥42 GiB total / ≥34 GiB free VRAM and ~36 GiB disk for a cold download.")
+        ? (enabled ? "The Space checks available VRAM and cache disk before loading. Successful inference is not guaranteed." : "Blocked to reduce GPU/disk failures. Enabling requires explicit Vercel and Space flags, ≥48 GiB total / ≥40 GiB free VRAM and ~36 GiB disk for a cold download.")
         : (enabled ? "O Space verifica VRAM e disco de cache antes de carregar. A inferência ainda não é garantida." : "Bloqueado para reduzir falhas de GPU/disco. A ativação exige flags no Vercel e Space, ≥42 GiB de VRAM total / ≥34 GiB livre e cerca de 36 GiB em disco no primeiro download."))
     : isQwen
       ? (english
