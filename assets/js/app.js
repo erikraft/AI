@@ -273,7 +273,7 @@ function updateModelSelection() {
   $("generated-text").textContent = "";
   $("qwythos-result-text").classList.add("hidden");
   $("qwen-chat-thread").classList.toggle("hidden", !isQwen || !$("qwen-chat-thread").children.length);
-  $("empty-result").classList.remove("hidden");
+  $("empty-result").classList.toggle("hidden", isQwen && $("qwen-chat-thread").children.length > 0);
   $("result-status").textContent = languageText("ready_status");
   $("result-status").className = "result-status";
 }
@@ -527,8 +527,10 @@ $("generator-form").addEventListener("submit", async (event) => {
           text: (message.querySelector(".qwen-message-content")?.textContent || "").slice(0, 900)
         }))
     : [];
-  const requestPrompt = isQwenRequest && qwenHistory.length
-    ? "Conversation context (most recent messages):\n" + qwenHistory.map((message) => (message.role === "user" ? "User: " : "Assistant: ") + message.text).join("\n") + "\nUser: " + prompt + "\nAssistant:"
+  const contextBudget = Math.max(0, 1450 - prompt.length);
+  const contextText = qwenHistory.map((message) => (message.role === "user" ? "User: " : "Assistant: ") + message.text).join("\n");
+  const requestPrompt = isQwenRequest && qwenHistory.length && contextBudget > 0
+    ? (contextText.slice(-contextBudget) + "\nUser: " + prompt).slice(-1500)
     : prompt;
   let qwenPendingMessage = null;
   button.disabled = true;
