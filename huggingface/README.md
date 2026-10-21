@@ -49,3 +49,7 @@ For Cosmos, the callable passed as `spaces.GPU(duration=...)` validates the secr
 **Deployment order matters:** deploy the Space change first and wait until the Hugging Face build completes successfully, then deploy/update the server-side caller to pass the secret. Gradio may tolerate extra arguments, so deploying the caller first can result in an older, ungated handler silently ignoring the appended secret. Keep both model flags disabled until the matching secret is configured and the new Space build is verified.
 
 Cosmos checks cold-download disk capacity before evicting other models, then releases the other model cache before measuring free VRAM. Qwen checks cold-download disk capacity before eviction, then releases other model caches before measuring free system RAM. This avoids both unnecessary eviction on an obvious disk failure and false memory failures caused by another resident model. Generated videos remain in Gradio's managed cache and old cache files are pruned hourly after 24 hours; partial files are removed immediately on failure.
+
+### Default build dependencies
+
+The default Space build intentionally omits the optional `llama-cpp-python` CPU backend because Qwen text generation is disabled by default. Do not set `ENABLE_QWEN_TEXT=true` unless that backend is explicitly installed and validated. The supported FLUX and Qwythos image workflows do not use Qwen.
