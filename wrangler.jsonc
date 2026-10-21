@@ -3,11 +3,12 @@
   "name": "erikraft-ai",
   "main": "./cloudflare/worker.js",
   "compatibility_date": "2026-10-20",
+  "compatibility_flags": ["nodejs_compat"],
   "previews": {},
   "assets": {
     "directory": "./",
     "binding": "ASSETS",
-    "run_worker_first": ["/api/*"]
+    "run_worker_first": true
   },
   "observability": {
     "enabled": true

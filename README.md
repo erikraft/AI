@@ -1,24 +1,24 @@
 # ErikrafT AI
 
-An AI image studio with a responsive dark interface and Portuguese/English UI. **`aoxo/flux.1dev-abliterated`** generates images from text. In the experimental **image → text → image** workflow, the user uploads an image and instructions; the browser normalizes the image to JPEG, and the server-side integration is intended to send the actual file to **`fluffy12222/Qwythos-9B-Claude-Mythos-5-1M-heretic-abliterated`** for interpretation. FLUX then renders the resulting prompt in a separate request. Qwythos does not directly render the final image pixels. Note that the checked-in Cloudflare Worker currently returns HTTP 503 for `/api/generate`, so the deployed request does not reach the model until that API route is implemented.
+An open-source AI model hub with a responsive dark interface and Portuguese (Brazil)/English UI. **`aoxo/flux.1dev-abliterated`** generates images from text. In the experimental **image → text → image** workflow, the user uploads an image and instructions; the browser normalizes the image to JPEG, and the Worker uploads the actual file to **`fluffy12222/Qwythos-9B-Claude-Mythos-5-1M-heretic-abliterated`** for interpretation. FLUX then renders the resulting prompt in a separate request. Qwythos does not directly render the final image pixels. The Cloudflare Worker in this branch routes FLUX text-to-image, Qwythos image + instructions → text interpretation → FLUX image, Cosmos text-to-video, and Qwen text generation through the Hugging Face Space after Firebase verification and Firestore quota checks. Cosmos and Qwen also depend on Space-side feature flags and runtime resources.
 
 - **Frontend:** static HTML/CSS/JavaScript hosted with Cloudflare Workers + Static Assets.
 - **Authentication:** Firebase Authentication with Google, GitHub, and email/password; email/password accounts must verify their address before generating images.
-- **Generation:** Hugging Face Gradio Space running the selected model.
+- **Generation:** Hugging Face Gradio Space routing the selected image, video, or text model.
 - **Abuse prevention target:** Firebase ID-token verification and a Firestore-backed limit of five generation requests per account per hour; the Cloudflare API must implement these checks before generation is enabled.
 - **Cost goal:** use free tiers where possible. Provider quotas, availability, model compatibility, and GPU access are not guaranteed.
 
 ## Architecture
 
-Cloudflare Workers + Static Assets serves the website. The Hugging Face Space hosts the AI weights and inference. The checked-in Worker currently fails closed with HTTP 503 on `POST /api/generate`; it is not yet the completed inference API. The Node-oriented handler under `api/generate.js` is not automatically routed by Cloudflare Workers.
+Cloudflare Workers + Static Assets serves the website. The Hugging Face Space hosts the AI weights and inference. The Worker verifies Firebase ID tokens, reserves per-account quota through Firestore, and routes selected model calls to Gradio. The Node-oriented handler under `api/generate.js` remains a reference implementation and is not automatically routed by Cloudflare Workers.
 
 ```text
 Browser
   ├── Cloudflare Worker + Static Assets (website)
   └── POST /api/generate + Firebase ID token
-          └── Current cloudflare/worker.js: HTTP 503 (API integration pending)
+          └── cloudflare/worker.js → Gradio endpoints for image, video, and text
 
-Intended server-side flow after the Cloudflare API port:
+Current generation flow through the Cloudflare Worker:
   Firebase ID-token validation
     → transactional Firestore usage limit
     → Hugging Face Gradio Space
@@ -27,11 +27,11 @@ Intended server-side flow after the Cloudflare API port:
                     → separate FLUX request → final image
 ```
 
-In Qwythos mode, the browser decodes the selected image and converts it to JPEG (maximum 3 MiB) before sending it as `referenceImage` to `/api/generate`. The server-side integration must upload that file to Gradio so Qwythos receives the actual image, not only the prompt. With the checked-in Worker scaffold, the request currently stops at HTTP 503; successful end-to-end generation must not be assumed.
+In Qwythos mode, the browser decodes the selected image and converts it to JPEG (maximum 3 MiB) before sending it as `referenceImage` to `/api/generate`. The Worker uploads the file to Gradio so Qwythos receives the actual image and instructions, returns an interpreted prompt, and then calls FLUX separately for the final image. This integration still requires a successful live end-to-end test.
 
 ## Repository layout
 
-- `index.html` — responsive image studio and sign-in modal.
+- `index.html` — responsive bilingual AI model hub and sign-in modal.
 - `assets/css/styles.css` — dark, blue-accented styling.
 - `assets/js/app.js` — Firebase sign-in, prompt form, API request, result preview, and download.
 - `assets/js/firebase-config.js` — Firebase Web app configuration used by the browser.
@@ -68,7 +68,7 @@ The Space endpoint used by `@gradio/client` is `/generate_image`, with inputs in
 
 The static frontend is configured for Cloudflare Workers + Static Assets in the root-level `wrangler.jsonc`, with `cloudflare/worker.js` as its entry point.
 
-**Known integration blocker:** the checked-in Worker deliberately returns HTTP 503 for `POST /api/generate`. That route has not yet been ported to a Worker-compatible implementation for Firebase identity verification, Firestore transactions, and Hugging Face Gradio file upload/inference. The Node.js file `api/generate.js` is not invoked automatically by the Worker. As a result, the UI can be served as static assets, but generation through this Worker is not end-to-end ready until the API route is implemented and tested.
+**End-to-end verification still required:** the Worker now contains a Worker-compatible API for Firebase identity verification, Firestore quota reservation, Gradio image upload, and the FLUX, Qwythos, Cosmos, and Qwen endpoints. It has not yet been validated with successful live requests from the production site. Test authentication, quota concurrency, video/text output formats, static asset routing, and Space runtime flags before production cutover.
 
 For a temporary preview, use Cloudflare Workers Builds or run Wrangler from the repository root:
 
@@ -77,9 +77,9 @@ npm install
 npx wrangler preview
 ```
 
-Do not switch production traffic to a Worker that still returns 503 for `/api/generate`. Before enabling generation, the Cloudflare implementation must validate Firebase ID tokens, preserve the Firestore quota/refund behavior, upload the normalized image file to Gradio for Qwythos, handle timeouts/provider errors, and avoid caching authenticated responses.
+Do not switch production traffic until preview tests pass. Validate Firebase ID tokens, Firestore quota concurrency, Gradio upload/event-stream formats for all enabled models, provider timeouts, and authenticated-response caching. Provider failures still consume the reserved quota slot in this version; a transaction-safe refund is a remaining task.
 
-The eventual server-side caller will need suitable secrets/configuration, including `HF_SPACE_ID=ErikrafT/erikraft-ai`; `HF_TOKEN` only if authenticated Space access is required; `HF_SPACE_API_SECRET` as a server-side secret when calling the protected Cosmos/Qwen endpoints; and the chosen Firebase server credentials. Do not expose these in HTML, browser JavaScript, `VITE_*` values, or the repository. The current Worker scaffold does not consume these values to generate images yet.
+The Worker uses `FIREBASE_SERVICE_ACCOUNT_JSON` for Firebase/Firestore, `HF_SPACE_ID=ErikrafT/erikraft-ai` to select the Space, optional `HF_TOKEN` if authenticated Space access is required, and `HF_SPACE_API_SECRET` as a server-side secret for Cosmos/Qwen. The Space additionally controls experimental runtime flags `ENABLE_COSMOS_VIDEO` and `ENABLE_QWEN_TEXT`. Do not expose secrets in HTML, browser JavaScript, `VITE_*` values, or the repository.
 
 The GitHub Actions workflow syncs `huggingface/` to the live Space only after changes reach `main` and the sync succeeds. An open PR does not update the running Space.
 
@@ -87,8 +87,8 @@ The GitHub Actions workflow syncs `huggingface/` to the live Space only after ch
 
 - Requests without a valid Firebase ID token are rejected.
 - Default quota: **5 generation requests per authenticated account per rolling hour**.
-- The reference Node.js handler reserves Firestore quota slots transactionally; this protection still needs to be ported to the Cloudflare Worker before generation is enabled.
-- The reference handler reserves quota before contacting the provider and attempts a safe refund on failure; the Cloudflare implementation must preserve and test this behavior.
+- The Worker reserves Firestore quota slots transactionally; concurrency/conflict handling needs live testing.
+- Provider failures currently consume a reserved quota slot until the rolling window resets; a transaction-safe refund remains a follow-up.
 - Account-based limits cannot fully prevent users from creating multiple accounts. Consider Firebase App Check and monitoring before public launch.
 - Generated image URLs may be temporary. Avoid sending personal or confidential information in prompts.
 
@@ -96,7 +96,7 @@ The GitHub Actions workflow syncs `huggingface/` to the live Space only after ch
 
 Review the model card and upstream FLUX.1-dev terms before commercial use; do not assume the model metadata alone settles licensing.
 
-**End-to-end generation is not verified through the checked-in Cloudflare Worker.** Its current `POST /api/generate` route returns HTTP 503. The public Hugging Face Space also currently reports `Build error — Job timeout`; that must be resolved and real image generation tested before claiming production readiness.
+**End-to-end generation is not yet verified in production.** The Worker code in PR #34 implements the model routes, but it still needs successful live tests against the current Space. The Space previously reported `Build error — Job timeout`; check the latest build/runtime logs and confirm a successful generation before claiming production readiness.
 
 
 Email/password registration sends a Firebase verification email and signs the newly created account out until the address is verified. The generation API independently rejects password-provider tokens whose `email_verified` claim is not `true`. Firebase Authentication handles verification; no separate application database is required for that step.
@@ -104,7 +104,7 @@ Email/password registration sends a Firebase verification email and signs the ne
 
 ## Model selector
 
-The model selector switches the task-specific form copy and options for **FLUX text → image**, **Qwythos image → text → image** (experimental; reference image + instructions → interpreted text prompt → separate FLUX render), **Cosmos3 Nano text → video**, and **Qwen3.8 text → text** when each experimental option is enabled by `/api/models`. Qwythos requires a reference image; it interprets the image and instructions into a prompt, and FLUX makes a separate request to render the result. The standalone Qwythos text-only assistant is not exposed as a separate task. Cosmos and Qwen remain guarded by backend/Space flags and runtime resource checks. Qwythos reference images are normalized in the browser and included in the `/api/generate` request; the Node.js reference handler uploads the image file to Gradio for Qwythos inference. The checked-in Cloudflare Worker still needs its API port before this path can work end to end. The Qwythos BF16 weights require substantial memory, so see [model compatibility](huggingface/MODEL_COMPATIBILITY.md).
+The model selector switches the task-specific form copy and options for **FLUX text → image**, **Qwythos image → text → image** (experimental; reference image + instructions → interpreted text prompt → separate FLUX render), **Cosmos3 Nano text → video**, and **Qwen3.8 text → text** when each experimental option is enabled by `/api/models`. Qwythos requires a reference image; it interprets the image and instructions into a prompt, and FLUX makes a separate request to render the result. The standalone Qwythos text-only assistant is not exposed as a separate task. Cosmos and Qwen remain guarded by backend/Space flags and runtime resource checks. Qwythos reference images are normalized in the browser and included in the `/api/generate` request; the Node.js reference handler uploads the image file to Gradio for Qwythos inference. The Cloudflare Worker now implements this path; successful live end-to-end verification is still required. The Qwythos BF16 weights require substantial memory, so see [model compatibility](huggingface/MODEL_COMPATIBILITY.md).
 
 
 ### Experimental image → text → image mode
@@ -113,7 +113,7 @@ The UI accepts image files the browser can decode (original file up to 12 MB), c
 
 ## Experimental video and text models
 
-The model selector supports four task types: **FLUX text→image**; **Qwythos + FLUX reference image + instructions→image**; **Cosmos3 Nano text→video**; and **Qwen3.8 27B text assistant**. The latter two are deliberately **disabled by default** and must remain unavailable until a working server-side API reports their feature flags and the Space passes its hardware/runtime checks. The checked-in Cloudflare Worker does not yet implement `/api/models`.
+The model selector supports four task types: **FLUX text→image**; **Qwythos + FLUX reference image + instructions→image**; **Cosmos3 Nano text→video**; and **Qwen3.8 27B text assistant**. Cosmos and Qwen are exposed by the site only when the Worker reports the experimental API as configured. This does not prove the Space-side feature flags or available hardware are sufficient; runtime checks can still reject a request. The Worker implements `/api/models`, but it cannot independently confirm private Space flags.
 
 - **Cosmos3 Nano** (`DuoNeural/Cosmos3-Nano-Abliterated`) is a 15.2B-parameter video model. The integration limits requests to 16 frames at 256×256 and 12 steps, declares 180 seconds of GPU time, and refuses to load unless the runtime reports at least 48 GiB total / 40 GiB free VRAM and at least 36 GiB free disk on a cold download. The upstream model reports roughly 48 GB VRAM needs, so these are guardrails, not a guarantee; do not enable on unknown or undersized free GPU hardware.
 - **Qwen3.8 27B GGUF** (`0bserverx/Qwen3.8-27B-Heretic-Abliterated-Uncensored-GGUF`) uses the roughly 9.1 GB `RVN-IQ2_XS.gguf` quantization through `llama-cpp-python` with `n_gpu_layers=0` (CPU only). It checks for about 12 GiB free RAM and 11 GiB free disk on a cold download. It should avoid using CUDA VRAM but can be slow and output quality is lower than larger quantizations.
