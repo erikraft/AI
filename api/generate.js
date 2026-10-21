@@ -1,7 +1,7 @@
 import { initializeApp, cert, getApps } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 import { getFirestore, Timestamp } from "firebase-admin/firestore";
-import { Client } from "@gradio/client";
+import { Client, handle_file } from "@gradio/client";
 
 const WINDOW_MS = 60 * 60 * 1000;
 const ACCOUNT_MAX_PER_WINDOW = 5;
@@ -27,6 +27,16 @@ function requestLanguage(req) {
 
 function localized(req, portuguese, english) {
   return requestLanguage(req) === "en" ? english : portuguese;
+}
+
+function referenceImageToGradioFile(dataUrl) {
+  const match = /^data:(image\/(?:png|jpeg|webp));base64,([A-Za-z0-9+/]+={0,2})$/i.exec(dataUrl);
+  if (!match) throw new Error("Invalid reference image data URL.");
+  const mimeType = match[1].toLowerCase();
+  const bytes = Buffer.from(match[2], "base64");
+  if (!bytes.length || bytes.byteLength > 3 * 1024 * 1024) throw new Error("Reference image exceeds the 3 MiB inference payload limit.");
+  const extension = mimeType === "image/jpeg" ? "jpg" : mimeType.slice("image/".length);
+  return handle_file(new File([bytes], "reference-image." + extension, { type: mimeType }));
 }
 
 async function releaseGenerationReservation(db, ref, reservation) {
@@ -112,8 +122,16 @@ export default async function handler(req, res) {
         error: localized(req, "Envie uma imagem de referência para usar Qwythos com instruções.", "Upload a reference image to use Qwythos with instructions.")
       });
     }
-    if (referenceImage !== null && (!isQwythos || typeof referenceImage !== "string" || !/^data:image\/(png|jpeg|webp);base64,/i.test(referenceImage) || referenceImage.length > 4_200_000)) {
-      return res.status(400).json({ error: localized(req, "Imagem inválida. Use PNG, JPG ou WebP de até 3 MB com o modo Qwythos imagem + instruções.", "Invalid image. Use a PNG, JPG, or WebP up to 3 MB with Qwythos image + instructions mode.") });
+    if (referenceImage !== null && (!isQwythos || typeof referenceImage !== "string" || !/^data:image\/(?:png|jpeg|webp);base64,[A-Za-z0-9+/]+={0,2}$/i.test(referenceImage) || referenceImage.length > 4_200_000)) {
+      return res.status(400).json({ error: localized(req, "Imagem inválida ou grande demais. Envie uma imagem compatível; a versão preparada para inferência pode ter até 3 MB.", "Invalid or oversized image. Upload a supported image; the prepared inference image may be up to 3 MB.") });
+    }
+    let referenceImageFile = null;
+    if (referenceImage !== null) {
+      try {
+        referenceImageFile = referenceImageToGradioFile(referenceImage);
+      } catch {
+        return res.status(400).json({ error: localized(req, "Não foi possível preparar a imagem para o Qwythos. Selecione a imagem novamente e tente outra vez.", "Could not prepare the image for Qwythos. Select the image again and retry.") });
+      }
     }
     const allowedSizes = new Set(["768x768", "1024x768", "768x1024"]);
     if (!isCosmos && !isQwen && (!allowedSizes.has(width + "x" + height) || ![20, 28].includes(Number(steps)))) {
@@ -124,7 +142,7 @@ export default async function handler(req, res) {
 
     const spaceId = process.env.HF_SPACE_ID;
     if ((isCosmos || isQwen) && (!process.env.HF_SPACE_API_SECRET || process.env.HF_SPACE_API_SECRET.length < 32)) {
-      return res.status(503).json({ error: localized(req, "Os modelos experimentais estão bloqueados: configure um segredo forte HF_SPACE_API_SECRET no Vercel e no Space.", "Experimental models are locked: configure a strong HF_SPACE_API_SECRET in both Vercel and the Space.") });
+      return res.status(503).json({ error: localized(req, "Os modelos experimentais estão bloqueados: configure HF_SPACE_API_SECRET como segredo no backend do site e no Space.", "Experimental models are locked: configure HF_SPACE_API_SECRET as a secret in the server-side backend and the Space.") });
     }
     if (!spaceId) {
       return res.status(503).json({
@@ -189,7 +207,7 @@ export default async function handler(req, res) {
       phase = "space-interpret";
       const interpretation = await client.predict(
         "/generate_image_from_image",
-        [prompt.trim(), { url: referenceImage }, requestLanguage(req)]
+        [prompt.trim(), referenceImageFile, requestLanguage(req)]
       );
       const interpreted = interpretation?.data?.[0];
       const generatedPrompt = typeof interpreted === "string"
@@ -263,8 +281,8 @@ export default async function handler(req, res) {
     if (phase === "firebase-auth") {
       return res.status(503).json({
         error: localized(req,
-          "Não foi possível validar a conta no servidor. Verifique as variáveis e as credenciais do Firebase no Vercel.",
-          "The server could not validate the account. Check the Firebase credentials and environment variables in Vercel.")
+          "Não foi possível validar a conta no servidor. Verifique as variáveis e as credenciais do Firebase e variáveis do backend do site.",
+          "The server could not validate the account. Check the Firebase credentials and server-side backend environment variables.")
       });
     }
 
@@ -295,8 +313,8 @@ export default async function handler(req, res) {
     if (/invalid token|unauthorized|unauthorised|forbidden|\b401\b|\b403\b/.test(normalized)) {
       return res.status(502).json({
         error: localized(req,
-          "O Hugging Face recusou a autenticação do backend. Confira se HF_TOKEN é um token válido com acesso ao Space e se está configurado nas variáveis do Vercel.",
-          "Hugging Face rejected the backend authentication. Check that HF_TOKEN is valid, has access to the Space, and is configured in Vercel environment variables.")
+          "O Hugging Face recusou a autenticação do backend. Confira se HF_TOKEN é um token válido com acesso ao Space e se está configurado como variável secreta no backend do site.",
+          "Hugging Face rejected the backend authentication. Check that HF_TOKEN is valid, has access to the Space, and is configured as a server-side backend secret.")
       });
     }
 
@@ -318,8 +336,8 @@ export default async function handler(req, res) {
 
     return res.status(502).json({
       error: localized(req,
-        "A geração falhou por um erro do Space ou da integração, sem confirmação de cota esgotada. Confira os logs da função /api/generate no Vercel para identificar a causa.",
-        "Generation failed because of a Space or integration error; quota exhaustion was not confirmed. Check the /api/generate function logs in Vercel to identify the cause.")
+        "A geração falhou por um erro do Space ou da integração, sem confirmação de cota esgotada. Confira os logs do backend para /api/generate para identificar a causa.",
+        "Generation failed because of a Space or integration error; quota exhaustion was not confirmed. Check the server-side /api/generate logs to identify the cause.")
     });
   }
 }
