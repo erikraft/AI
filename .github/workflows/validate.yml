@@ -28,5 +28,8 @@ jobs:
         run: |
           node --check assets/js/app.js
           node --check api/generate.js
+          node --check cloudflare/worker.js
+      - name: Test Cloudflare Worker public asset routing
+        run: node --test tests/*.test.js
       - name: Validate Hugging Face Python syntax
         run: python -m py_compile huggingface/app.py
