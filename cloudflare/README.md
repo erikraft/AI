@@ -24,6 +24,7 @@ The production hostname `ai.erikraft.com` is attached to Worker `erikraft-ai` in
 | `FIREBASE_SERVICE_ACCOUNT_JSON` | Secret | Firebase service-account JSON with least-privilege Firestore access to the generation-limit collection |
 | `HF_SPACE_ID` | Variable | `ErikrafT/erikraft-ai` |
 | `HF_TOKEN` | Secret (optional) | Only if the Space requires authenticated access |
+| `HF_SPACE_API_SECRET` | Secret (experimental endpoints) | Same random secret configured in the Hugging Face Space; required only for protected Cosmos/Qwen endpoints |
 
 The service account's `project_id` must match the Firebase project used by the website's ID tokens. Grant only the permissions required for Firestore quota documents. Never commit the JSON or place secrets in browser code.
 
