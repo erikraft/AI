@@ -1,6 +1,6 @@
 # ErikrafT AI
 
-An open-source AI model hub with a responsive dark interface and Portuguese (Brazil)/English UI. **`aoxo/flux.1dev-abliterated`** generates images from text. In the experimental **image → text → image** workflow, the user uploads an image and instructions; the browser normalizes the image to JPEG, and the server-side integration is intended to send the actual file to **`fluffy12222/Qwythos-9B-Claude-Mythos-5-1M-heretic-abliterated`** for interpretation. FLUX then renders the resulting prompt in a separate request. Qwythos does not directly render the final image pixels. The Cloudflare Worker in this branch routes FLUX text-to-image, Qwythos image + instructions → text interpretation → FLUX image, Cosmos text-to-video, and Qwen text generation through the Hugging Face Space after Firebase verification and Firestore quota checks. Cosmos and Qwen also depend on Space-side feature flags and runtime resources.
+An open-source AI model hub with a responsive dark interface and Portuguese (Brazil)/English UI. **`aoxo/flux.1dev-abliterated`** generates images from text. In the experimental **image → text → image** workflow, the user uploads an image and instructions; the browser normalizes the image to JPEG, and the Worker uploads the actual file to **`fluffy12222/Qwythos-9B-Claude-Mythos-5-1M-heretic-abliterated`** for interpretation. FLUX then renders the resulting prompt in a separate request. Qwythos does not directly render the final image pixels. The Cloudflare Worker in this branch routes FLUX text-to-image, Qwythos image + instructions → text interpretation → FLUX image, Cosmos text-to-video, and Qwen text generation through the Hugging Face Space after Firebase verification and Firestore quota checks. Cosmos and Qwen also depend on Space-side feature flags and runtime resources.
 
 - **Frontend:** static HTML/CSS/JavaScript hosted with Cloudflare Workers + Static Assets.
 - **Authentication:** Firebase Authentication with Google, GitHub, and email/password; email/password accounts must verify their address before generating images.
@@ -18,7 +18,7 @@ Browser
   └── POST /api/generate + Firebase ID token
           └── cloudflare/worker.js → Gradio endpoints for image, video, and text
 
-Intended server-side flow after the Cloudflare API port:
+Current generation flow through the Cloudflare Worker:
   Firebase ID-token validation
     → transactional Firestore usage limit
     → Hugging Face Gradio Space
@@ -104,7 +104,7 @@ Email/password registration sends a Firebase verification email and signs the ne
 
 ## Model selector
 
-The model selector switches the task-specific form copy and options for **FLUX text → image**, **Qwythos image → text → image** (experimental; reference image + instructions → interpreted text prompt → separate FLUX render), **Cosmos3 Nano text → video**, and **Qwen3.8 text → text** when each experimental option is enabled by `/api/models`. Qwythos requires a reference image; it interprets the image and instructions into a prompt, and FLUX makes a separate request to render the result. The standalone Qwythos text-only assistant is not exposed as a separate task. Cosmos and Qwen remain guarded by backend/Space flags and runtime resource checks. Qwythos reference images are normalized in the browser and included in the `/api/generate` request; the Node.js reference handler uploads the image file to Gradio for Qwythos inference. The checked-in Cloudflare Worker still needs its API port before this path can work end to end. The Qwythos BF16 weights require substantial memory, so see [model compatibility](huggingface/MODEL_COMPATIBILITY.md).
+The model selector switches the task-specific form copy and options for **FLUX text → image**, **Qwythos image → text → image** (experimental; reference image + instructions → interpreted text prompt → separate FLUX render), **Cosmos3 Nano text → video**, and **Qwen3.8 text → text** when each experimental option is enabled by `/api/models`. Qwythos requires a reference image; it interprets the image and instructions into a prompt, and FLUX makes a separate request to render the result. The standalone Qwythos text-only assistant is not exposed as a separate task. Cosmos and Qwen remain guarded by backend/Space flags and runtime resource checks. Qwythos reference images are normalized in the browser and included in the `/api/generate` request; the Node.js reference handler uploads the image file to Gradio for Qwythos inference. The Cloudflare Worker now implements this path; successful live end-to-end verification is still required. The Qwythos BF16 weights require substantial memory, so see [model compatibility](huggingface/MODEL_COMPATIBILITY.md).
 
 
 ### Experimental image → text → image mode
@@ -113,7 +113,7 @@ The UI accepts image files the browser can decode (original file up to 12 MB), c
 
 ## Experimental video and text models
 
-The model selector supports four task types: **FLUX text→image**; **Qwythos + FLUX reference image + instructions→image**; **Cosmos3 Nano text→video**; and **Qwen3.8 27B text assistant**. The latter two are deliberately **disabled by default** and must remain unavailable until a working server-side API reports their feature flags and the Space passes its hardware/runtime checks. The checked-in Cloudflare Worker does not yet implement `/api/models`.
+The model selector supports four task types: **FLUX text→image**; **Qwythos + FLUX reference image + instructions→image**; **Cosmos3 Nano text→video**; and **Qwen3.8 27B text assistant**. Cosmos and Qwen are exposed by the site only when the Worker reports the experimental API as configured. This does not prove the Space-side feature flags or available hardware are sufficient; runtime checks can still reject a request. The Worker implements `/api/models`, but it cannot independently confirm private Space flags.
 
 - **Cosmos3 Nano** (`DuoNeural/Cosmos3-Nano-Abliterated`) is a 15.2B-parameter video model. The integration limits requests to 16 frames at 256×256 and 12 steps, declares 180 seconds of GPU time, and refuses to load unless the runtime reports at least 48 GiB total / 40 GiB free VRAM and at least 36 GiB free disk on a cold download. The upstream model reports roughly 48 GB VRAM needs, so these are guardrails, not a guarantee; do not enable on unknown or undersized free GPU hardware.
 - **Qwen3.8 27B GGUF** (`0bserverx/Qwen3.8-27B-Heretic-Abliterated-Uncensored-GGUF`) uses the roughly 9.1 GB `RVN-IQ2_XS.gguf` quantization through `llama-cpp-python` with `n_gpu_layers=0` (CPU only). It checks for about 12 GiB free RAM and 11 GiB free disk on a cold download. It should avoid using CUDA VRAM but can be slow and output quality is lower than larger quantizations.
