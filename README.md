@@ -69,6 +69,7 @@ Import the repository into Vercel. The root is a static site and `api/generate.j
 | `FIREBASE_SERVICE_ACCOUNT_JSON` | Yes | Full Firebase Admin service-account JSON; store only as a server secret |
 | `HF_SPACE_ID` | Yes | Hugging Face Space ID in `owner/space-name` format |
 | `HF_TOKEN` | If private/gated access is needed | Hugging Face access token; keep server-side |
+| `HF_SPACE_API_SECRET` | Required before enabling Cosmos or Qwen | Generate a random secret of at least 32 characters and set the exact same value as a Space secret and a Vercel server-side environment variable; never expose it to frontend code |
 | `ENABLE_COSMOS_VIDEO` | Optional, **default off** | Set to `true` in both Vercel and the Space only after verifying GPU VRAM and disk capacity |
 | `ENABLE_QWEN_TEXT` | Optional, **default off** | Set to `true` in both Vercel and the Space only after verifying CPU RAM, disk, and llama.cpp installation |
 
@@ -120,3 +121,8 @@ The model selector supports four task types: **FLUX text→image**; **Qwythos + 
 - No live Space build, GPU inference, or CPU inference test has been completed as part of this change. Review build logs and test each mode on the actual runtime before enabling its Vercel and Space flags.
 
 The GitHub Actions workflow syncs the `huggingface/` directory to the Space when changes reach `main`. Opening this PR does not deploy the changes to the running Space; merging it and a successful sync workflow are required.
+
+
+### Protecting experimental Space endpoints
+
+The public Gradio Space exposes the model API schema, so Cosmos and Qwen additionally require the server-side `HF_SPACE_API_SECRET`. Set the same random secret (at least 32 characters) in the Hugging Face Space secrets and in Vercel's server-side environment variables. Vercel passes it only as a hidden Gradio input; the Space validates it using constant-time comparison and fails closed when the secret is missing or invalid. Do not put it in any `NEXT_PUBLIC_*`, `VITE_*`, HTML, JavaScript bundle, or public repository file. Keep `ENABLE_COSMOS_VIDEO` and `ENABLE_QWEN_TEXT` disabled until the secret is configured in both places.
