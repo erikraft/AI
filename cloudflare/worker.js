@@ -186,7 +186,8 @@ function getOutputUrl(output, mediaType = "image") {
   if (url.startsWith("/")) return host + url;
   if (!/^https:\/\//i.test(url)) return host + "/" + url.replace(/^\/+/, "");
   const parsed = new URL(url);
-  if (parsed.hostname !== "erikraft-erikraft-ai.hf.space" && parsed.hostname !== "huggingface.co") throw new Error("hf-untrusted-output-url");
+  const allowedHost = parsed.hostname === "erikraft-erikraft-ai.hf.space" || parsed.hostname === "huggingface.co" || parsed.hostname.endsWith(".huggingface.co");
+  if (!allowedHost) throw new Error("hf-untrusted-output-url");
   return parsed.toString();
 }
 async function uploadReferenceImage(env, dataUrl) {
