@@ -123,6 +123,9 @@ export default async function handler(req, res) {
     }
 
     const spaceId = process.env.HF_SPACE_ID;
+    if ((isCosmos || isQwen) && (!process.env.HF_SPACE_API_SECRET || process.env.HF_SPACE_API_SECRET.length < 32)) {
+      return res.status(503).json({ error: localized(req, "Os modelos experimentais estão bloqueados: configure um segredo forte HF_SPACE_API_SECRET no Vercel e no Space.", "Experimental models are locked: configure a strong HF_SPACE_API_SECRET in both Vercel and the Space.") });
+    }
     if (!spaceId) {
       return res.status(503).json({
         error: localized(req, "O Space do Hugging Face não está configurado no servidor. Verifique HF_SPACE_ID.", "The Hugging Face Space is not configured on the server. Check HF_SPACE_ID.")
@@ -170,14 +173,14 @@ export default async function handler(req, res) {
     let result;
     if (isCosmos) {
       phase = "space-video";
-      result = await client.predict("/generate_video", [prompt.trim()]);
+      result = await client.predict("/generate_video", [prompt.trim(), process.env.HF_SPACE_API_SECRET]);
       const first = result?.data?.[0];
       const videoUrl = typeof first === "string" ? first : (first?.url || first?.path || first?.video?.url || first?.video?.path);
       if (!videoUrl) throw new Error("Space returned no recognized video URL.");
       return res.status(200).json({ type: "video", videoUrl, limit, remaining: Math.max(0, limit - reservation.count), tier: "account" });
     } else if (isQwen) {
       phase = "space-text";
-      result = await client.predict("/generate_text", [prompt.trim(), requestLanguage(req)]);
+      result = await client.predict("/generate_text", [prompt.trim(), requestLanguage(req), process.env.HF_SPACE_API_SECRET]);
       const first = result?.data?.[0];
       const answer = typeof first === "string" ? first : (first?.text || first?.value || first?.content || "");
       if (typeof answer !== "string" || !answer.trim()) throw new Error("Space returned no recognized text response.");
