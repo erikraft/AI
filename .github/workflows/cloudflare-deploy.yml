@@ -1,0 +1,62 @@
+name: Cloudflare Workers Deploy Hook
+
+on:
+  push:
+    branches:
+      - '**'
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cloudflare-deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Validate Cloudflare configuration
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Check required Cloudflare files and preview config
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f wrangler.jsonc
+          test -f cloudflare/worker.js
+          grep -Eq '"previews"[[:space:]]*:[[:space:]]*[{][[:space:]]*[}]' wrangler.jsonc
+          echo "Root Wrangler configuration and preview block are present."
+
+  deploy:
+    name: Trigger Cloudflare deployment
+    needs: validate
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Trigger Cloudflare Deploy Hook
+        env:
+          CLOUDFLARE_DEPLOY_HOOK: ${{ secrets.CLOUDFLARE_DEPLOY_HOOK }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "${CLOUDFLARE_DEPLOY_HOOK}" ]]; then
+            echo "::error::Missing repository secret CLOUDFLARE_DEPLOY_HOOK."
+            exit 1
+          fi
+
+          curl --fail-with-body --silent --show-error \
+            --request POST \
+            --retry 2 \
+            --retry-delay 2 \
+            "${CLOUDFLARE_DEPLOY_HOOK}"
+
+          echo "Cloudflare Deploy Hook request completed."
