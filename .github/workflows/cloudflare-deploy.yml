@@ -26,13 +26,14 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Check required Cloudflare files
+      - name: Check required Cloudflare files and preview config
         shell: bash
         run: |
           set -euo pipefail
-          test -f cloudflare/wrangler.jsonc
+          test -f wrangler.jsonc
           test -f cloudflare/worker.js
-          echo "Cloudflare Worker configuration files are present."
+          grep -Eq '"previews"[[:space:]]*:[[:space:]]*[{][[:space:]]*[}]' wrangler.jsonc
+          echo "Root Wrangler configuration and preview block are present."
 
   deploy:
     name: Trigger Cloudflare deployment
