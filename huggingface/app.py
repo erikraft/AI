@@ -246,7 +246,7 @@ def generate_video(prompt: str):
         raise gr.Error("Cosmos requires a compatible CUDA GPU.")
     total_gib = torch.cuda.get_device_properties(0).total_memory / (1024 ** 3)
     free_gib = torch.cuda.mem_get_info()[0] / (1024 ** 3)
-    if total_gib < 42 or free_gib < 34:
+    if total_gib < 48 or free_gib < 40:
         raise gr.Error(
             f"Cosmos needs roughly 48 GB VRAM. This runtime reports {total_gib:.1f} GiB total and {free_gib:.1f} GiB free; refusing to load to reduce OOM risk."
         )
