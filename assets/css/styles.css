@@ -136,7 +136,7 @@
 @media(max-width:720px){.model-selector-field{padding:12px;border-radius:13px}.model-selector-heading{align-items:flex-start}.model-selector-field .model-select-shell select{min-height:48px;font-size:11px;padding:11px 39px 11px 11px}.model-selector-kicker{font-size:8px}.model-selector-meta{align-items:flex-start;flex-direction:column;gap:7px}.model-runtime-pill{font-size:10px}.model-runtime-notice{font-size:10px;padding:10px}.generated-text{font-size:12px}}
 @media(max-width:400px){.model-selector-heading{display:block}.model-selector-kicker{display:block;margin-top:5px}.model-task-badge{font-size:8px}.model-runtime-pill{font-size:9px}}
 
-/* Optional, client-side logo overlay (the uploaded file is never sent to inference). */
+/* Preview for the selected reference image that is sent for Qwythos inference. */
 .reference-image-preview-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:10px;min-width:0}
 .reference-image-preview{width:96px;height:96px;flex:0 0 96px;object-fit:contain;padding:4px;background:#fff;border:1px solid var(--border);border-radius:9px}
 .reference-image-preview-row .small-note{flex:1;min-width:140px;overflow-wrap:anywhere}
