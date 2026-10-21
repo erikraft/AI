@@ -307,8 +307,8 @@ try{const saved=localStorage.getItem("erikraft-ai-language");setLanguage(saved&&
 updateModelSelection();
 if (!configured) $("studio-auth-error").textContent = languageText("auth_unavailable");
 
-// Bitcoin donation address copying and QR generation.
-// Both QR codes use the shared /assets/bitcoin-logo.svg as their embedded center logo.
+// Bitcoin donation address copying and resilient QR generation.
+ // Both QR codes use the single shared /assets/bitcoin-logo.svg asset.
 document.querySelectorAll(".copy-wallet").forEach(button=>button.addEventListener("click",async()=>{
   const original=button.textContent;
   try{await navigator.clipboard.writeText(button.dataset.copy);button.textContent=languageText("copied");}
@@ -316,21 +316,33 @@ document.querySelectorAll(".copy-wallet").forEach(button=>button.addEventListene
   setTimeout(()=>{button.textContent=languageText("copy_address");},1800);
 }));
 
+function qrFallback(host){
+  const english=document.documentElement.lang==="en";
+  host.replaceChildren();
+  const message=document.createElement("p");
+  message.className="qr-unavailable";
+  message.textContent=english
+    ?"QR code unavailable. Copy the Bitcoin address using the button."
+    :"QR indisponível. Use o botão para copiar o endereço.";
+  host.append(message);
+}
 function renderBitcoinQrs(){
-  document.querySelectorAll(".bitcoin-qr-host").forEach(host=>{
+  const hosts=[...document.querySelectorAll(".bitcoin-qr-host")];
+  if(!hosts.length)return;
+  if(typeof window.QRCodeStyling!=="function"){
+    hosts.forEach(qrFallback);
+    return;
+  }
+  hosts.forEach(host=>{
     const address=host.dataset.address;
-    if(!address)return;
-    if(typeof QRCodeStyling!=="function"){
-      host.innerHTML='<p class="qr-unavailable">QR indisponível. Use o botão para copiar o endereço.</p>';
-      return;
-    }
+    if(!address){qrFallback(host);return;}
     try{
-      const qr=new QRCodeStyling({
+      const qr=new window.QRCodeStyling({
         width:512,height:512,type:"svg",data:"bitcoin:"+address,
         image:"/assets/bitcoin-logo.svg",
         margin:8,
         qrOptions:{errorCorrectionLevel:"H"},
-        imageOptions:{hideBackgroundDots:true,imageSize:0.22,margin:4,crossOrigin:"anonymous"},
+        imageOptions:{hideBackgroundDots:true,imageSize:0.18,margin:4,crossOrigin:"anonymous"},
         dotsOptions:{color:"#0a090b",type:"square"},
         cornersSquareOptions:{color:"#0a090b",type:"square"},
         cornersDotOptions:{color:"#0a090b",type:"square"},
@@ -338,10 +350,34 @@ function renderBitcoinQrs(){
       });
       host.replaceChildren();
       qr.append(host);
+      // Confirm the renderer actually inserted a visible SVG/canvas.
+      requestAnimationFrame(()=>{
+        if(!host.querySelector("svg,canvas"))qrFallback(host);
+        else host.dataset.qrStatus="rendered";
+      });
     }catch(error){
       console.error("Bitcoin QR generation failed",error);
-      host.innerHTML='<p class="qr-unavailable">QR indisponível. Use o botão para copiar o endereço.</p>';
+      qrFallback(host);
     }
   });
 }
-renderBitcoinQrs();
+function loadQrLibrary(){
+  if(typeof window.QRCodeStyling==="function"){renderBitcoinQrs();return;}
+  const sources=[
+    "https://cdn.jsdelivr.net/npm/qr-code-styling@1.9.2/lib/qr-code-styling.js",
+    "https://unpkg.com/qr-code-styling@1.9.2/lib/qr-code-styling.js"
+  ];
+  let index=0;
+  const tryNext=()=>{
+    if(typeof window.QRCodeStyling==="function"){renderBitcoinQrs();return;}
+    if(index>=sources.length){document.querySelectorAll(".bitcoin-qr-host").forEach(qrFallback);return;}
+    const script=document.createElement("script");
+    script.src=sources[index++];
+    script.crossOrigin="anonymous";
+    script.onload=()=>typeof window.QRCodeStyling==="function"?renderBitcoinQrs():tryNext();
+    script.onerror=tryNext;
+    document.head.append(script);
+  };
+  tryNext();
+}
+loadQrLibrary();
