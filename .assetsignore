@@ -5,11 +5,17 @@ cloudflare
 huggingface
 api
 node_modules
+.wrangler
+.assetsignore
+wrangler.jsonc
+wrangler.json
+wrangler.toml
 package.json
 package-lock.json
 vercel.json
 README.md
 .env
 .env.*
+.dev.vars
 *.pem
 *.key
