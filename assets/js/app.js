@@ -385,6 +385,7 @@ async function processReferenceImage(file) {
   referenceImagePreview.removeAttribute("src");
   referenceImagePreview.classList.add("hidden");
   referenceImageClear.classList.add("hidden");
+  referenceDropzone.classList.remove("has-image");
   $("reference-image-error").textContent = "";
   if (!file) {
     referenceImageStatus.textContent = languageText("reference_image_status");
