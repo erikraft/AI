@@ -29,6 +29,8 @@ Current generation flow through the Cloudflare Worker:
 
 In Qwythos mode, the browser decodes the selected image and converts it to JPEG (maximum 3 MiB) before sending it as `referenceImage` to `/api/generate`. The Worker uploads the file to Gradio so Qwythos receives the actual image and instructions, returns an interpreted prompt, and then calls FLUX separately for the final image. This integration still requires a successful live end-to-end test.
 
+The Qwythos picker supports touch-friendly camera capture, the device photo gallery, and a general file chooser on mobile and desktop. The same image can also be dragged onto the drop zone on browsers that support file drag-and-drop (including supported iPad/iPhone file-drag workflows). A preview, removal control, MIME/decode validation, and size limits are provided in Portuguese and English. Camera capture depends on the browser/device and may not be exposed by every platform; the gallery/file picker remains the fallback. The picker is intentionally handled in the website frontend, so these UI changes do not require a separate Hugging Face Space deployment.
+
 ## Repository layout
 
 - `index.html` — responsive bilingual AI model hub and sign-in modal.
