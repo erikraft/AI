@@ -252,22 +252,31 @@ def generate_image_from_image(
             torch.cuda.empty_cache()
 
 
-def generate_video(prompt: str, api_secret: str):
-    """Authorize and validate before ZeroGPU can reserve GPU capacity."""
+def _authorize_video_request_duration(prompt: str, api_secret: str, *args, **kwargs) -> int:
+    """Reject unauthorized/invalid calls before ZeroGPU schedules a GPU worker.
+
+    ZeroGPU evaluates the callable duration before reserving capacity. Keeping the
+    authorization check here avoids charging an unauthorized API caller for a GPU
+    reservation while the actual Gradio handler remains @spaces.GPU-decorated.
+    """
     _authorize_experimental_api(api_secret)
+    if not ENABLE_COSMOS_VIDEO:
+        raise gr.Error("Cosmos video is disabled. Enable ENABLE_COSMOS_VIDEO only after validating GPU and disk capacity.")
+    if not isinstance(prompt, str) or not prompt.strip() or len(prompt.strip()) > 1500:
+        raise gr.Error("Prompt must contain 1–1500 characters.")
+    return 180
+
+
+@spaces.GPU(duration=_authorize_video_request_duration)
+def generate_video(prompt: str, api_secret: str):
+    """Short, low-resolution Cosmos video; disabled unless hardware is explicitly approved."""
+    global cosmos_pipe
     prompt = (prompt or "").strip()
+    _authorize_experimental_api(api_secret)
     if not ENABLE_COSMOS_VIDEO:
         raise gr.Error("Cosmos video is disabled. Enable ENABLE_COSMOS_VIDEO only after validating GPU and disk capacity.")
     if not prompt or len(prompt) > 1500:
         raise gr.Error("Prompt must contain 1–1500 characters.")
-    return _generate_video_with_gpu(prompt)
-
-
-@spaces.GPU(duration=180)
-def _generate_video_with_gpu(prompt: str):
-    """Run Cosmos only after the public handler has authorized the caller."""
-    global cosmos_pipe
-    prompt = (prompt or "").strip()
     if not torch.cuda.is_available():
         raise gr.Error("Cosmos requires a compatible CUDA GPU.")
     cached_size_gib = _cached_repo_size_gib("models--DuoNeural--Cosmos3-Nano-Abliterated")
