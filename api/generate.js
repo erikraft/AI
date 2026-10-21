@@ -1,7 +1,7 @@
 import { initializeApp, cert, getApps } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 import { getFirestore, Timestamp } from "firebase-admin/firestore";
-import { Client } from "@gradio/client";
+import { Client, handle_file } from "@gradio/client";
 
 const WINDOW_MS = 60 * 60 * 1000;
 const ACCOUNT_MAX_PER_WINDOW = 5;
@@ -27,6 +27,16 @@ function requestLanguage(req) {
 
 function localized(req, portuguese, english) {
   return requestLanguage(req) === "en" ? english : portuguese;
+}
+
+function referenceImageToGradioFile(dataUrl) {
+  const match = /^data:(image\\/(?:png|jpeg|webp));base64,([A-Za-z0-9+/]+={0,2})$/i.exec(dataUrl);
+  if (!match) throw new Error("Invalid reference image data URL.");
+  const mimeType = match[1].toLowerCase();
+  const bytes = Buffer.from(match[2], "base64");
+  if (!bytes.length || bytes.byteLength > 3 * 1024 * 1024) throw new Error("Reference image exceeds the 3 MiB inference payload limit.");
+  const extension = mimeType === "image/jpeg" ? "jpg" : mimeType.slice("image/".length);
+  return handle_file(new File([bytes], "reference-image." + extension, { type: mimeType }));
 }
 
 async function releaseGenerationReservation(db, ref, reservation) {
@@ -112,8 +122,16 @@ export default async function handler(req, res) {
         error: localized(req, "Envie uma imagem de referência para usar Qwythos com instruções.", "Upload a reference image to use Qwythos with instructions.")
       });
     }
-    if (referenceImage !== null && (!isQwythos || typeof referenceImage !== "string" || !/^data:image\/(png|jpeg|webp);base64,/i.test(referenceImage) || referenceImage.length > 4_200_000)) {
-      return res.status(400).json({ error: localized(req, "Imagem inválida. Use PNG, JPG ou WebP de até 3 MB com o modo Qwythos imagem + instruções.", "Invalid image. Use a PNG, JPG, or WebP up to 3 MB with Qwythos image + instructions mode.") });
+    if (referenceImage !== null && (!isQwythos || typeof referenceImage !== "string" || !/^data:image\\/(?:png|jpeg|webp);base64,[A-Za-z0-9+/]+={0,2}$/i.test(referenceImage) || referenceImage.length > 4_200_000)) {
+      return res.status(400).json({ error: localized(req, "Imagem inválida ou grande demais. Envie uma imagem compatível; a versão preparada para inferência pode ter até 3 MB.", "Invalid or oversized image. Upload a supported image; the prepared inference image may be up to 3 MB.") });
+    }
+    let referenceImageFile = null;
+    if (referenceImage !== null) {
+      try {
+        referenceImageFile = referenceImageToGradioFile(referenceImage);
+      } catch {
+        return res.status(400).json({ error: localized(req, "Não foi possível preparar a imagem para o Qwythos. Selecione a imagem novamente e tente outra vez.", "Could not prepare the image for Qwythos. Select the image again and retry.") });
+      }
     }
     const allowedSizes = new Set(["768x768", "1024x768", "768x1024"]);
     if (!isCosmos && !isQwen && (!allowedSizes.has(width + "x" + height) || ![20, 28].includes(Number(steps)))) {
@@ -189,7 +207,7 @@ export default async function handler(req, res) {
       phase = "space-interpret";
       const interpretation = await client.predict(
         "/generate_image_from_image",
-        [prompt.trim(), { url: referenceImage }, requestLanguage(req)]
+        [prompt.trim(), referenceImageFile, requestLanguage(req)]
       );
       const interpreted = interpretation?.data?.[0];
       const generatedPrompt = typeof interpreted === "string"
