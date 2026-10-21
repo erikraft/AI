@@ -1,6 +1,6 @@
 # ErikrafT AI
 
-> ErikrafT AI is an open-source web app with two image workflows: FLUX text-to-image and an experimental image + text → image flow using Qwythos interpretation followed by FLUX rendering. The website offers Portuguese (Brazil) and English interfaces, Firebase Authentication, and usage limits.
+> ErikrafT AI is an open-source web app with Portuguese (Brazil) and English interfaces, Firebase Authentication, and usage limits. It offers FLUX text → image and an experimental Qwythos image → text → image flow; an optional logo is applied locally to the output and is not sent to the inference model.
 
 - Website: https://ai.erikraft.com/
 - Source repository: https://github.com/erikraft/AI
@@ -8,8 +8,9 @@
 - Terms of use: https://ai.erikraft.com/terms.html
 - Hugging Face Space (image backend): https://huggingface.co/spaces/ErikrafT/erikraft-ai
 - Text-to-image model: aoxo/flux.1dev-abliterated
-- Experimental image + text → image workflow: fluffy12222/Qwythos-9B-Claude-Mythos-5-1M-heretic-abliterated interprets an uploaded reference image and instructions; FLUX renders the final pixels in a separate GPU request.
-- The Qwythos model card is tagged `image-text-to-image`, but the current integration uses its multimodal output as a text prompt and does not directly render image pixels from Qwythos. End-to-end hardware/model compatibility still requires testing.
+- Experimental image → text → image workflow: fluffy12222/Qwythos-9B-Claude-Mythos-5-1M-heretic-abliterated interprets an uploaded reference image and instructions into a text prompt; FLUX renders the final pixels in a separate GPU request.
+- Optional logo upload: PNG/JPG/WebP is handled locally by the browser and is not sent to the model; logo composition is included in the downloaded PNG when browser-origin permissions allow it.
+- Qwythos is used for multimodal interpretation and returns a text prompt; FLUX is the renderer for final image pixels. End-to-end hardware/model compatibility still depends on Space runtime and provider quotas.
 - Authentication providers: Google, GitHub, and email/password with verified email addresses.
 - Availability and generation quotas depend on the site's rate limits and Hugging Face hardware/service limits.
 
