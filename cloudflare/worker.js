@@ -205,7 +205,24 @@ async function generate(request, env) {
   try {
     const length = Number(request.headers.get("Content-Length") || 0);
     if (length > 4_500_000) return json({ error: "A solicitação excede o limite de tamanho." }, 413);
-    body = await request.json();
+    if (!request.body) return json({ error: "Corpo JSON inválido." }, 400);
+    const reader = request.body.getReader();
+    const chunks = [];
+    let totalBytes = 0;
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      totalBytes += value.byteLength;
+      if (totalBytes > 4_500_000) {
+        await reader.cancel();
+        return json({ error: "A solicitação excede o limite de tamanho." }, 413);
+      }
+      chunks.push(value);
+    }
+    const raw = new Uint8Array(totalBytes);
+    let offset = 0;
+    for (const chunk of chunks) { raw.set(chunk, offset); offset += chunk.byteLength; }
+    body = JSON.parse(new TextDecoder().decode(raw));
   } catch { return json({ error: "Corpo JSON inválido." }, 400); }
   if (!body || typeof body.prompt !== "string" || !body.prompt.trim() || body.prompt.trim().length > MAX_PROMPT) {
     return json({ error: "O prompt deve conter de 1 a 1500 caracteres." }, 400);
