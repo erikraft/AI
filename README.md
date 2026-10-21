@@ -1,6 +1,6 @@
 # ErikrafT AI
 
-An AI image studio with a responsive dark interface. **`aoxo/flux.1dev-abliterated`** generates images from text. The Hugging Face card tags **`fluffy12222/Qwythos-9B-Claude-Mythos-5-1M-heretic-abliterated`** as `image-text-to-image`; this site exposes an experimental image + text → image workflow where Qwythos interprets a reference image and instructions, then a separate FLUX request renders the final pixels. In this integration Qwythos returns a text prompt rather than image pixels, so the feature is a two-stage workflow—not direct pixel synthesis by Qwythos. Qwythos is not exposed as a standalone text-only prompt assistant.
+An AI image studio with a responsive dark interface and Portuguese/English UI. **`aoxo/flux.1dev-abliterated`** generates images from text. The experimental **image → text → image** workflow uses **`fluffy12222/Qwythos-9B-Claude-Mythos-5-1M-heretic-abliterated`** to interpret an uploaded reference image and instructions and return a text prompt; FLUX then renders the final pixels in a separate request. Qwythos does not directly render the final image pixels. The studio also supports an optional local logo overlay: the selected PNG/JPG/WebP remains in the browser and is never sent to the model; when possible, it is composited into the downloaded PNG.
 
 - **Frontend:** static HTML/CSS/JavaScript, deployable on Vercel.
 - **Authentication:** Firebase Authentication with Google, GitHub, and email/password; email/password accounts must verify their address before generating images.
@@ -20,6 +20,7 @@ Browser
                  ├── FLUX-only: text prompt → generated image
                  └── Qwythos mode: reference image + instructions → text prompt
                          └── separate FLUX request → final image
+  Optional logo overlay is applied in-browser and is never uploaded to inference.
 ```
 
 Vercel serves the frontend and API proxy. It does **not** load PyTorch or FLUX weights; the model needs compatible GPU infrastructure.
@@ -104,7 +105,7 @@ Email/password registration sends a Firebase verification email and signs the ne
 
 ## Model selector
 
-The model selector offers two workflows: **FLUX text-to-image**, or **Qwythos Image-Text-to-Image (experimental; image + instructions → Qwythos interpretation → FLUX image generation)**. In Qwythos mode, uploading a reference image is required; Qwythos interprets the image and instructions, and the website then calls the independent FLUX endpoint to render the output image. The standalone Qwythos text-only assistant has been removed. The Qwythos BF16 weights require substantial memory, so see [model compatibility](huggingface/MODEL_COMPATIBILITY.md).
+The model selector switches the task-specific form copy and options for **FLUX text → image**, **Qwythos image → text → image** (experimental; reference image + instructions → interpreted text prompt → separate FLUX render), **Cosmos3 Nano text → video**, and **Qwen3.8 text → text** when each experimental option is enabled by `/api/models`. Qwythos requires a reference image; it interprets the image and instructions into a prompt, and FLUX makes a separate request to render the result. The standalone Qwythos text-only assistant is not exposed as a separate task. Cosmos and Qwen remain guarded by backend/Space flags and runtime resource checks. An optional logo watermark is read and composed locally in the browser and is never added to the inference payload. The Qwythos BF16 weights require substantial memory, so see [model compatibility](huggingface/MODEL_COMPATIBILITY.md).
 
 
 ### Experimental image + text mode
