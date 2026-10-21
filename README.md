@@ -69,6 +69,8 @@ Import the repository into Vercel. The root is a static site and `api/generate.j
 | `FIREBASE_SERVICE_ACCOUNT_JSON` | Yes | Full Firebase Admin service-account JSON; store only as a server secret |
 | `HF_SPACE_ID` | Yes | Hugging Face Space ID in `owner/space-name` format |
 | `HF_TOKEN` | If private/gated access is needed | Hugging Face access token; keep server-side |
+| `ENABLE_COSMOS_VIDEO` | Optional, **default off** | Set to `true` in both Vercel and the Space only after verifying GPU VRAM and disk capacity |
+| `ENABLE_QWEN_TEXT` | Optional, **default off** | Set to `true` in both Vercel and the Space only after verifying CPU RAM, disk, and llama.cpp installation |
 
 Use a service account with only the permissions needed for the API. Redeploy after changing environment variables. Never expose service-account JSON or tokens through frontend variables.
 
@@ -107,3 +109,14 @@ The model selector offers two workflows: **FLUX text-to-image**, or **Qwythos Im
 ### Experimental image + text mode
 
 The UI supports uploading a PNG/JPEG/WebP reference image (up to 3 MB) with user instructions. The two model stages run as separate GPU requests: Qwythos multimodal interpretation (180-second declared duration) followed by FLUX rendering (120 seconds, unchanged). The Qwythos duration is deliberately lower because the former 300-second declaration was rejected as a 450-second reservation by ZeroGPU. The image + instructions mode is still experimental; model architecture, processor compatibility, available RAM/VRAM, runtime, provider quotas, and Gradio payload handling may still cause failures. FLUX text-to-image remains available independently.
+
+## Experimental video and text models
+
+The model selector supports four task types: **FLUX text→image**; **Qwythos + FLUX reference image + instructions→image**; **Cosmos3 Nano text→video**; and **Qwen3.8 27B text assistant**. The latter two are deliberately **disabled by default** and appear selectable only when `/api/models` sees the relevant Vercel environment flag. The Space independently checks its own flag.
+
+- **Cosmos3 Nano** (`DuoNeural/Cosmos3-Nano-Abliterated`) is a 15.2B-parameter video model. The integration limits requests to 16 frames at 256×256 and 12 steps, declares 180 seconds of GPU time, and refuses to load unless the runtime reports at least 48 GiB total / 40 GiB free VRAM and at least 36 GiB free disk on a cold download. The upstream model reports roughly 48 GB VRAM needs, so these are guardrails, not a guarantee; do not enable on unknown or undersized free GPU hardware.
+- **Qwen3.8 27B GGUF** (`0bserverx/Qwen3.8-27B-Heretic-Abliterated-Uncensored-GGUF`) uses the roughly 9.1 GB `RVN-IQ2_XS.gguf` quantization through `llama-cpp-python` with `n_gpu_layers=0` (CPU only). It checks for about 12 GiB free RAM and 11 GiB free disk on a cold download. It should avoid using CUDA VRAM but can be slow and output quality is lower than larger quantizations.
+- Both are third-party checkpoints/fine-tunes. ErikrafT did not create or train the weights. Labels like “uncensored”/“abliterated” indicate model publishers' positioning, not a guarantee that output is completely unfiltered.
+- No live Space build, GPU inference, or CPU inference test has been completed as part of this change. Review build logs and test each mode on the actual runtime before enabling its Vercel and Space flags.
+
+The GitHub Actions workflow syncs the `huggingface/` directory to the Space when changes reach `main`. Opening this PR does not deploy the changes to the running Space; merging it and a successful sync workflow are required.

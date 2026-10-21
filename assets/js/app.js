@@ -7,6 +7,11 @@ const $ = (id) => document.getElementById(id);
 let auth = null;
 let currentUser = null;
 let imageUrl = "";
+let videoUrl = "";
+let resultType = "image";
+const COSMOS_MODEL = "DuoNeural/Cosmos3-Nano-Abliterated";
+const QWEN_MODEL = "0bserverx/Qwen3.8-27B-Heretic-Abliterated-Uncensored-GGUF";
+const MODEL_AVAILABILITY = { cosmosVideo: false, qwenText: false };
 
 function canUseStudio(user) {
   const hasPasswordProvider = Boolean(user?.providerData?.some(({ providerId }) => providerId === "password"));
@@ -29,6 +34,13 @@ function updateStudioAccess(user) {
     imageUrl = "";
     $("generated-image").removeAttribute("src");
     $("generated-image").classList.add("hidden");
+    $("generated-video").classList.add("hidden");
+    $("generated-video").removeAttribute("src");
+    $("generated-text").classList.add("hidden");
+    $("generated-text").textContent = "";
+    videoUrl = "";
+    imageUrl = "";
+    resultType = "image";
     $("empty-result").classList.remove("hidden");
     $("loading-result").classList.add("hidden");
     $("download").disabled = true;
@@ -174,28 +186,99 @@ $("studio-github-login").addEventListener("click", () => login(new GithubAuthPro
 const promptInput = $("prompt");
 const modelSelect = $("model-select");
 const QWYTHOS_MODEL = "fluffy12222/Qwythos-9B-Claude-Mythos-5-1M-heretic-abliterated";
-function updateModelSelection() {
-  const qwythos = modelSelect.value === QWYTHOS_MODEL;
-  $("selected-model-label").textContent = modelSelect.value;
+
+function selectedTask(model = modelSelect.value) {
+  if (model === QWYTHOS_MODEL) return "image-edit";
+  if (model === COSMOS_MODEL) return "video";
+  if (model === QWEN_MODEL) return "text";
+  return "image";
+}
+
+function modelButtonLabel(model = modelSelect.value) {
   const english = document.documentElement.lang === "en";
-  modelSelect.options[0].textContent = english ? FLUX_MODEL + " — text-to-image generation" : FLUX_MODEL + " — geração de texto para imagem";
-  modelSelect.options[1].textContent = english
-    ? QWYTHOS_MODEL + " — Image-Text-to-Image (experimental)"
-    : QWYTHOS_MODEL + " — imagem + texto → imagem (experimental)";
-  $("quality").disabled = false;
-  $("aspect").disabled = false;
-  $("generate").querySelector("span").textContent = languageText(qwythos ? "qwythos_image_button" : "generate");
-  $("model-help").textContent = languageText(qwythos ? "qwythos_help" : "model_help");
-  $("qwythos-image-input").classList.toggle("hidden", !qwythos);
-  $("result-title").textContent = languageText("result_title");
-  $("download").classList.remove("hidden");
+  const task = selectedTask(model);
+  if (task === "image-edit") return languageText("qwythos_image_button");
+  if (task === "video") return english ? "Generate short video" : "Gerar vídeo curto";
+  if (task === "text") return english ? "Ask Qwen" : "Perguntar ao Qwen";
+  return languageText("generate");
+}
+
+function updateModelSelection() {
+  const model = modelSelect.value;
+  const task = selectedTask(model);
+  const english = document.documentElement.lang === "en";
+  const isQwythos = task === "image-edit";
+  const isCosmos = task === "video";
+  const isQwen = task === "text";
+  $("selected-model-label").textContent = model;
+  const labels = {
+    [FLUX_MODEL]: english ? FLUX_MODEL + " — text-to-image" : FLUX_MODEL + " — texto → imagem",
+    [QWYTHOS_MODEL]: english ? QWYTHOS_MODEL + " — reference image + instructions → FLUX image" : QWYTHOS_MODEL + " — imagem de referência + instruções → imagem FLUX",
+    [COSMOS_MODEL]: english ? COSMOS_MODEL + " — text-to-video (experimental)" : COSMOS_MODEL + " — texto → vídeo (experimental)",
+    [QWEN_MODEL]: english ? QWEN_MODEL + " — text assistant (experimental)" : QWEN_MODEL + " — assistente de texto (experimental)"
+  };
+  for (const option of modelSelect.options) if (labels[option.value]) option.textContent = labels[option.value];
+  $("image-options-row").classList.toggle("hidden", isCosmos || isQwen);
+  $("qwythos-image-input").classList.toggle("hidden", !isQwythos);
+  $("generate").querySelector("span").textContent = modelButtonLabel(model);
+  $("model-task-badge").textContent = isCosmos ? "TEXT → VIDEO" : isQwen ? "TEXT → TEXT" : isQwythos ? "IMAGE + TEXT → IMAGE" : "TEXT → IMAGE";
+  $("model-help").textContent = isQwythos
+    ? languageText("qwythos_help")
+    : isCosmos
+      ? (english ? "Cosmos3 Nano generates a short video from text. The Space limits the first attempt to 16 frames at 256×256 and checks VRAM/disk before loading." : "Cosmos3 Nano cria um vídeo curto a partir do texto. O Space limita a tentativa a 16 quadros em 256×256 e verifica VRAM/disco antes de carregar.")
+      : isQwen
+        ? (english ? "Qwen3.8 is a third-party 27B text model. It uses a low-memory GGUF quantization on CPU only to avoid GPU OOM; responses can be slow and quality is reduced." : "Qwen3.8 é um modelo de texto de terceiros com 27B parâmetros. Usa uma quantização GGUF de menor memória somente na CPU para evitar falta de VRAM; respostas podem ser lentas e a qualidade é reduzida.")
+        : languageText("model_help");
+  const enabled = isCosmos ? MODEL_AVAILABILITY.cosmosVideo : isQwen ? MODEL_AVAILABILITY.qwenText : true;
+  $("model-runtime-pill").textContent = isCosmos
+    ? (enabled ? (english ? "Experimental · hardware checks enabled" : "Experimental · verificações de hardware ativadas") : (english ? "Locked · GPU/disk validation required" : "Bloqueado · validação de GPU/disco exigida"))
+    : isQwen
+      ? (enabled ? (english ? "Experimental · CPU/RAM checks enabled" : "Experimental · verificações CPU/RAM ativadas") : (english ? "Locked · CPU/RAM/disk validation required" : "Bloqueado · validação CPU/RAM/disco exigida"))
+      : (english ? "Available · provider limits apply" : "Disponível · sujeito aos limites do provedor");
+  $("model-runtime-notice").textContent = isCosmos
+    ? (english
+        ? (enabled ? "The Space checks available VRAM and cache disk before loading. Successful inference is not guaranteed." : "Blocked to reduce GPU/disk failures. Enabling requires explicit Vercel and Space flags, ≥48 GiB total / ≥40 GiB free VRAM and ~36 GiB disk for a cold download.")
+        : (enabled ? "O Space verifica VRAM e disco de cache antes de carregar. A inferência ainda não é garantida." : "Bloqueado para reduzir falhas de GPU/disco. A ativação exige flags no Vercel e Space, ≥48 GiB de VRAM total / ≥40 GiB livre e cerca de 36 GiB em disco no primeiro download."))
+    : isQwen
+      ? (english
+          ? (enabled ? "CPU-only (no GPU offload): needs ~12 GiB free RAM and ~11 GiB free disk on cold download. The small quantization reduces quality." : "Blocked until CPU runtime is installed and both flags are enabled. Requires ~12 GiB free RAM and ~11 GiB free disk.")
+          : (enabled ? "Somente CPU (sem GPU): requer ~12 GiB de RAM livre e ~11 GiB em disco no primeiro download. A quantização pequena reduz a qualidade." : "Bloqueado até instalar runtime CPU e habilitar as duas flags. Exige cerca de 12 GiB de RAM livre e 11 GiB em disco.")
+        )
+      : (english
+          ? "Cosmos and Qwen are optional and use different runtimes; provider quotas and compatibility apply."
+          : "Cosmos e Qwen são opcionais e usam runtimes distintos; cotas e compatibilidade do provedor se aplicam.");
+  $("result-title").textContent = isCosmos ? (english ? "Your video" : "Seu vídeo") : isQwen ? (english ? "Qwen response" : "Resposta do Qwen") : languageText("result_title");
+  $("download").classList.toggle("hidden", isQwen);
+  $("download").disabled = true;
+  $("generated-image").classList.add("hidden");
+  $("generated-video").classList.add("hidden");
+  $("generated-text").classList.add("hidden");
+  $("generated-text").textContent = "";
   $("qwythos-result-text").classList.add("hidden");
-  if (!qwythos) {
-    $("empty-result").classList.remove("hidden");
-    $("result-status").textContent = languageText("ready_status");
-  }
+  $("empty-result").classList.remove("hidden");
+  $("result-status").textContent = languageText("ready_status");
+  $("result-status").className = "result-status";
 }
 modelSelect.addEventListener("change", updateModelSelection);
+
+async function loadModelAvailability() {
+  try {
+    const response = await fetch("/api/models", { cache: "no-store" });
+    if (!response.ok) throw new Error("model availability not provided");
+    const data = await response.json();
+    MODEL_AVAILABILITY.cosmosVideo = data?.models?.[COSMOS_MODEL] === true;
+    MODEL_AVAILABILITY.qwenText = data?.models?.[QWEN_MODEL] === true;
+  } catch {
+    MODEL_AVAILABILITY.cosmosVideo = false;
+    MODEL_AVAILABILITY.qwenText = false;
+  }
+  const cosmosOption = [...modelSelect.options].find((o) => o.value === COSMOS_MODEL);
+  const qwenOption = [...modelSelect.options].find((o) => o.value === QWEN_MODEL);
+  if (cosmosOption) cosmosOption.disabled = !MODEL_AVAILABILITY.cosmosVideo;
+  if (qwenOption) qwenOption.disabled = !MODEL_AVAILABILITY.qwenText;
+  updateModelSelection();
+}
+void loadModelAvailability();
 const referenceImageInput = $("reference-image");
 referenceImageInput?.addEventListener("change", () => {
   $("reference-image-error").textContent = "";
@@ -249,10 +332,44 @@ $("generator-form").addEventListener("submit", async (event) => {
     });
     const data = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(data.error || languageText("generation_http_error") + " (" + response.status + ").");
-    imageUrl = data.imageUrl;
+    if (data.type === "text") {
+      const answer = typeof data.text === "string" ? data.text.trim() : "";
+      if (!answer) throw new Error(languageText("provider_image_missing"));
+      resultType = "text"; imageUrl = ""; videoUrl = "";
+      $("loading-result").classList.add("hidden");
+      $("empty-result").classList.add("hidden");
+      $("generated-image").classList.add("hidden");
+      $("generated-video").classList.add("hidden");
+      $("generated-text").textContent = answer;
+      $("generated-text").classList.remove("hidden");
+      $("download").classList.add("hidden");
+      $("result-status").textContent = document.documentElement.lang === "en" ? "Qwen response ready." : "Resposta do Qwen pronta.";
+      $("result-status").className = "result-status status-success";
+      return;
+    }
+    if (data.type === "video") {
+      videoUrl = typeof data.videoUrl === "string" ? data.videoUrl : "";
+      if (!videoUrl) throw new Error(document.documentElement.lang === "en" ? "The Space did not return a video URL." : "O Space não retornou a URL de um vídeo.");
+      resultType = "video"; imageUrl = "";
+      const video = $("generated-video");
+      video.onloadeddata = () => {
+        $("loading-result").classList.add("hidden"); $("empty-result").classList.add("hidden");
+        video.classList.remove("hidden"); $("download").disabled = false;
+        $("result-status").textContent = document.documentElement.lang === "en" ? "Video ready." : "Vídeo pronto.";
+        $("result-status").className = "result-status status-success";
+      };
+      video.onerror = () => {
+        $("loading-result").classList.add("hidden"); $("empty-result").classList.remove("hidden");
+        $("result-status").textContent = document.documentElement.lang === "en" ? "The temporary video could not be loaded." : "Não foi possível carregar o vídeo temporário.";
+        $("result-status").className = "result-status status-error";
+      };
+      video.src = videoUrl; video.load(); return;
+    }
+    imageUrl = data.imageUrl || "";
+    resultType = "image"; videoUrl = "";
     if (!imageUrl) throw new Error(languageText("provider_image_missing"));
     const img = $("generated-image");
-    img.onload = () => { $("loading-result").classList.add("hidden"); img.classList.remove("hidden"); $("download").disabled = false; $("result-status").textContent = languageText("image_ready"); $("result-status").className = "result-status status-success"; };
+    img.onload = () => { $("loading-result").classList.add("hidden"); img.classList.remove("hidden"); $("download").disabled = false; $("download").classList.remove("hidden"); $("empty-result").classList.add("hidden"); $("result-status").textContent = languageText("image_ready"); $("result-status").className = "result-status status-success"; };
     img.onerror = () => { $("loading-result").classList.add("hidden"); $("empty-result").classList.remove("hidden"); $("result-status").textContent = languageText("image_load_error"); $("result-status").className = "result-status status-error"; };
     img.src = imageUrl;
   } catch (error) {
@@ -262,21 +379,24 @@ $("generator-form").addEventListener("submit", async (event) => {
     $("result-status").className = "result-status status-error";
   } finally {
     button.disabled = false;
-    button.querySelector("span").textContent = languageText(modelSelect.value === QWYTHOS_MODEL ? "qwythos_image_button" : "generate");
+    button.querySelector("span").textContent = modelButtonLabel(modelSelect.value);
   }
 });
 $("download").addEventListener("click", async () => {
-  if (!imageUrl) return;
+  const mediaUrl = resultType === "video" ? videoUrl : imageUrl;
+  if (!mediaUrl || resultType === "text") return;
   try {
-    const response = await fetch(imageUrl);
+    const response = await fetch(mediaUrl);
     if (!response.ok) throw new Error("download failed");
     const blob = await response.blob();
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
-    link.href = url; link.download = "erikraft-ai-image.png"; link.click();
+    link.href = url;
+    link.download = resultType === "video" ? "erikraft-ai-video.mp4" : "erikraft-ai-image.png";
+    link.click();
     URL.revokeObjectURL(url);
   } catch {
-    window.open(imageUrl, "_blank", "noopener,noreferrer");
+    window.open(mediaUrl, "_blank", "noopener,noreferrer");
   }
 });
 

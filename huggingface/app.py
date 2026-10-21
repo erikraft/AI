@@ -1,4 +1,7 @@
 import gc
+import os
+import shutil
+import tempfile
 
 import gradio as gr
 import spaces
@@ -9,6 +12,11 @@ from transformers import AutoModelForImageTextToText, AutoProcessor
 
 FLUX_MODEL_ID = "aoxo/flux.1dev-abliterated"
 QWYTHOS_MODEL_ID = "fluffy12222/Qwythos-9B-Claude-Mythos-5-1M-heretic-abliterated"
+COSMOS_MODEL_ID = "DuoNeural/Cosmos3-Nano-Abliterated"
+QWEN_MODEL_ID = "0bserverx/Qwen3.8-27B-Heretic-Abliterated-Uncensored-GGUF"
+ENABLE_COSMOS_VIDEO = os.getenv("ENABLE_COSMOS_VIDEO", "").strip().lower() in {"1", "true", "yes"}
+ENABLE_QWEN_TEXT = os.getenv("ENABLE_QWEN_TEXT", "").strip().lower() in {"1", "true", "yes"}
+QWEN_GGUF_FILE = "RVN-IQ2_XS.gguf"
 # The deployed ZeroGPU request surfaced 300 seconds as a 450-second reservation.
 # Keep Qwythos below the observed 300-second ceiling, with headroom for scheduler overhead.
 MAX_QWYTHOS_GPU_SECONDS = 180
@@ -16,15 +24,16 @@ MAX_QWYTHOS_GPU_SECONDS = 180
 pipe = None
 qwythos_vision_model = None
 qwythos_processor = None
+cosmos_pipe = None
+qwen_text_model = None
 
 
 def _clear_models(except_model: str):
-    global pipe, qwythos_vision_model, qwythos_processor
-
+    """Unload every model except the selected one to limit shared RAM/VRAM pressure."""
+    global pipe, qwythos_vision_model, qwythos_processor, cosmos_pipe, qwen_text_model
     if except_model != "flux" and pipe is not None:
         del pipe
         pipe = None
-
     if except_model != "qwythos":
         if qwythos_vision_model is not None:
             del qwythos_vision_model
@@ -32,10 +41,53 @@ def _clear_models(except_model: str):
         if qwythos_processor is not None:
             del qwythos_processor
             qwythos_processor = None
-
+    if except_model != "cosmos" and cosmos_pipe is not None:
+        del cosmos_pipe
+        cosmos_pipe = None
+    if except_model != "qwen" and qwen_text_model is not None:
+        del qwen_text_model
+        qwen_text_model = None
     gc.collect()
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
+
+
+def _disk_free_gib(path: str = "/") -> float:
+    return shutil.disk_usage(path).free / (1024 ** 3)
+
+
+def _available_ram_gib() -> float:
+    try:
+        return os.sysconf("SC_PAGE_SIZE") * os.sysconf("SC_AVPHYS_PAGES") / (1024 ** 3)
+    except (ValueError, OSError, AttributeError):
+        return 0.0
+
+
+def _cached_repo_size_gib(repo_cache_name: str) -> float:
+    """Estimate cached weight size without double-counting symlinks to the same blobs."""
+    cache_root = os.path.expanduser(
+        os.path.join("~", ".cache", "huggingface", "hub", repo_cache_name, "snapshots")
+    )
+    total_bytes = 0
+    seen = set()
+    if not os.path.isdir(cache_root):
+        return 0.0
+    for root, _, filenames in os.walk(cache_root):
+        for filename in filenames:
+            if filename.endswith((".safetensors", ".gguf", ".bin")):
+                path = os.path.join(root, filename)
+                try:
+                    target = os.path.realpath(path)
+                    if target not in seen:
+                        seen.add(target)
+                        total_bytes += os.path.getsize(path)
+                except OSError:
+                    continue
+    return total_bytes / (1024 ** 3)
+
+
+def _has_cached_repo(repo_cache_name: str, minimum_bytes: int = 1_000_000_000) -> bool:
+    return _cached_repo_size_gib(repo_cache_name) * (1024 ** 3) >= minimum_bytes
 
 
 def _load_flux():
@@ -190,6 +242,112 @@ def generate_image_from_image(
             torch.cuda.empty_cache()
 
 
+@spaces.GPU(duration=180)
+def generate_video(prompt: str):
+    """Short, low-resolution Cosmos video; disabled unless hardware is explicitly approved."""
+    global cosmos_pipe
+    prompt = (prompt or "").strip()
+    if not ENABLE_COSMOS_VIDEO:
+        raise gr.Error("Cosmos video is disabled. Enable ENABLE_COSMOS_VIDEO only after validating GPU and disk capacity.")
+    if not prompt or len(prompt) > 1500:
+        raise gr.Error("Prompt must contain 1–1500 characters.")
+    _clear_models("cosmos")
+    if not torch.cuda.is_available():
+        raise gr.Error("Cosmos requires a compatible CUDA GPU.")
+    total_gib = torch.cuda.get_device_properties(0).total_memory / (1024 ** 3)
+    free_gib = torch.cuda.mem_get_info()[0] / (1024 ** 3)
+    if total_gib < 48 or free_gib < 40:
+        raise gr.Error(
+            f"Cosmos needs roughly 48 GB VRAM. This runtime reports {total_gib:.1f} GiB total and {free_gib:.1f} GiB free; refusing to load to reduce OOM risk."
+        )
+    cached_size_gib = _cached_repo_size_gib("models--DuoNeural--Cosmos3-Nano-Abliterated")
+    if cached_size_gib < 28 and _disk_free_gib() < 36:
+        raise gr.Error(
+            f"Cosmos needs tens of gigabytes of model cache; only {_disk_free_gib():.1f} GiB free disk space is available and the detected model cache is {cached_size_gib:.1f} GiB."
+        )
+    try:
+        from diffusers import Cosmos3OmniPipeline
+        from diffusers.utils import export_to_video
+        if cosmos_pipe is None:
+            cosmos_pipe = Cosmos3OmniPipeline.from_pretrained(COSMOS_MODEL_ID, dtype=torch.bfloat16)
+        cosmos_pipe.to("cuda")
+        result = cosmos_pipe(
+            prompt=prompt,
+            num_frames=16,
+            height=256,
+            width=256,
+            num_inference_steps=12,
+            guidance_scale=6.0,
+            fps=8.0,
+        )
+        path = tempfile.NamedTemporaryFile(prefix="erikraft-cosmos-", suffix=".mp4", delete=False).name
+        export_to_video(result.video, path, fps=8, macro_block_size=1)
+        return path
+    except gr.Error:
+        raise
+    except torch.cuda.OutOfMemoryError as exc:
+        raise gr.Error("Cosmos exceeded available GPU memory. Use a larger GPU or keep video generation disabled.") from exc
+    except Exception as exc:
+        raise gr.Error("Cosmos video generation failed: " + str(exc)[:280]) from exc
+    finally:
+        # Do not move the entire video model to CPU RAM during teardown; release it instead.
+        cosmos_pipe = None
+        gc.collect()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+
+
+def generate_text(prompt: str, language: str = "pt-BR"):
+    """CPU-only GGUF inference; intentionally has no GPU offload."""
+    global qwen_text_model
+    prompt = (prompt or "").strip()
+    if not ENABLE_QWEN_TEXT:
+        raise gr.Error("Qwen text generation is disabled. Enable ENABLE_QWEN_TEXT only after validating system RAM and disk.")
+    if not prompt or len(prompt) > 1500:
+        raise gr.Error("Prompt must contain 1–1500 characters.")
+    _clear_models("qwen")
+    if not _has_cached_repo("models--0bserverx--Qwen3.8-27B-Heretic-Abliterated-Uncensored-GGUF") and _disk_free_gib() < 11:
+        raise gr.Error(f"Qwen needs about 9.1 GB for its selected GGUF plus cache overhead; only {_disk_free_gib():.1f} GiB free disk space is available.")
+    available_ram = _available_ram_gib()
+    if qwen_text_model is None and available_ram < 12:
+        raise gr.Error(f"Qwen CPU inference needs roughly 12 GiB free RAM; only {available_ram:.1f} GiB appears available.")
+    try:
+        if qwen_text_model is None:
+            from llama_cpp import Llama
+            qwen_text_model = Llama.from_pretrained(
+                repo_id=QWEN_MODEL_ID,
+                filename=QWEN_GGUF_FILE,
+                n_ctx=2048,
+                n_batch=128,
+                n_threads=max(2, min(8, os.cpu_count() or 2)),
+                n_gpu_layers=0,
+                verbose=False,
+            )
+        language_name = "Brazilian Portuguese" if str(language).lower().startswith("pt") else "English"
+        result = qwen_text_model.create_chat_completion(
+            messages=[
+                {"role": "system", "content": "Answer helpfully in " + language_name + ". You are a third-party model running inside ErikrafT AI; do not claim ErikrafT created you."},
+                {"role": "user", "content": prompt},
+            ],
+            max_tokens=512,
+            temperature=0.7,
+        )
+        answer = result["choices"][0]["message"]["content"].strip()
+        if not answer:
+            raise gr.Error("Qwen returned an empty response.")
+        return answer[:12000]
+    except gr.Error:
+        raise
+    except MemoryError as exc:
+        qwen_text_model = None
+        gc.collect()
+        raise gr.Error("Qwen exceeded available system RAM. Reduce load or keep this mode disabled.") from exc
+    except Exception as exc:
+        qwen_text_model = None
+        gc.collect()
+        raise gr.Error("Qwen text generation failed: " + str(exc)[:280]) from exc
+
+
 with gr.Blocks(title="ErikrafT AI — FLUX + Qwythos") as demo:
     gr.Markdown(
         "# ErikrafT AI — Image + Text to Image\n"
@@ -243,6 +401,31 @@ with gr.Blocks(title="ErikrafT AI — FLUX + Qwythos") as demo:
             image_output,
             api_name="generate_image_from_image_render",
         )
+
+    with gr.Tab("Cosmos3 Nano text-to-video"):
+        gr.Markdown(
+            "Experimental short video generation. Disabled until ENABLE_COSMOS_VIDEO is set and GPU/disk checks pass. "
+            "Initial outputs are restricted to 16 frames at 256×256."
+        )
+        video_prompt = gr.Textbox(label="Video prompt", lines=4, max_lines=8, max_length=1500)
+        video_button = gr.Button("Generate short video")
+        video_output = gr.Video(label="Generated video")
+        video_button.click(generate_video, [video_prompt], video_output, api_name="generate_video")
+
+    with gr.Tab("Qwen3.8 text assistant"):
+        gr.Markdown(
+            "Experimental CPU-only GGUF inference using the low-memory RVN-IQ2_XS quantization. "
+            "Responses may be slower and quality is reduced versus larger quantizations."
+        )
+        text_prompt = gr.Textbox(label="Message", lines=4, max_lines=8, max_length=1500)
+        text_language = gr.Radio(
+            choices=[("Português (Brasil)", "pt-BR"), ("English", "en")],
+            value="pt-BR",
+            label="Response language",
+        )
+        text_button = gr.Button("Ask Qwen")
+        text_output = gr.Textbox(label="Qwen response", lines=12, max_lines=24, interactive=False)
+        text_button.click(generate_text, [text_prompt, text_language], text_output, api_name="generate_text")
 
 demo.queue()
 demo.launch()

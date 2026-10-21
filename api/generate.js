@@ -8,6 +8,9 @@ const ACCOUNT_MAX_PER_WINDOW = 5;
 const MAX_PROMPT_LENGTH = 1500;
 const FLUX_MODEL_ID = "aoxo/flux.1dev-abliterated";
 const QWYTHOS_MODEL_ID = "fluffy12222/Qwythos-9B-Claude-Mythos-5-1M-heretic-abliterated";
+const COSMOS_MODEL_ID = "DuoNeural/Cosmos3-Nano-Abliterated";
+const QWEN_MODEL_ID = "0bserverx/Qwen3.8-27B-Heretic-Abliterated-Uncensored-GGUF";
+const envEnabled = (value) => ["1", "true", "yes"].includes(String(value || "").trim().toLowerCase());
 
 function getAdminApp() {
   if (getApps().length) return getApps()[0];
@@ -97,9 +100,13 @@ export default async function handler(req, res) {
       });
     }
 
-    const allowedModels = new Set([FLUX_MODEL_ID, QWYTHOS_MODEL_ID]);
+    const allowedModels = new Set([FLUX_MODEL_ID, QWYTHOS_MODEL_ID, COSMOS_MODEL_ID, QWEN_MODEL_ID]);
     const isQwythos = model === QWYTHOS_MODEL_ID;
+    const isCosmos = model === COSMOS_MODEL_ID;
+    const isQwen = model === QWEN_MODEL_ID;
     if (!allowedModels.has(model)) return res.status(400).json({ error: localized(req, "O modelo selecionado não é compatível.", "The selected model is not supported.") });
+    if (isCosmos && !envEnabled(process.env.ENABLE_COSMOS_VIDEO)) return res.status(503).json({ error: localized(req, "O modo de vídeo Cosmos está bloqueado até validar GPU e disco. Habilite ENABLE_COSMOS_VIDEO somente após verificar o Space.", "Cosmos video is gated until GPU and disk capacity are validated. Enable ENABLE_COSMOS_VIDEO only after checking the Space.") });
+    if (isQwen && !envEnabled(process.env.ENABLE_QWEN_TEXT)) return res.status(503).json({ error: localized(req, "O modo de texto Qwen está bloqueado até validar RAM, disco e runtime CPU. Habilite ENABLE_QWEN_TEXT somente após verificar o Space.", "Qwen text is gated until RAM, disk, and CPU runtime are validated. Enable ENABLE_QWEN_TEXT only after checking the Space.") });
     if (isQwythos && !referenceImage) {
       return res.status(400).json({
         error: localized(req, "Envie uma imagem de referência para usar Qwythos com instruções.", "Upload a reference image to use Qwythos with instructions.")
@@ -109,7 +116,7 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: localized(req, "Imagem inválida. Use PNG, JPG ou WebP de até 3 MB com o modo Qwythos imagem + instruções.", "Invalid image. Use a PNG, JPG, or WebP up to 3 MB with Qwythos image + instructions mode.") });
     }
     const allowedSizes = new Set(["768x768", "1024x768", "768x1024"]);
-    if (!allowedSizes.has(width + "x" + height) || ![20, 28].includes(Number(steps))) {
+    if (!isCosmos && !isQwen && (!allowedSizes.has(width + "x" + height) || ![20, 28].includes(Number(steps)))) {
       return res.status(400).json({
         error: localized(req, "A configuração da imagem é inválida.", "The image settings are invalid.")
       });
@@ -161,7 +168,21 @@ export default async function handler(req, res) {
     const client = await Client.connect(spaceId, clientOptions);
 
     let result;
-    if (isQwythos) {
+    if (isCosmos) {
+      phase = "space-video";
+      result = await client.predict("/generate_video", [prompt.trim()]);
+      const first = result?.data?.[0];
+      const videoUrl = typeof first === "string" ? first : (first?.url || first?.path || first?.video?.url || first?.video?.path);
+      if (!videoUrl) throw new Error("Space returned no recognized video URL.");
+      return res.status(200).json({ type: "video", videoUrl, limit, remaining: Math.max(0, limit - reservation.count), tier: "account" });
+    } else if (isQwen) {
+      phase = "space-text";
+      result = await client.predict("/generate_text", [prompt.trim(), requestLanguage(req)]);
+      const first = result?.data?.[0];
+      const answer = typeof first === "string" ? first : (first?.text || first?.value || first?.content || "");
+      if (typeof answer !== "string" || !answer.trim()) throw new Error("Space returned no recognized text response.");
+      return res.status(200).json({ type: "text", text: answer.slice(0, 12000), limit, remaining: Math.max(0, limit - reservation.count), tier: "account" });
+    } else if (isQwythos) {
       phase = "space-interpret";
       const interpretation = await client.predict(
         "/generate_image_from_image",
@@ -227,6 +248,14 @@ export default async function handler(req, res) {
     }
 
     console.error("[image-generation:" + phase + "]", error?.stack || rawMessage);
+
+    if (phase === "space-video" || phase === "space-text") {
+      return res.status(503).json({
+        error: localized(req,
+          "O modelo experimental não concluiu a solicitação. O Space pode não ter memória, disco ou runtime suficiente; verifique os logs antes de habilitar novamente.",
+          "The experimental model did not complete the request. The Space may lack sufficient RAM, disk, or runtime; check its logs before enabling it again.")
+      });
+    }
 
     if (phase === "firebase-auth") {
       return res.status(503).json({
