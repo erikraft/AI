@@ -3,8 +3,8 @@
   const favicon = document.querySelector('link[rel~="icon"]');
   if (!favicon || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
-  const icon1 = 'https://www.erikraft.com/favicon.ico';
-  const icon2 = 'https://www.erikraft.com/favicon2.ico';
+  const icon1 = '/favicon.ico';
+  const icon2 = '/favicon2.ico';
   let showingFirst = true;
 
   const animation = window.setInterval(() => {
