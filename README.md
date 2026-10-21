@@ -1,10 +1,10 @@
 # ErikrafT AI
 
-An AI image studio with a responsive dark interface and Portuguese/English UI. **`aoxo/flux.1dev-abliterated`** generates images from text. In the experimental **image → text → image** workflow, the user uploads an image and instructions; the browser normalizes the image to JPEG, and the server-side integration is intended to send the actual file to **`fluffy12222/Qwythos-9B-Claude-Mythos-5-1M-heretic-abliterated`** for interpretation. FLUX then renders the resulting prompt in a separate request. Qwythos does not directly render the final image pixels. The Cloudflare Worker in this branch routes FLUX image generation, Qwythos image → text → image, Cosmos video, and Qwen text requests through the Hugging Face Space after Firebase verification and Firestore quota checks. Cosmos and Qwen also depend on Space-side feature flags and runtime resources.
+An open-source AI model hub with a responsive dark interface and Portuguese (Brazil)/English UI. **`aoxo/flux.1dev-abliterated`** generates images from text. In the experimental **image → text → image** workflow, the user uploads an image and instructions; the browser normalizes the image to JPEG, and the server-side integration is intended to send the actual file to **`fluffy12222/Qwythos-9B-Claude-Mythos-5-1M-heretic-abliterated`** for interpretation. FLUX then renders the resulting prompt in a separate request. Qwythos does not directly render the final image pixels. The Cloudflare Worker in this branch routes FLUX text-to-image, Qwythos image + instructions → text interpretation → FLUX image, Cosmos text-to-video, and Qwen text generation through the Hugging Face Space after Firebase verification and Firestore quota checks. Cosmos and Qwen also depend on Space-side feature flags and runtime resources.
 
 - **Frontend:** static HTML/CSS/JavaScript hosted with Cloudflare Workers + Static Assets.
 - **Authentication:** Firebase Authentication with Google, GitHub, and email/password; email/password accounts must verify their address before generating images.
-- **Generation:** Hugging Face Gradio Space running the selected model.
+- **Generation:** Hugging Face Gradio Space routing the selected image, video, or text model.
 - **Abuse prevention target:** Firebase ID-token verification and a Firestore-backed limit of five generation requests per account per hour; the Cloudflare API must implement these checks before generation is enabled.
 - **Cost goal:** use free tiers where possible. Provider quotas, availability, model compatibility, and GPU access are not guaranteed.
 
@@ -31,7 +31,7 @@ In Qwythos mode, the browser decodes the selected image and converts it to JPEG 
 
 ## Repository layout
 
-- `index.html` — responsive image studio and sign-in modal.
+- `index.html` — responsive bilingual AI model hub and sign-in modal.
 - `assets/css/styles.css` — dark, blue-accented styling.
 - `assets/js/app.js` — Firebase sign-in, prompt form, API request, result preview, and download.
 - `assets/js/firebase-config.js` — Firebase Web app configuration used by the browser.
