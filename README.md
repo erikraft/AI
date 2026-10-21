@@ -1,6 +1,6 @@
 # ErikrafT AI
 
-An AI image studio with a responsive dark interface and Portuguese/English UI. **`aoxo/flux.1dev-abliterated`** generates images from text. The experimental **image → text → image** workflow uses **`fluffy12222/Qwythos-9B-Claude-Mythos-5-1M-heretic-abliterated`** to interpret an uploaded reference image and instructions and return a text prompt; FLUX then renders the final pixels in a separate request. Qwythos does not directly render the final image pixels. The studio also supports an optional local logo overlay: the selected PNG/JPG/WebP remains in the browser and is never sent to the model; when possible, it is composited into the downloaded PNG.
+An AI image studio with a responsive dark interface and Portuguese/English UI. **`aoxo/flux.1dev-abliterated`** generates images from text. The experimental **image → text → image** workflow uses **`fluffy12222/Qwythos-9B-Claude-Mythos-5-1M-heretic-abliterated`** to interpret an uploaded reference image and instructions and return a text prompt; FLUX then renders the final pixels in a separate request. Qwythos does not directly render the final image pixels. The Qwythos workflow accepts a reference image in any format the browser can decode, normalizes it to a compact JPEG, and uploads it to the Hugging Face Space for multimodal interpretation.
 
 - **Frontend:** static HTML/CSS/JavaScript, deployable on Vercel.
 - **Authentication:** Firebase Authentication with Google, GitHub, and email/password; email/password accounts must verify their address before generating images.
@@ -20,7 +20,7 @@ Browser
                  ├── FLUX-only: text prompt → generated image
                  └── Qwythos mode: reference image + instructions → text prompt
                          └── separate FLUX request → final image
-  Optional logo overlay is applied in-browser and is never uploaded to inference.
+  Qwythos reference images are normalized in the browser and uploaded to the Space for AI inference.
 ```
 
 Vercel serves the frontend and API proxy. It does **not** load PyTorch or FLUX weights; the model needs compatible GPU infrastructure.
@@ -105,12 +105,12 @@ Email/password registration sends a Firebase verification email and signs the ne
 
 ## Model selector
 
-The model selector switches the task-specific form copy and options for **FLUX text → image**, **Qwythos image → text → image** (experimental; reference image + instructions → interpreted text prompt → separate FLUX render), **Cosmos3 Nano text → video**, and **Qwen3.8 text → text** when each experimental option is enabled by `/api/models`. Qwythos requires a reference image; it interprets the image and instructions into a prompt, and FLUX makes a separate request to render the result. The standalone Qwythos text-only assistant is not exposed as a separate task. Cosmos and Qwen remain guarded by backend/Space flags and runtime resource checks. An optional logo watermark is read and composed locally in the browser and is never added to the inference payload. The Qwythos BF16 weights require substantial memory, so see [model compatibility](huggingface/MODEL_COMPATIBILITY.md).
+The model selector switches the task-specific form copy and options for **FLUX text → image**, **Qwythos image → text → image** (experimental; reference image + instructions → interpreted text prompt → separate FLUX render), **Cosmos3 Nano text → video**, and **Qwen3.8 text → text** when each experimental option is enabled by `/api/models`. Qwythos requires a reference image; it interprets the image and instructions into a prompt, and FLUX makes a separate request to render the result. The standalone Qwythos text-only assistant is not exposed as a separate task. Cosmos and Qwen remain guarded by backend/Space flags and runtime resource checks. Qwythos reference images are normalized in the browser and included in the `/api/generate` request; the backend uploads the image file to Gradio for Qwythos inference. No logo-overlay feature is provided. The Qwythos BF16 weights require substantial memory, so see [model compatibility](huggingface/MODEL_COMPATIBILITY.md).
 
 
 ### Experimental image → text → image mode
 
-The UI supports uploading a PNG/JPEG/WebP reference image (up to 3 MB) with user instructions. The two model stages run as separate GPU requests: Qwythos multimodal interpretation (180-second declared duration) followed by FLUX rendering (120 seconds, unchanged). The Qwythos duration is deliberately lower because the former 300-second declaration was rejected as a 450-second reservation by ZeroGPU. The image + instructions mode is still experimental; model architecture, processor compatibility, available RAM/VRAM, runtime, provider quotas, and Gradio payload handling may still cause failures. FLUX text-to-image remains available independently.
+The UI accepts image files the browser can decode (original file up to 12 MB), converts the selected image to JPEG (up to 3 MiB), and uploads it with user instructions. The two model stages run as separate GPU requests: Qwythos multimodal interpretation (180-second declared duration) followed by FLUX rendering (120 seconds, unchanged). The Qwythos duration is deliberately lower because the former 300-second declaration was rejected as a 450-second reservation by ZeroGPU. The image + instructions mode is still experimental; model architecture, processor compatibility, available RAM/VRAM, runtime, provider quotas, and Gradio payload handling may still cause failures. FLUX text-to-image remains available independently.
 
 ## Experimental video and text models
 
