@@ -156,3 +156,11 @@
 .reference-image-dropzone .button{position:relative;z-index:1;margin-top:3px}
 .reference-file-input{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important;opacity:0!important}
 @media(max-width:520px){.reference-image-dropzone{padding:19px 10px}.reference-image-dropzone strong{font-size:12px}.reference-image-dropzone>span{font-size:9px}}
+
+
+/* Mobile-first reference image controls: camera, gallery, file picker and desktop drag/drop. */
+.reference-image-actions{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:8px;width:100%;max-width:100%;margin-top:4px}
+.reference-image-actions .button{min-height:40px;max-width:100%;white-space:normal;overflow-wrap:anywhere;touch-action:manipulation}
+.reference-image-dropzone{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+.reference-image-dropzone[aria-hidden="true"]{display:none!important}
+@media(max-width:520px){.reference-image-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.reference-image-actions .button{width:100%;padding:10px 8px;font-size:10px}.reference-image-actions #reference-image-browse{grid-column:1/-1}}
