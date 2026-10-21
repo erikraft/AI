@@ -419,7 +419,10 @@ async function processReferenceImage(file) {
 
 for (const input of referenceFileInputs) {
   input.addEventListener("change", () => {
-    void processReferenceImage(input.files?.[0]);
+    const file = input.files?.[0];
+    // Reset immediately so the same photo can be selected again after a failed attempt.
+    input.value = "";
+    void processReferenceImage(file);
   });
 }
 referenceDropzone.addEventListener("click", (event) => {
