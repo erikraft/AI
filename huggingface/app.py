@@ -63,21 +63,31 @@ def _available_ram_gib() -> float:
         return 0.0
 
 
-def _has_cached_repo(repo_cache_name: str, minimum_bytes: int = 1_000_000_000) -> bool:
+def _cached_repo_size_gib(repo_cache_name: str) -> float:
+    """Estimate cached weight size without double-counting symlinks to the same blobs."""
     cache_root = os.path.expanduser(
         os.path.join("~", ".cache", "huggingface", "hub", repo_cache_name, "snapshots")
     )
+    total_bytes = 0
+    seen = set()
     if not os.path.isdir(cache_root):
-        return False
+        return 0.0
     for root, _, filenames in os.walk(cache_root):
         for filename in filenames:
             if filename.endswith((".safetensors", ".gguf", ".bin")):
+                path = os.path.join(root, filename)
                 try:
-                    if os.path.getsize(os.path.join(root, filename)) >= minimum_bytes:
-                        return True
+                    target = os.path.realpath(path)
+                    if target not in seen:
+                        seen.add(target)
+                        total_bytes += os.path.getsize(path)
                 except OSError:
                     continue
-    return False
+    return total_bytes / (1024 ** 3)
+
+
+def _has_cached_repo(repo_cache_name: str, minimum_bytes: int = 1_000_000_000) -> bool:
+    return _cached_repo_size_gib(repo_cache_name) * (1024 ** 3) >= minimum_bytes
 
 
 def _load_flux():
@@ -250,9 +260,11 @@ def generate_video(prompt: str):
         raise gr.Error(
             f"Cosmos needs roughly 48 GB VRAM. This runtime reports {total_gib:.1f} GiB total and {free_gib:.1f} GiB free; refusing to load to reduce OOM risk."
         )
-    cached = _has_cached_repo("models--DuoNeural--Cosmos3-Nano-Abliterated")
-    if not cached and _disk_free_gib() < 36:
-        raise gr.Error(f"Cosmos needs tens of gigabytes of model cache; only {_disk_free_gib():.1f} GiB free disk space is available.")
+    cached_size_gib = _cached_repo_size_gib("models--DuoNeural--Cosmos3-Nano-Abliterated")
+    if cached_size_gib < 28 and _disk_free_gib() < 36:
+        raise gr.Error(
+            f"Cosmos needs tens of gigabytes of model cache; only {_disk_free_gib():.1f} GiB free disk space is available and the detected model cache is {cached_size_gib:.1f} GiB."
+        )
     try:
         from diffusers import Cosmos3OmniPipeline
         from diffusers.utils import export_to_video
