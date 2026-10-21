@@ -213,15 +213,16 @@ function updateModelSelection() {
   $("selected-model-label").textContent = model;
   const labels = {
     [FLUX_MODEL]: english ? FLUX_MODEL + " — text-to-image" : FLUX_MODEL + " — texto → imagem",
-    [QWYTHOS_MODEL]: english ? QWYTHOS_MODEL + " — reference image + instructions → FLUX image" : QWYTHOS_MODEL + " — imagem de referência + instruções → imagem FLUX",
+    [QWYTHOS_MODEL]: english ? QWYTHOS_MODEL + " — image → text → image" : QWYTHOS_MODEL + " — imagem → texto → imagem",
     [COSMOS_MODEL]: english ? COSMOS_MODEL + " — text-to-video (experimental)" : COSMOS_MODEL + " — texto → vídeo (experimental)",
     [QWEN_MODEL]: english ? QWEN_MODEL + " — text assistant (experimental)" : QWEN_MODEL + " — assistente de texto (experimental)"
   };
   for (const option of modelSelect.options) if (labels[option.value]) option.textContent = labels[option.value];
   $("image-options-row").classList.toggle("hidden", isCosmos || isQwen);
+  $("logo-upload-field").classList.toggle("hidden", isCosmos || isQwen);
   $("qwythos-image-input").classList.toggle("hidden", !isQwythos);
   $("generate").querySelector("span").textContent = modelButtonLabel(model);
-  $("model-task-badge").textContent = isCosmos ? "TEXT → VIDEO" : isQwen ? "TEXT → TEXT" : isQwythos ? "IMAGE + TEXT → IMAGE" : "TEXT → IMAGE";
+  $("model-task-badge").textContent = isCosmos ? "TEXT → VIDEO" : isQwen ? "TEXT → TEXT" : isQwythos ? "IMAGE → TEXT → IMAGE" : "TEXT → IMAGE";
   $("model-help").textContent = isQwythos
     ? languageText("qwythos_help")
     : isCosmos
@@ -244,13 +245,14 @@ function updateModelSelection() {
           ? (enabled ? "CPU-only (no GPU offload): needs ~12 GiB free RAM and ~11 GiB free disk on cold download. The small quantization reduces quality." : "Blocked until CPU runtime is installed and both flags are enabled. Requires ~12 GiB free RAM and ~11 GiB free disk.")
           : (enabled ? "Somente CPU (sem GPU): requer ~12 GiB de RAM livre e ~11 GiB em disco no primeiro download. A quantização pequena reduz a qualidade." : "Bloqueado até instalar runtime CPU e habilitar as duas flags. Exige cerca de 12 GiB de RAM livre e 11 GiB em disco.")
         )
-      : (english
-          ? "Cosmos and Qwen are optional and use different runtimes; provider quotas and compatibility apply."
-          : "Cosmos e Qwen são opcionais e usam runtimes distintos; cotas e compatibilidade do provedor se aplicam.");
+      : isQwythos
+      ? languageText("qwythos_runtime_notice")
+      : languageText("model_runtime_notice");
   $("result-title").textContent = isCosmos ? (english ? "Your video" : "Seu vídeo") : isQwen ? (english ? "Qwen response" : "Resposta do Qwen") : languageText("result_title");
   $("download").classList.toggle("hidden", isQwen);
   $("download").disabled = true;
   $("generated-image").classList.add("hidden");
+  $("logo-overlay-preview").classList.add("hidden");
   $("generated-video").classList.add("hidden");
   $("generated-text").classList.add("hidden");
   $("generated-text").textContent = "";
@@ -299,6 +301,59 @@ function readImageAsDataUrl(file) {
     reader.readAsDataURL(file);
   });
 }
+
+// Optional output logo: read locally and never include it in the inference request.
+const logoUploadInput = $("logo-upload");
+const logoUploadPreview = $("logo-upload-preview");
+const logoUploadClear = $("logo-upload-clear");
+const logoOverlayPreview = $("logo-overlay-preview");
+let logoDataUrl = "";
+let logoFileName = "";
+
+function clearUploadedLogo() {
+  logoDataUrl = "";
+  logoFileName = "";
+  logoUploadInput.value = "";
+  logoUploadPreview.removeAttribute("src");
+  logoUploadPreview.classList.add("hidden");
+  logoUploadClear.classList.add("hidden");
+  $("logo-upload-error").textContent = "";
+  $("logo-upload-status").textContent = languageText("logo_upload_help");
+  logoOverlayPreview.removeAttribute("src");
+  logoOverlayPreview.classList.add("hidden");
+}
+
+logoUploadInput.addEventListener("change", async () => {
+  $("logo-upload-error").textContent = "";
+  const file = logoUploadInput.files?.[0];
+  if (!file) return;
+  if (file.size > 3 * 1024 * 1024) {
+    clearUploadedLogo();
+    $("logo-upload-error").textContent = languageText("logo_upload_too_large");
+    return;
+  }
+  if (!["image/png", "image/jpeg", "image/webp"].includes(file.type)) {
+    clearUploadedLogo();
+    $("logo-upload-error").textContent = languageText("logo_upload_type");
+    return;
+  }
+  try {
+    logoDataUrl = await readImageAsDataUrl(file);
+    logoFileName = file.name || "logo";
+    logoUploadPreview.src = logoDataUrl;
+    logoUploadPreview.classList.remove("hidden");
+    logoUploadClear.classList.remove("hidden");
+    $("logo-upload-status").textContent = languageText("logo_upload_added");
+    if (!$("generated-image").classList.contains("hidden")) {
+      logoOverlayPreview.src = logoDataUrl;
+      logoOverlayPreview.classList.remove("hidden");
+    }
+  } catch {
+    clearUploadedLogo();
+    $("logo-upload-error").textContent = languageText("logo_upload_read_error");
+  }
+});
+logoUploadClear.addEventListener("click", clearUploadedLogo);
 promptInput.addEventListener("input", () => $("char-count").textContent = promptInput.value.length + " / 1500");
 $("generator-form").addEventListener("submit", async (event) => {
   event.preventDefault();
@@ -315,6 +370,7 @@ $("generator-form").addEventListener("submit", async (event) => {
   button.querySelector("span").textContent = languageText("generating");
   $("empty-result").classList.add("hidden");
   $("generated-image").classList.add("hidden");
+  $("logo-overlay-preview").classList.add("hidden");
   $("loading-result").classList.remove("hidden");
   $("result-status").className = "result-status";
   $("result-status").textContent = languageText("validating");
@@ -339,6 +395,7 @@ $("generator-form").addEventListener("submit", async (event) => {
       $("loading-result").classList.add("hidden");
       $("empty-result").classList.add("hidden");
       $("generated-image").classList.add("hidden");
+      $("logo-overlay-preview").classList.add("hidden");
       $("generated-video").classList.add("hidden");
       $("generated-text").textContent = answer;
       $("generated-text").classList.remove("hidden");
@@ -369,7 +426,7 @@ $("generator-form").addEventListener("submit", async (event) => {
     resultType = "image"; videoUrl = "";
     if (!imageUrl) throw new Error(languageText("provider_image_missing"));
     const img = $("generated-image");
-    img.onload = () => { $("loading-result").classList.add("hidden"); img.classList.remove("hidden"); $("download").disabled = false; $("download").classList.remove("hidden"); $("empty-result").classList.add("hidden"); $("result-status").textContent = languageText("image_ready"); $("result-status").className = "result-status status-success"; };
+    img.onload = () => { $("loading-result").classList.add("hidden"); img.classList.remove("hidden"); if (logoDataUrl) { logoOverlayPreview.src = logoDataUrl; logoOverlayPreview.classList.remove("hidden"); } else { logoOverlayPreview.classList.add("hidden"); } $("download").disabled = false; $("download").classList.remove("hidden"); $("empty-result").classList.add("hidden"); $("result-status").textContent = languageText("image_ready"); $("result-status").className = "result-status status-success"; };
     img.onerror = () => { $("loading-result").classList.add("hidden"); $("empty-result").classList.remove("hidden"); $("result-status").textContent = languageText("image_load_error"); $("result-status").className = "result-status status-error"; };
     img.src = imageUrl;
   } catch (error) {
@@ -385,28 +442,81 @@ $("generator-form").addEventListener("submit", async (event) => {
 $("download").addEventListener("click", async () => {
   const mediaUrl = resultType === "video" ? videoUrl : imageUrl;
   if (!mediaUrl || resultType === "text") return;
+
+  const saveBlob = (blob, filename) => {
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+  const loadImage = (src) => new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error("Could not load image for download."));
+    image.src = src;
+  });
+
   try {
     const response = await fetch(mediaUrl);
     if (!response.ok) throw new Error("download failed");
     const blob = await response.blob();
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = resultType === "video" ? "erikraft-ai-video.mp4" : "erikraft-ai-image.png";
-    link.click();
-    URL.revokeObjectURL(url);
-  } catch {
+
+    if (resultType === "image" && logoDataUrl) {
+      const imageUrlForCanvas = URL.createObjectURL(blob);
+      try {
+        const [sourceImage, logoImage] = await Promise.all([
+          loadImage(imageUrlForCanvas),
+          loadImage(logoDataUrl)
+        ]);
+        const canvas = document.createElement("canvas");
+        canvas.width = sourceImage.naturalWidth;
+        canvas.height = sourceImage.naturalHeight;
+        const context = canvas.getContext("2d");
+        if (!context || !canvas.width || !canvas.height) throw new Error("Canvas unavailable.");
+        context.drawImage(sourceImage, 0, 0);
+        const maxLogoWidth = Math.round(canvas.width * 0.18);
+        const maxLogoHeight = Math.round(canvas.height * 0.18);
+        const ratio = Math.min(maxLogoWidth / logoImage.naturalWidth, maxLogoHeight / logoImage.naturalHeight);
+        const logoWidth = Math.max(1, Math.round(logoImage.naturalWidth * ratio));
+        const logoHeight = Math.max(1, Math.round(logoImage.naturalHeight * ratio));
+        const padding = Math.round(Math.min(canvas.width, canvas.height) * 0.015);
+        const x = canvas.width - logoWidth - padding;
+        const y = canvas.height - logoHeight - padding;
+        context.fillStyle = "rgba(255,255,255,0.92)";
+        context.fillRect(x - padding, y - padding, logoWidth + padding * 2, logoHeight + padding * 2);
+        context.drawImage(logoImage, x, y, logoWidth, logoHeight);
+        const brandedBlob = await new Promise((resolve, reject) => {
+          canvas.toBlob((value) => value ? resolve(value) : reject(new Error("Could not encode image.")), "image/png");
+        });
+        saveBlob(brandedBlob, "erikraft-ai-image-with-logo.png");
+        return;
+      } finally {
+        URL.revokeObjectURL(imageUrlForCanvas);
+      }
+    }
+
+    saveBlob(blob, resultType === "video" ? "erikraft-ai-video.mp4" : "erikraft-ai-image.png");
+  } catch (error) {
+    console.error("Download failed:", error);
+    if (resultType === "image" && logoDataUrl) {
+      $("result-status").textContent = languageText("logo_overlay_download_error");
+      $("result-status").className = "result-status status-error";
+    }
     window.open(mediaUrl, "_blank", "noopener,noreferrer");
   }
 });
 
+
+
 // Language selector: remember the choice and fall back to the browser language.
 const translations = {
   "pt-BR": {
-    nav_studio:"Studio",nav_how:"Como funciona",nav_donate:"Doar",hero_eyebrow:"AI IMAGE STUDIO · OPEN SOURCE",hero_title:"Transforme suas<br><span>ideias em imagens.</span>",hero_lead:"Crie imagens a partir da sua imaginação. Escreva um prompt único, ajuste as opções e gere sua arte com FLUX.",meta_prompt:"Prompt personalizado",meta_login:"Conta gratuita",meta_limits:"Limites contra abuso",studio_eyebrow:"SEU ESPAÇO CRIATIVO",studio_title:'Image studio<span class="accent">.</span>',studio_intro:"Descreva a imagem com suas próprias palavras. Não existe prompt predefinido.",prompt_label:"Seu prompt",prompt_placeholder:"Ex.: Uma estação de trem futurista no meio de uma floresta, luz azul cinematográfica, neblina suave, composição detalhada...",prompt_help:"Descreva o assunto, o ambiente, a luz e o estilo.",model_label:"Modelo / função",model_help:"FLUX faz texto para imagem. No fluxo experimental Imagem + texto → imagem, Qwythos interpreta a imagem enviada e as instruções; FLUX renderiza a imagem final.",qwythos_help:"Fluxo experimental Imagem + texto → imagem: envie uma imagem e descreva o resultado desejado. Qwythos interpreta ambos; FLUX renderiza a imagem final.",qwythos_image_button:"Gerar imagem (imagem + texto)",reference_image_label:"Imagem de entrada (obrigatória no modo Imagem + texto → imagem)",reference_image_help:"Envie PNG, JPG ou WebP de até 3 MB e descreva o resultado desejado. Fluxo experimental: Qwythos interpreta a imagem e o texto; FLUX renderiza a imagem final.",reference_image_required:"Envie uma imagem de entrada para usar o fluxo Imagem + texto → imagem.",reference_image_too_large:"A imagem deve ter no máximo 3 MB.",reference_image_type:"Formato inválido. Use PNG, JPG ou WebP.",reference_image_read_error:"Não foi possível ler a imagem selecionada.",aspect_label:"Proporção",quality_label:"Etapas de geração",notice_limits:"Entre com Google, GitHub ou e-mail e senha para gerar imagens. Limite de até 5 gerações por hora por conta; a disponibilidade do provedor pode variar.",generate_button:"Gerar imagem",responsible_note:"Ao gerar, você concorda em usar o serviço de forma responsável.",result_eyebrow:"RESULTADO",result_title:"Sua criação",empty_title:"Sua imagem começa aqui",empty_desc:"O resultado aparecerá nesta área depois da geração.",loading_title:"Preparando sua imagem...",loading_desc:"Enviando o prompt para o modelo de IA.",loading_note:"Isso pode levar alguns minutos na cota gratuita.",ready_status:"Pronto para criar.",how_eyebrow:"SIMPLES E TRANSPARENTE",how_title:"Do texto à imagem.",step1_title:"Escreva sua ideia",step1_desc:"Use um prompt original. Você controla a descrição, sem texto fixo escondido no código.",step2_title:"Gere com FLUX",step2_desc:"O backend encaminha a solicitação para um Space compatível com o modelo selecionado.",step3_title:"Salve o resultado",step3_desc:"Visualize a imagem e baixe o arquivo quando a geração terminar.",security_title:"Limites de uso · proteção contra abuso",security_desc:"Somente usuários autenticados com Google, GitHub ou e-mail e senha podem gerar imagens. O backend valida a sessão Firebase e aplica até 5 gerações por hora por conta.",quota_title:"Cota gratuita e limites do provedor",quota_intro:"O ErikrafT AI envia as solicitações para um Space do Hugging Face. Os limites do site e os limites de computação do provedor são diferentes.",quota_site_label:"LIMITES DO ERIKRAFT AI",quota_site_value:"Até 5 gerações por hora por conta autenticada",quota_site_desc:"A geração requer uma sessão Firebase válida obtida com Google, GitHub ou e-mail e senha. O backend aplica até 5 gerações por hora por conta autenticada.",quota_gpu_label:"HUGGING FACE ZEROGPU · SE APLICÁVEL",quota_gpu_value:"2 min/dia sem autenticação · 5 min/dia para conta Free",quota_gpu_desc:"Quando o Space usa ZeroGPU, o Hugging Face documenta cotas diárias de tempo de GPU por categoria de conta. A cota reinicia 24 horas após o primeiro uso de GPU, e o saldo restante afeta a prioridade na fila. É tempo de computação, não um número garantido de imagens.",quota_availability_label:"DISPONIBILIDADE DO SPACE",quota_availability_value:"Filas, inicializações e suspensões podem ocorrer",quota_availability_desc:"O hardware gratuito pode ficar temporariamente indisponível ou precisar ser reiniciado após inatividade. No hardware CPU Basic, o Hugging Face informa suspensão após 48 horas sem atividade. Carregar um modelo grande também pode demorar.",quota_note:"A cota ZeroGPU só se aplica se este Space estiver usando esse hardware. A cota do provedor é independente dos limites do ErikrafT AI e não garante uma quantidade de imagens por dia nem um tempo de resposta.",quota_link_space:"Abrir Space utilizado pelo ErikrafT AI ↗",quota_link_zerogpu:"Cotas oficiais do ZeroGPU ↗",quota_link_sleep:"Regras de suspensão dos Spaces ↗",studio_login_eyebrow:"AUTENTICAÇÃO NECESSÁRIA",studio_login_title:"Entre para gerar imagens",studio_login_desc:"O gerador e os resultados ficam disponíveis somente depois de entrar com Google, GitHub ou e-mail e senha.",studio_google_button:"Continuar com Google",studio_github_button:"Continuar com GitHub",studio_login_note:"Até 5 gerações por hora por conta. A disponibilidade do Hugging Face pode variar.",auth_unavailable:"A autenticação está indisponível. Tente novamente mais tarde ou informe o administrador.",auth_required_error:"Entre com Google, GitHub ou uma conta de e-mail verificada antes de gerar imagens.",auth_provider_error:"Entre usando Google, GitHub ou uma conta de e-mail verificada para continuar.",email_separator:"OU USE E-MAIL E SENHA",email_label:"E-mail",password_label:"Senha",email_placeholder:"voce@exemplo.com",password_placeholder:"Mínimo de 6 caracteres",email_sign_in:"Entrar com e-mail",create_account:"Criar conta",forgot_password:"Esqueci minha senha",modal_auth_eyebrow:"SUA CONTA",modal_auth_title:"Entre ou crie sua conta",modal_auth_desc:"Use Google, GitHub ou seu e-mail e senha para continuar.",modal_auth_note:"A autenticação e a senha são gerenciadas pelo Firebase.",email_required:"Informe seu endereço de e-mail.",invalid_email:"Informe um endereço de e-mail válido.",password_required:"Digite sua senha.",weak_password:"A senha precisa ter pelo menos 6 caracteres.",email_already_in_use:"Este e-mail já está cadastrado. Entre ou redefina sua senha.",invalid_credentials:"E-mail ou senha incorretos.",too_many_requests:"Muitas tentativas. Aguarde antes de tentar novamente.",network_error:"Falha de conexão. Verifique sua internet e tente novamente.",email_provider_disabled:"O login por e-mail e senha não está habilitado no Firebase.",verification_email_sent:"Conta criada. Enviamos um link de verificação para seu e-mail. Confirme-o antes de entrar.",email_verification_required:"Seu e-mail ainda não foi verificado. Enviamos um novo link; confirme-o antes de entrar.",reset_email_sent:"Se existir uma conta com esse e-mail, enviaremos instruções para redefinir a senha.",reset_email_failed:"Não foi possível enviar o e-mail de redefinição. Verifique o endereço e tente novamente.",auth_domain_error:"Este domínio não está autorizado no Firebase Authentication.",auth_failed:"Não foi possível entrar. Tente novamente.",generation_http_error:"A geração falhou",provider_image_missing:"O Space não retornou uma imagem reconhecida.",support_project:"APOIE O PROJETO",donate_title:"Ajude a manter o projeto aberto.",donate_desc:"Se o ErikrafT AI™ é útil para você, contribua com Bitcoin. Confira a carteira antes de enviar; transações na blockchain são irreversíveis.",primary_account:"Conta principal",email_account:"Conta de e-mail",copy_address:"Copiar endereço",copied:"Endereço copiado!",open_wallet:"Abrir na carteira ↗",scan_qr:"Escaneie com sua carteira Bitcoin",bitcoin_note:"Envie apenas Bitcoin pela rede Bitcoin. Sempre confira o endereço na sua carteira antes de confirmar.",footer_text:"Open source · Construído por ErikrafT",generate:"Gerar imagem",generating:"Gerando...",validating:"Validando o limite de uso...",image_ready:"Imagem pronta.",image_load_error:"A imagem temporária não pôde ser carregada. Tente gerar novamente.",generation_error:"Não foi possível gerar a imagem."
+    nav_studio:"Studio",nav_how:"Como funciona",nav_donate:"Doar",hero_eyebrow:"AI IMAGE STUDIO · OPEN SOURCE",hero_title:"Transforme suas<br><span>ideias em imagens.</span>",hero_lead:"Crie imagens a partir da sua imaginação. Escreva um prompt único, ajuste as opções e gere sua arte com FLUX.",meta_prompt:"Prompt personalizado",meta_login:"Conta gratuita",meta_limits:"Limites contra abuso",studio_eyebrow:"SEU ESPAÇO CRIATIVO",studio_title:'Image studio<span class="accent">.</span>',studio_intro:"Descreva a imagem com suas próprias palavras. Não existe prompt predefinido.",prompt_label:"Seu prompt",prompt_placeholder:"Ex.: Uma estação de trem futurista no meio de uma floresta, luz azul cinematográfica, neblina suave, composição detalhada...",prompt_help:"Descreva o assunto, o ambiente, a luz e o estilo.",model_label:"Modelo / função",model_help:"FLUX faz texto para imagem. No fluxo experimental Imagem → texto → imagem, Qwythos interpreta a imagem enviada e as instruções; FLUX renderiza a imagem final.",qwythos_help:"Fluxo experimental Imagem → texto → imagem: envie uma imagem ou logo e descreva as alterações desejadas. Qwythos interpreta a imagem e as instruções e retorna um prompt; o FLUX gera a imagem final.",qwythos_runtime_notice:"Qwythos interpreta a imagem e as instruções em uma etapa separada; depois, o FLUX renderiza a imagem final. A compatibilidade e as cotas do Space se aplicam.",model_runtime_notice:"Cosmos e Qwen ficam bloqueados até confirmar memória, espaço em disco e backend compatível.",qwythos_image_button:"Gerar imagem (imagem → texto → imagem)",reference_image_label:"Imagem de entrada (obrigatória no modo Imagem + texto → imagem)",reference_image_help:"Envie PNG, JPG ou WebP de até 3 MB e descreva o resultado desejado. Fluxo experimental: Qwythos interpreta a imagem e o texto; FLUX renderiza a imagem final.",reference_image_required:"Envie uma imagem de entrada para usar o fluxo Imagem + texto → imagem.",reference_image_too_large:"A imagem deve ter no máximo 3 MB.",reference_image_type:"Formato inválido. Use PNG, JPG ou WebP.",reference_image_read_error:"Não foi possível ler a imagem selecionada.",logo_upload_label:"Logo para aplicar à imagem final (opcional)",logo_upload_help:"Selecione PNG, JPG ou WebP até 3 MB. O logo é aplicado localmente e não é enviado ao modelo.",logo_upload_clear:"Remover logo",logo_upload_added:"Logo selecionado; será aplicado à imagem final ao baixar.",logo_upload_too_large:"O logo deve ter no máximo 3 MB.",logo_upload_type:"Formato inválido. Use PNG, JPG ou WebP.",logo_upload_read_error:"Não foi possível ler o logo selecionado.",logo_overlay_download_error:"Não foi possível embutir o logo no download por uma restrição de origem. O original foi aberto; tente sem logo se necessário.",aspect_label:"Proporção",quality_label:"Etapas de geração",notice_limits:"Entre com Google, GitHub ou e-mail e senha para gerar imagens. Limite de até 5 gerações por hora por conta; a disponibilidade do provedor pode variar.",generate_button:"Gerar imagem",responsible_note:"Ao gerar, você concorda em usar o serviço de forma responsável.",result_eyebrow:"RESULTADO",result_title:"Sua criação",empty_title:"Sua imagem começa aqui",empty_desc:"O resultado aparecerá nesta área depois da geração.",loading_title:"Preparando sua imagem...",loading_desc:"Enviando o prompt para o modelo de IA.",loading_note:"Isso pode levar alguns minutos na cota gratuita.",ready_status:"Pronto para criar.",how_eyebrow:"SIMPLES E TRANSPARENTE",how_title:"Do texto à imagem.",step1_title:"Escreva sua ideia",step1_desc:"Use um prompt original. Você controla a descrição, sem texto fixo escondido no código.",step2_title:"Gere com FLUX",step2_desc:"O backend encaminha a solicitação para um Space compatível com o modelo selecionado.",step3_title:"Salve o resultado",step3_desc:"Visualize a imagem e baixe o arquivo quando a geração terminar.",security_title:"Limites de uso · proteção contra abuso",security_desc:"Somente usuários autenticados com Google, GitHub ou e-mail e senha podem gerar imagens. O backend valida a sessão Firebase e aplica até 5 gerações por hora por conta.",quota_title:"Cota gratuita e limites do provedor",quota_intro:"O ErikrafT AI envia as solicitações para um Space do Hugging Face. Os limites do site e os limites de computação do provedor são diferentes.",quota_site_label:"LIMITES DO ERIKRAFT AI",quota_site_value:"Até 5 gerações por hora por conta autenticada",quota_site_desc:"A geração requer uma sessão Firebase válida obtida com Google, GitHub ou e-mail e senha. O backend aplica até 5 gerações por hora por conta autenticada.",quota_gpu_label:"HUGGING FACE ZEROGPU · SE APLICÁVEL",quota_gpu_value:"2 min/dia sem autenticação · 5 min/dia para conta Free",quota_gpu_desc:"Quando o Space usa ZeroGPU, o Hugging Face documenta cotas diárias de tempo de GPU por categoria de conta. A cota reinicia 24 horas após o primeiro uso de GPU, e o saldo restante afeta a prioridade na fila. É tempo de computação, não um número garantido de imagens.",quota_availability_label:"DISPONIBILIDADE DO SPACE",quota_availability_value:"Filas, inicializações e suspensões podem ocorrer",quota_availability_desc:"O hardware gratuito pode ficar temporariamente indisponível ou precisar ser reiniciado após inatividade. No hardware CPU Basic, o Hugging Face informa suspensão após 48 horas sem atividade. Carregar um modelo grande também pode demorar.",quota_note:"A cota ZeroGPU só se aplica se este Space estiver usando esse hardware. A cota do provedor é independente dos limites do ErikrafT AI e não garante uma quantidade de imagens por dia nem um tempo de resposta.",quota_link_space:"Abrir Space utilizado pelo ErikrafT AI ↗",quota_link_zerogpu:"Cotas oficiais do ZeroGPU ↗",quota_link_sleep:"Regras de suspensão dos Spaces ↗",studio_login_eyebrow:"AUTENTICAÇÃO NECESSÁRIA",studio_login_title:"Entre para gerar imagens",studio_login_desc:"O gerador e os resultados ficam disponíveis somente depois de entrar com Google, GitHub ou e-mail e senha.",studio_google_button:"Continuar com Google",studio_github_button:"Continuar com GitHub",studio_login_note:"Até 5 gerações por hora por conta. A disponibilidade do Hugging Face pode variar.",auth_unavailable:"A autenticação está indisponível. Tente novamente mais tarde ou informe o administrador.",auth_required_error:"Entre com Google, GitHub ou uma conta de e-mail verificada antes de gerar imagens.",auth_provider_error:"Entre usando Google, GitHub ou uma conta de e-mail verificada para continuar.",email_separator:"OU USE E-MAIL E SENHA",email_label:"E-mail",password_label:"Senha",email_placeholder:"voce@exemplo.com",password_placeholder:"Mínimo de 6 caracteres",email_sign_in:"Entrar com e-mail",create_account:"Criar conta",forgot_password:"Esqueci minha senha",modal_auth_eyebrow:"SUA CONTA",modal_auth_title:"Entre ou crie sua conta",modal_auth_desc:"Use Google, GitHub ou seu e-mail e senha para continuar.",modal_auth_note:"A autenticação e a senha são gerenciadas pelo Firebase.",email_required:"Informe seu endereço de e-mail.",invalid_email:"Informe um endereço de e-mail válido.",password_required:"Digite sua senha.",weak_password:"A senha precisa ter pelo menos 6 caracteres.",email_already_in_use:"Este e-mail já está cadastrado. Entre ou redefina sua senha.",invalid_credentials:"E-mail ou senha incorretos.",too_many_requests:"Muitas tentativas. Aguarde antes de tentar novamente.",network_error:"Falha de conexão. Verifique sua internet e tente novamente.",email_provider_disabled:"O login por e-mail e senha não está habilitado no Firebase.",verification_email_sent:"Conta criada. Enviamos um link de verificação para seu e-mail. Confirme-o antes de entrar.",email_verification_required:"Seu e-mail ainda não foi verificado. Enviamos um novo link; confirme-o antes de entrar.",reset_email_sent:"Se existir uma conta com esse e-mail, enviaremos instruções para redefinir a senha.",reset_email_failed:"Não foi possível enviar o e-mail de redefinição. Verifique o endereço e tente novamente.",auth_domain_error:"Este domínio não está autorizado no Firebase Authentication.",auth_failed:"Não foi possível entrar. Tente novamente.",generation_http_error:"A geração falhou",provider_image_missing:"O Space não retornou uma imagem reconhecida.",support_project:"APOIE O PROJETO",donate_title:"Ajude a manter o projeto aberto.",donate_desc:"Se o ErikrafT AI™ é útil para você, contribua com Bitcoin. Confira a carteira antes de enviar; transações na blockchain são irreversíveis.",primary_account:"Conta principal",email_account:"Conta de e-mail",copy_address:"Copiar endereço",copied:"Endereço copiado!",open_wallet:"Abrir na carteira ↗",scan_qr:"Escaneie com sua carteira Bitcoin",bitcoin_note:"Envie apenas Bitcoin pela rede Bitcoin. Sempre confira o endereço na sua carteira antes de confirmar.",footer_text:"Open source · Construído por ErikrafT",generate:"Gerar imagem",generating:"Gerando...",validating:"Validando o limite de uso...",image_ready:"Imagem pronta.",image_load_error:"A imagem temporária não pôde ser carregada. Tente gerar novamente.",generation_error:"Não foi possível gerar a imagem."
   },
   "en": {
-    nav_studio:"Studio",nav_how:"How it works",nav_donate:"Donate",hero_eyebrow:"AI IMAGE STUDIO · OPEN SOURCE",hero_title:"Turn your ideas<br><span>into images.</span>",hero_lead:"Create images from your imagination. Write a unique prompt, adjust the options, and generate your art with FLUX.",meta_prompt:"Custom prompts",meta_login:"Free account",meta_limits:"Abuse protection",studio_eyebrow:"YOUR CREATIVE SPACE",studio_title:'Image studio<span class="accent">.</span>',studio_intro:"Describe the image in your own words. No preset prompt is used.",prompt_label:"Your prompt",prompt_placeholder:"E.g. A futuristic train station in a forest, cinematic blue light, soft mist, detailed composition...",prompt_help:"Describe the subject, setting, lighting, and style.",model_label:"Model / task",model_help:"FLUX supports text-to-image. In the experimental image + text → image workflow, Qwythos interprets the uploaded image and instructions; FLUX renders the final image.",qwythos_help:"Experimental image + text → image: upload an image and describe the desired result. Qwythos interprets both; FLUX renders the final image.",qwythos_image_button:"Generate image (image + text)",reference_image_label:"Input image (required for image + text → image)",reference_image_help:"Upload PNG, JPG, or WebP up to 3 MB and describe the desired result. Experimental workflow: Qwythos interprets the image and text; FLUX renders the final image.",reference_image_required:"Upload an input image to use the image + text → image workflow.",reference_image_too_large:"The image must be 3 MB or smaller.",reference_image_type:"Unsupported format. Use PNG, JPG, or WebP.",reference_image_read_error:"Could not read the selected image.",aspect_label:"Aspect ratio",quality_label:"Generation steps",notice_limits:"Sign in with Google, GitHub, or email and password to generate images. Up to 5 generations per hour per account; provider availability may vary.",generate_button:"Generate image",responsible_note:"By generating, you agree to use the service responsibly.",result_eyebrow:"RESULT",result_title:"Your creation",empty_title:"Your image starts here",empty_desc:"Your result will appear here after generation.",loading_title:"Preparing your image...",loading_desc:"Sending the prompt to the AI model.",loading_note:"This may take a few minutes on the free tier.",ready_status:"Ready to create.",how_eyebrow:"SIMPLE AND TRANSPARENT",how_title:"From text to image.",step1_title:"Write your idea",step1_desc:"Use an original prompt. You control the description, with no hidden fixed text in the code.",step2_title:"Generate with FLUX",step2_desc:"The backend forwards your request to a Space compatible with the selected model.",step3_title:"Save the result",step3_desc:"Preview your image and download it when generation finishes.",security_title:"Usage limits · abuse protection",security_desc:"Only users authenticated with Google, GitHub, or email and password can generate images. The backend validates the Firebase session and allows up to 5 generations per hour per account.",quota_title:"Free-tier quotas and provider limits",quota_intro:"ErikrafT AI sends image requests to a Hugging Face Space. This website’s limits are separate from the provider’s compute limits.",quota_site_label:"ERIKRAFT AI LIMITS",quota_site_value:"Up to 5 generations per hour per authenticated account",quota_site_desc:"Image generation requires a valid Firebase session from Google, GitHub, or email and password. The backend allows up to 5 generations per hour per authenticated account.",quota_gpu_label:"HUGGING FACE ZEROGPU · IF APPLICABLE",quota_gpu_value:"2 min/day unauthenticated · 5 min/day for a Free account",quota_gpu_desc:"When a Space uses ZeroGPU, Hugging Face documents daily GPU-time quotas by account tier. The quota resets 24 hours after first GPU use, and remaining quota affects queue priority. This is compute time, not a guaranteed number of images.",quota_availability_label:"SPACE AVAILABILITY",quota_availability_value:"Queues, cold starts, and suspensions may occur",quota_availability_desc:"Free hardware may be temporarily unavailable or need to restart after inactivity. On CPU Basic hardware, Hugging Face documents suspension after 48 hours without activity. Loading a large model can also take time.",quota_note:"The ZeroGPU quota only applies if this Space uses that hardware. Provider quota is independent of ErikrafT AI’s limits and does not guarantee a number of images per day or a response time.",quota_link_space:"Open the Space used by ErikrafT AI ↗",quota_link_zerogpu:"Official ZeroGPU quotas ↗",quota_link_sleep:"Spaces sleep and lifecycle rules ↗",studio_login_eyebrow:"SIGN-IN REQUIRED",studio_login_title:"Sign in to generate images",studio_login_desc:"The generator and results are available only after you sign in with Google, GitHub, or email and password.",studio_google_button:"Continue with Google",studio_github_button:"Continue with GitHub",studio_login_note:"Up to 5 generations per hour per account. Hugging Face availability may vary.",auth_unavailable:"Authentication is unavailable. Try again later or contact the administrator.",auth_required_error:"Sign in with Google, GitHub, or a verified email account before generating images.",auth_provider_error:"Sign in using Google, GitHub, or a verified email account to continue.",email_separator:"OR USE EMAIL AND PASSWORD",email_label:"Email",password_label:"Password",email_placeholder:"you@example.com",password_placeholder:"At least 6 characters",email_sign_in:"Sign in with email",create_account:"Create account",forgot_password:"Forgot password?",modal_auth_eyebrow:"YOUR ACCOUNT",modal_auth_title:"Sign in or create your account",modal_auth_desc:"Use Google, GitHub, or your email and password to continue.",modal_auth_note:"Authentication and password handling are managed by Firebase.",email_required:"Enter your email address.",invalid_email:"Enter a valid email address.",password_required:"Enter your password.",weak_password:"Your password must contain at least 6 characters.",email_already_in_use:"This email is already registered. Sign in or reset your password.",invalid_credentials:"Incorrect email or password.",too_many_requests:"Too many attempts. Please wait before trying again.",network_error:"Connection failed. Check your internet connection and try again.",email_provider_disabled:"Email and password sign-in is not enabled in Firebase.",verification_email_sent:"Account created. We sent a verification link to your email. Verify it before signing in.",email_verification_required:"Your email has not been verified yet. We sent a new link; verify it before signing in.",reset_email_sent:"If an account exists for this email, password-reset instructions will be sent.",reset_email_failed:"Could not send the password-reset email. Check the address and try again.",auth_domain_error:"This domain is not authorized in Firebase Authentication.",auth_failed:"Sign-in failed. Please try again.",generation_http_error:"Image generation failed",provider_image_missing:"The Space did not return a recognized image.",support_project:"SUPPORT THE PROJECT",donate_title:"Help keep the project open.",donate_desc:"If ErikrafT AI™ is useful to you, support it with Bitcoin. Verify the wallet before sending; blockchain transactions are irreversible.",primary_account:"Primary account",email_account:"Email account",copy_address:"Copy address",copied:"Address copied!",open_wallet:"Open in wallet ↗",scan_qr:"Scan with your Bitcoin wallet",bitcoin_note:"Send Bitcoin only over the Bitcoin network. Always verify the address in your wallet before confirming.",footer_text:"Open source · Built by ErikrafT",generate:"Generate image",generating:"Generating...",validating:"Checking usage limit...",image_ready:"Image ready.",image_load_error:"The temporary image could not be loaded. Try generating again.",generation_error:"Could not generate the image."
+    nav_studio:"Studio",nav_how:"How it works",nav_donate:"Donate",hero_eyebrow:"AI IMAGE STUDIO · OPEN SOURCE",hero_title:"Turn your ideas<br><span>into images.</span>",hero_lead:"Create images from your imagination. Write a unique prompt, adjust the options, and generate your art with FLUX.",meta_prompt:"Custom prompts",meta_login:"Free account",meta_limits:"Abuse protection",studio_eyebrow:"YOUR CREATIVE SPACE",studio_title:'Image studio<span class="accent">.</span>',studio_intro:"Describe the image in your own words. No preset prompt is used.",prompt_label:"Your prompt",prompt_placeholder:"E.g. A futuristic train station in a forest, cinematic blue light, soft mist, detailed composition...",prompt_help:"Describe the subject, setting, lighting, and style.",model_label:"Model / task",model_help:"FLUX generates images from text. In the experimental image → text → image workflow, Qwythos interprets the uploaded image and instructions; FLUX renders the final image.",qwythos_help:"Experimental image → text → image: upload an image or logo and describe the changes you want. Qwythos interprets the image and instructions and returns a prompt; FLUX generates the final image.",qwythos_runtime_notice:"Qwythos interprets the image and instructions in a separate step; FLUX then renders the final image. Space compatibility and quotas still apply.",model_runtime_notice:"Cosmos and Qwen remain blocked until memory, disk space, and a compatible backend have been confirmed.",qwythos_image_button:"Generate image (image → text → image)",reference_image_label:"Input image (required for image + text → image)",reference_image_help:"Upload PNG, JPG, or WebP up to 3 MB and describe the desired result. Experimental workflow: Qwythos interprets the image and text; FLUX renders the final image.",reference_image_required:"Upload an input image to use the image + text → image workflow.",reference_image_too_large:"The image must be 3 MB or smaller.",reference_image_type:"Unsupported format. Use PNG, JPG, or WebP.",reference_image_read_error:"Could not read the selected image.",logo_upload_label:"Logo to apply to the final image (optional)",logo_upload_help:"Choose a PNG, JPG, or WebP up to 3 MB. The logo is applied locally and is not sent to the model.",logo_upload_clear:"Remove logo",logo_upload_added:"Logo selected; it will be added to the final image when downloaded.",logo_upload_too_large:"The logo must be 3 MB or smaller.",logo_upload_type:"Unsupported format. Use PNG, JPG, or WebP.",logo_upload_read_error:"Could not read the selected logo.",logo_overlay_download_error:"A browser origin restriction prevented embedding the logo in the download. The original was opened; try again without a logo if needed.",aspect_label:"Aspect ratio",quality_label:"Generation steps",notice_limits:"Sign in with Google, GitHub, or email and password to generate images. Up to 5 generations per hour per account; provider availability may vary.",generate_button:"Generate image",responsible_note:"By generating, you agree to use the service responsibly.",result_eyebrow:"RESULT",result_title:"Your creation",empty_title:"Your image starts here",empty_desc:"Your result will appear here after generation.",loading_title:"Preparing your image...",loading_desc:"Sending the prompt to the AI model.",loading_note:"This may take a few minutes on the free tier.",ready_status:"Ready to create.",how_eyebrow:"SIMPLE AND TRANSPARENT",how_title:"From text to image.",step1_title:"Write your idea",step1_desc:"Use an original prompt. You control the description, with no hidden fixed text in the code.",step2_title:"Generate with FLUX",step2_desc:"The backend forwards your request to a Space compatible with the selected model.",step3_title:"Save the result",step3_desc:"Preview your image and download it when generation finishes.",security_title:"Usage limits · abuse protection",security_desc:"Only users authenticated with Google, GitHub, or email and password can generate images. The backend validates the Firebase session and allows up to 5 generations per hour per account.",quota_title:"Free-tier quotas and provider limits",quota_intro:"ErikrafT AI sends image requests to a Hugging Face Space. This website’s limits are separate from the provider’s compute limits.",quota_site_label:"ERIKRAFT AI LIMITS",quota_site_value:"Up to 5 generations per hour per authenticated account",quota_site_desc:"Image generation requires a valid Firebase session from Google, GitHub, or email and password. The backend allows up to 5 generations per hour per authenticated account.",quota_gpu_label:"HUGGING FACE ZEROGPU · IF APPLICABLE",quota_gpu_value:"2 min/day unauthenticated · 5 min/day for a Free account",quota_gpu_desc:"When a Space uses ZeroGPU, Hugging Face documents daily GPU-time quotas by account tier. The quota resets 24 hours after first GPU use, and remaining quota affects queue priority. This is compute time, not a guaranteed number of images.",quota_availability_label:"SPACE AVAILABILITY",quota_availability_value:"Queues, cold starts, and suspensions may occur",quota_availability_desc:"Free hardware may be temporarily unavailable or need to restart after inactivity. On CPU Basic hardware, Hugging Face documents suspension after 48 hours without activity. Loading a large model can also take time.",quota_note:"The ZeroGPU quota only applies if this Space uses that hardware. Provider quota is independent of ErikrafT AI’s limits and does not guarantee a number of images per day or a response time.",quota_link_space:"Open the Space used by ErikrafT AI ↗",quota_link_zerogpu:"Official ZeroGPU quotas ↗",quota_link_sleep:"Spaces sleep and lifecycle rules ↗",studio_login_eyebrow:"SIGN-IN REQUIRED",studio_login_title:"Sign in to generate images",studio_login_desc:"The generator and results are available only after you sign in with Google, GitHub, or email and password.",studio_google_button:"Continue with Google",studio_github_button:"Continue with GitHub",studio_login_note:"Up to 5 generations per hour per account. Hugging Face availability may vary.",auth_unavailable:"Authentication is unavailable. Try again later or contact the administrator.",auth_required_error:"Sign in with Google, GitHub, or a verified email account before generating images.",auth_provider_error:"Sign in using Google, GitHub, or a verified email account to continue.",email_separator:"OR USE EMAIL AND PASSWORD",email_label:"Email",password_label:"Password",email_placeholder:"you@example.com",password_placeholder:"At least 6 characters",email_sign_in:"Sign in with email",create_account:"Create account",forgot_password:"Forgot password?",modal_auth_eyebrow:"YOUR ACCOUNT",modal_auth_title:"Sign in or create your account",modal_auth_desc:"Use Google, GitHub, or your email and password to continue.",modal_auth_note:"Authentication and password handling are managed by Firebase.",email_required:"Enter your email address.",invalid_email:"Enter a valid email address.",password_required:"Enter your password.",weak_password:"Your password must contain at least 6 characters.",email_already_in_use:"This email is already registered. Sign in or reset your password.",invalid_credentials:"Incorrect email or password.",too_many_requests:"Too many attempts. Please wait before trying again.",network_error:"Connection failed. Check your internet connection and try again.",email_provider_disabled:"Email and password sign-in is not enabled in Firebase.",verification_email_sent:"Account created. We sent a verification link to your email. Verify it before signing in.",email_verification_required:"Your email has not been verified yet. We sent a new link; verify it before signing in.",reset_email_sent:"If an account exists for this email, password-reset instructions will be sent.",reset_email_failed:"Could not send the password-reset email. Check the address and try again.",auth_domain_error:"This domain is not authorized in Firebase Authentication.",auth_failed:"Sign-in failed. Please try again.",generation_http_error:"Image generation failed",provider_image_missing:"The Space did not return a recognized image.",support_project:"SUPPORT THE PROJECT",donate_title:"Help keep the project open.",donate_desc:"If ErikrafT AI™ is useful to you, support it with Bitcoin. Verify the wallet before sending; blockchain transactions are irreversible.",primary_account:"Primary account",email_account:"Email account",copy_address:"Copy address",copied:"Address copied!",open_wallet:"Open in wallet ↗",scan_qr:"Scan with your Bitcoin wallet",bitcoin_note:"Send Bitcoin only over the Bitcoin network. Always verify the address in your wallet before confirming.",footer_text:"Open source · Built by ErikrafT",generate:"Generate image",generating:"Generating...",validating:"Checking usage limit...",image_ready:"Image ready.",image_load_error:"The temporary image could not be loaded. Try generating again.",generation_error:"Could not generate the image."
   }
 };
 function detectBrowserLanguage(){const candidates=[...(navigator.languages||[]),navigator.language||""];for(const locale of candidates){const normalized=locale.toLowerCase();if(normalized.startsWith("pt"))return "pt-BR";if(normalized.startsWith("en"))return "en";}return "en";}
@@ -435,69 +545,3 @@ document.querySelectorAll(".copy-wallet").forEach(button=>button.addEventListene
   catch{const field=document.createElement("textarea");field.value=button.dataset.copy;field.setAttribute("readonly","");field.style.position="fixed";field.style.opacity="0";document.body.appendChild(field);field.select();const copied=document.execCommand("copy");field.remove();button.textContent=copied?languageText("copied"):original;}
   setTimeout(()=>{button.textContent=languageText("copy_address");},1800);
 }));
-
-function qrFallback(host){
-  const english=document.documentElement.lang==="en";
-  host.replaceChildren();
-  const message=document.createElement("p");
-  message.className="qr-unavailable";
-  message.textContent=english
-    ?"QR code unavailable. Copy the Bitcoin address using the button."
-    :"QR indisponível. Use o botão para copiar o endereço.";
-  host.append(message);
-}
-function renderBitcoinQrs(){
-  const hosts=[...document.querySelectorAll(".bitcoin-qr-host")];
-  if(!hosts.length)return;
-  if(typeof window.QRCodeStyling!=="function"){
-    hosts.forEach(qrFallback);
-    return;
-  }
-  hosts.forEach(host=>{
-    const address=host.dataset.address;
-    if(!address){qrFallback(host);return;}
-    try{
-      const qr=new window.QRCodeStyling({
-        width:512,height:512,type:"svg",data:"bitcoin:"+address,
-        image:"/assets/bitcoin-logo.svg",
-        margin:8,
-        qrOptions:{errorCorrectionLevel:"H"},
-        imageOptions:{hideBackgroundDots:true,imageSize:0.18,margin:4,crossOrigin:"anonymous"},
-        dotsOptions:{color:"#0a090b",type:"square"},
-        cornersSquareOptions:{color:"#0a090b",type:"square"},
-        cornersDotOptions:{color:"#0a090b",type:"square"},
-        backgroundOptions:{color:"#ffffff"}
-      });
-      host.replaceChildren();
-      qr.append(host);
-      // Confirm the renderer actually inserted a visible SVG/canvas.
-      requestAnimationFrame(()=>{
-        if(!host.querySelector("svg,canvas"))qrFallback(host);
-        else host.dataset.qrStatus="rendered";
-      });
-    }catch(error){
-      console.error("Bitcoin QR generation failed",error);
-      qrFallback(host);
-    }
-  });
-}
-function loadQrLibrary(){
-  if(typeof window.QRCodeStyling==="function"){renderBitcoinQrs();return;}
-  const sources=[
-    "https://cdn.jsdelivr.net/npm/qr-code-styling@1.9.2/lib/qr-code-styling.js",
-    "https://unpkg.com/qr-code-styling@1.9.2/lib/qr-code-styling.js"
-  ];
-  let index=0;
-  const tryNext=()=>{
-    if(typeof window.QRCodeStyling==="function"){renderBitcoinQrs();return;}
-    if(index>=sources.length){document.querySelectorAll(".bitcoin-qr-host").forEach(qrFallback);return;}
-    const script=document.createElement("script");
-    script.src=sources[index++];
-    script.crossOrigin="anonymous";
-    script.onload=()=>typeof window.QRCodeStyling==="function"?renderBitcoinQrs():tryNext();
-    script.onerror=tryNext;
-    document.head.append(script);
-  };
-  tryNext();
-}
-loadQrLibrary();
