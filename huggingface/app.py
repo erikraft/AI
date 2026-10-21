@@ -33,7 +33,7 @@ def _authorize_experimental_api(candidate: str):
     """Fail closed unless the caller supplies the server-side shared secret."""
     expected = os.getenv("HF_SPACE_API_SECRET", "").strip()
     if len(expected) < 32:
-        raise gr.Error("Experimental API is locked: configure a strong HF_SPACE_API_SECRET on this Space and Vercel.")
+        raise gr.Error("Experimental API is locked: configure a strong HF_SPACE_API_SECRET on this Space and the server-side caller.")
     if not isinstance(candidate, str) or not hmac.compare_digest(candidate, expected):
         raise gr.Error("Unauthorized experimental model endpoint.")
 
