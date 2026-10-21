@@ -278,11 +278,8 @@ def generate_video(prompt: str):
     except Exception as exc:
         raise gr.Error("Cosmos video generation failed: " + str(exc)[:280]) from exc
     finally:
-        if cosmos_pipe is not None:
-            try:
-                cosmos_pipe.to("cpu")
-            except Exception:
-                pass
+        # Do not move the entire video model to CPU RAM during teardown; release it instead.
+        cosmos_pipe = None
         gc.collect()
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
