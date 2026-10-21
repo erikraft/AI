@@ -38,9 +38,11 @@ Until all four are implemented and tested, the current Vercel API remains the wo
    - `FIREBASE_SERVICE_ACCOUNT_JSON` (or the final least-privilege credential format selected by the implementation)
    - `HF_TOKEN` only if the Space requires authenticated access
    - `HF_SPACE_ID=ErikrafT/erikraft-ai`
-4. Firebase OAuth authorized domains must include the Worker preview hostname.
-5. Run the test checklist below on the temporary `workers.dev` hostname.
-6. Only after passing all checks, configure the custom domain and switch DNS/traffic.
+   - `HF_SPACE_API_SECRET` when this Worker becomes the server-side caller for experimental Gradio endpoints; use the same random value (at least 32 characters) as the Hugging Face Space secret. Never expose it in browser JavaScript, HTML, or a `NEXT_PUBLIC_*`/`VITE_*` variable.
+4. Deploy and verify the Hugging Face Space security update **before** deploying a caller that appends `api_secret` to the Gradio payload. An older Space handler can silently tolerate and ignore extra arguments, so deploying the caller first can leave the old experimental endpoint ungated.
+5. Firebase OAuth authorized domains must include the Worker preview hostname.
+6. Run the test checklist below on the temporary `workers.dev` hostname.
+7. Only after passing all checks, configure the custom domain and switch DNS/traffic.
 
 Do not commit credentials, service-account JSON, private keys, or Hugging Face tokens. The Firebase Web configuration used by the browser is public client configuration and is not a substitute for server credentials.
 
