@@ -1,79 +1,47 @@
 # Cloudflare Workers + Static Assets
 
-Cloudflare Workers + Static Assets serves the ErikrafT AI frontend. The AI model weights and inference stay in the public Hugging Face Space `ErikrafT/erikraft-ai`.
+This configuration serves the public ErikrafT AI frontend and routes API requests through a Cloudflare Worker. Model weights and GPU inference stay in the Hugging Face Space `ErikrafT/erikraft-ai`; they must never be bundled into the Worker.
 
-## Current status: API route is not implemented
+## Implemented in this branch
 
-The root-level `wrangler.jsonc` configures `cloudflare/worker.js` and routes `/api/*` through the Worker before static asset fallback. In the checked-in implementation, `POST /api/generate` deliberately returns HTTP 503. This fail-closed response is a scaffold, not a working inference API.
+- `POST /api/generate` validates Firebase ID-token signatures against Google's Secure Token JWKS, checks issuer/audience/expiry and permitted sign-in providers, and requires verified email for password accounts.
+- Firestore REST transactions reserve up to five generations per account in a rolling hour.
+- FLUX text-to-image calls the Gradio `/generate_image` endpoint.
+- Qwythos image + instructions uploads the reference image, calls `/generate_image_from_image`, then calls FLUX separately to render the returned prompt.
+- Input model, prompt length, image dimensions, steps, request size, and uploaded image type/size are validated.
+- Responses are marked `Cache-Control: no-store`.
+- Static requests are routed through the Worker. Only the site entrypoint, `/assets/*`, and explicitly listed public root files are served; repository metadata, backend source, and config files return 404.
 
-The static frontend's image-to-image upload is implemented: it lets the user choose an image file that the browser can decode, normalizes it to JPEG (maximum 3 MiB), and includes it in the authenticated `POST /api/generate` request as `referenceImage`. The Node.js handler in `api/generate.js` converts that image to a Gradio file and calls Qwythos, then invokes FLUX to render the result. **The Cloudflare Worker does not invoke that Node.js handler automatically**, so this file layout does not yet provide a working Cloudflare generation route.
+## Required Cloudflare secrets and variables
 
-Do not claim end-to-end generation is ready, and do not enable experimental model flags, until the Worker API port and end-to-end tests are completed. The public Hugging Face Space currently reports `Build error — Job timeout`, so the Space build must also be recovered and tested.
+Set these under **Workers & Pages → erikraft-ai → Settings → Variables and Secrets → Production**:
 
-## Intended request flow
+| Name | Type | Purpose |
+| --- | --- | --- |
+| `FIREBASE_SERVICE_ACCOUNT_JSON` | Secret | Firebase service-account JSON with least-privilege Firestore access to the generation-limit collection |
+| `HF_SPACE_ID` | Variable | `ErikrafT/erikraft-ai` |
+| `HF_TOKEN` | Secret (optional) | Only if the Space requires authenticated access |
 
-```text
-Browser — Cloudflare Worker + Static Assets
-  ├── Firebase Authentication (Google / GitHub / verified email-password)
-  └── POST /api/generate + Firebase ID token
-        ├── Validate Firebase ID token server-side
-        ├── Enforce five generations per account per rolling hour in Firestore
-        └── Upload/call Gradio API on ErikrafT/erikraft-ai
-              ├── FLUX: text prompt → generated image
-              └── Qwythos: uploaded image + instructions → prompt → separate FLUX render
-```
+The service account's `project_id` must match the Firebase project used by the website's ID tokens. Grant only the permissions required for Firestore quota documents. Never commit the JSON or place secrets in browser code.
 
-The model runtime must never be moved into the Worker or bundled into its static assets.
+`HF_SPACE_API_SECRET` is not used by the two enabled image-generation endpoints in this Worker version. Cosmos and Qwen remain unsupported/disabled in this route and must not be enabled by changing browser-side values. Keep their server-side feature gates in place if they are added in a later change.
 
-## Work required before enabling generation
+## Hugging Face Space build/runtime status
 
-1. Implement Worker-compatible Firebase ID-token validation, including token signature, issuer, audience, expiry, project, and sign-in-provider checks.
-2. Port the Firestore transaction that reserves a generation slot, enforces the account limit, and safely refunds the reservation after a failed model call.
-3. Implement the Hugging Face Gradio request flow, including image upload for `referenceImage`, async prediction/event handling, returned file URLs, and request timeouts.
-4. Preserve feature gates for Cosmos/Qwen and require `HF_SPACE_API_SECRET` only as a server-side secret when calling their protected Gradio endpoints.
-5. Validate HTTP methods, payload sizes, allowed model IDs, prompt length, dimensions, inference steps, quotas, provider responses, and no-store response headers.
-6. Test all success/error cases on a temporary Workers hostname before routing production traffic to the Worker.
+A successful Worker deploy does **not** prove that the Space is ready. The Space uses very large third-party model checkpoints, and build/runtime availability depends on the current Space logs, dependency resolution, hardware, cache disk, and provider quota. Confirm the Space is **Running** and successfully test both `/generate_image` and `/generate_image_from_image` in its **Use via API** page before treating generation as production-ready.
 
-## Cloudflare configuration
+This repository branch cannot repair an account-side Hugging Face job timeout without a fresh build log identifying the failing dependency or stage. Do not claim that the timeout is fixed merely because the Worker deploys.
 
-The canonical Wrangler configuration is `wrangler.jsonc` at the repository root; Workers Builds runs commands from the repository root. A temporary preview can be exercised with:
+## Deployment
 
-```bash
-npm install
-npx wrangler preview
-```
+The canonical Wrangler config is `wrangler.jsonc` at the repository root. Workers Builds should run from `/`; leave the build command empty unless a separate build step is introduced, and use `npx wrangler deploy` as the deploy command.
 
-Deploying the current scaffold will still return 503 for `POST /api/generate`. Do not use a production deployment as an inference backend until the route above has been implemented and verified.
+Use a preview hostname first. Firebase ID tokens must be issued for the same Firebase project; the Cloudflare hostname must be allowed by Firebase Authentication's authorized domains where applicable. Test login, quota, both image flows, invalid-token rejection, and static-file 404s before switching production traffic.
 
-The Worker-compatible API will require server-side credentials selected for the implementation, such as a least-privilege Firebase/Firestore credential, `HF_SPACE_ID=ErikrafT/erikraft-ai`, and optionally `HF_TOKEN` if the Space needs authenticated access. The protected Cosmos/Qwen endpoints additionally require the same random `HF_SPACE_API_SECRET` (at least 32 characters) in Cloudflare server-side secrets and the Space secrets. Never put these values in the browser, HTML, `VITE_*` variables, or source control. The current Worker scaffold does not yet consume them for inference.
+## Known limitations / verification still required
 
-Firebase OAuth domains must include the relevant Cloudflare production/preview hostnames before sign-in is tested there.
-
-## Required pre-production checklist
-
-- [ ] Unauthenticated or invalid-token calls return 401/403 and never reach inference.
-- [ ] Google, GitHub, and verified email/password sign-ins work.
-- [ ] Concurrent requests cannot exceed five generations per account per rolling hour.
-- [ ] Failed provider requests refund quota only when the same quota window is still active.
-- [ ] FLUX text-to-image returns a usable image URL.
-- [ ] Qwythos requires a valid image, sends the normalized image file to Qwythos, interprets the instructions, then invokes FLUX.
-- [ ] Browser upload accepts browser-decodable image formats, rejects non-images/oversized inputs, and normalizes the payload to at most 3 MiB JPEG.
-- [ ] Cosmos and Qwen remain blocked unless server-side flags/resources and the shared secret have been validated.
-- [ ] Unsupported models, dimensions, steps, prompts, and oversized payloads are rejected.
-- [ ] Hugging Face errors are distinguished from the site's Firestore quota.
-- [ ] Browser download works with real Space responses.
-- [ ] Static assets do not expose repository files, server code, or secrets.
-- [ ] Both Cloudflare preview and production behaviors are explicitly tested; custom-domain traffic is not switched until all tests pass.
-
-## Status
-
-- [x] Add a dedicated Worker entrypoint and root-level Wrangler configuration.
-- [x] Route API paths through the Worker before static asset fallback.
-- [x] Keep the Worker fail-closed until the API port is complete.
-- [ ] Implement Worker-compatible Firebase token validation.
-- [ ] Implement Firestore transactional quota enforcement/refund.
-- [ ] Implement/test the Gradio image upload and inference flow.
-- [ ] Implement/test `/api/models` feature availability.
-- [ ] Recover the current Hugging Face Space build and validate real inference.
-- [ ] Run end-to-end tests and review logs.
-- [ ] Switch production traffic only after verification.
+- No live end-to-end test was possible as part of this repository change. Verify the Gradio event-stream response format and upload payload against the currently running Space; Hugging Face may change API response formats between Gradio versions.
+- Provider failures currently consume the reserved Firestore quota slot until its rolling window resets. A follow-up should implement a transaction-safe quota refund for failed inference calls.
+- Concurrent quota reservations rely on Firestore transaction conflict detection; if a transaction conflicts, the request fails closed rather than retrying automatically.
+- The Worker supports FLUX and Qwythos image workflows only. Experimental Cosmos video and Qwen text remain unavailable through this endpoint.
+- The Space's reported `Build error — Job timeout` must be diagnosed from the latest Hugging Face build logs separately. Large model downloads happen at inference time in the current Space design and are not proof of a successful runtime.
