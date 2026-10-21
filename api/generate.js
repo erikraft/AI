@@ -142,7 +142,7 @@ export default async function handler(req, res) {
 
     const spaceId = process.env.HF_SPACE_ID;
     if ((isCosmos || isQwen) && (!process.env.HF_SPACE_API_SECRET || process.env.HF_SPACE_API_SECRET.length < 32)) {
-      return res.status(503).json({ error: localized(req, "Os modelos experimentais estão bloqueados: configure um segredo forte HF_SPACE_API_SECRET no Vercel e no Space.", "Experimental models are locked: configure a strong HF_SPACE_API_SECRET in both Vercel and the Space.") });
+      return res.status(503).json({ error: localized(req, "Os modelos experimentais estão bloqueados: configure HF_SPACE_API_SECRET como segredo no backend do site e no Space.", "Experimental models are locked: configure HF_SPACE_API_SECRET as a secret in the server-side backend and the Space.") });
     }
     if (!spaceId) {
       return res.status(503).json({
@@ -281,8 +281,8 @@ export default async function handler(req, res) {
     if (phase === "firebase-auth") {
       return res.status(503).json({
         error: localized(req,
-          "Não foi possível validar a conta no servidor. Verifique as variáveis e as credenciais do Firebase no Vercel.",
-          "The server could not validate the account. Check the Firebase credentials and environment variables in Vercel.")
+          "Não foi possível validar a conta no servidor. Verifique as variáveis e as credenciais do Firebase e variáveis do backend do site.",
+          "The server could not validate the account. Check the Firebase credentials and server-side backend environment variables.")
       });
     }
 
@@ -313,8 +313,8 @@ export default async function handler(req, res) {
     if (/invalid token|unauthorized|unauthorised|forbidden|\b401\b|\b403\b/.test(normalized)) {
       return res.status(502).json({
         error: localized(req,
-          "O Hugging Face recusou a autenticação do backend. Confira se HF_TOKEN é um token válido com acesso ao Space e se está configurado nas variáveis do Vercel.",
-          "Hugging Face rejected the backend authentication. Check that HF_TOKEN is valid, has access to the Space, and is configured in Vercel environment variables.")
+          "O Hugging Face recusou a autenticação do backend. Confira se HF_TOKEN é um token válido com acesso ao Space e se está configurado como variável secreta no backend do site.",
+          "Hugging Face rejected the backend authentication. Check that HF_TOKEN is valid, has access to the Space, and is configured as a server-side backend secret.")
       });
     }
 
@@ -336,8 +336,8 @@ export default async function handler(req, res) {
 
     return res.status(502).json({
       error: localized(req,
-        "A geração falhou por um erro do Space ou da integração, sem confirmação de cota esgotada. Confira os logs da função /api/generate no Vercel para identificar a causa.",
-        "Generation failed because of a Space or integration error; quota exhaustion was not confirmed. Check the /api/generate function logs in Vercel to identify the cause.")
+        "A geração falhou por um erro do Space ou da integração, sem confirmação de cota esgotada. Confira os logs do backend para /api/generate para identificar a causa.",
+        "Generation failed because of a Space or integration error; quota exhaustion was not confirmed. Check the server-side /api/generate logs to identify the cause.")
     });
   }
 }
