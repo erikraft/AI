@@ -126,7 +126,13 @@
   <p id="model-runtime-notice" class="model-runtime-notice" role="status" aria-live="polite">Modo de texto para imagem. Filas e limites do provedor podem variar.</p>
   <div id="qwythos-image-input" class="field qwythos-image-input hidden">
   <label for="reference-image" data-i18n="reference_image_label">Imagem de entrada (obrigatória neste modo)</label>
-  <input id="reference-image" name="reference-image" type="file" accept="image/*">
+  <div id="reference-image-dropzone" class="reference-image-dropzone" role="button" tabindex="0" data-i18n-aria-label="reference_drop_title" aria-label="Selecionar ou arrastar uma imagem de referência">
+    <svg class="reference-drop-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4m-5 5 5-5 5 5"/><path d="M4 15v4a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4"/></svg>
+    <strong data-i18n="reference_drop_title">Arraste uma imagem para cá</strong>
+    <span data-i18n="reference_drop_hint">ou escolha um arquivo do seu dispositivo · PNG, JPG ou WebP · até 12 MB</span>
+    <button id="reference-image-browse" class="button secondary small" type="button" data-i18n="reference_browse">Escolher imagem</button>
+    <input id="reference-image" class="reference-file-input" name="reference-image" type="file" accept="image/png,image/jpeg,image/webp" tabindex="-1" aria-hidden="true">
+  </div>
   <p class="small-note" data-i18n="reference_image_help">Envie qualquer imagem em um formato compatível com seu navegador (arquivo original de até 12 MB) e descreva a alteração desejada. Ela será convertida para JPEG e enviada ao Qwythos; o FLUX renderiza a imagem final.</p>
   <div class="reference-image-preview-row">
     <img id="reference-image-preview" class="reference-image-preview hidden" alt="" aria-hidden="true">
