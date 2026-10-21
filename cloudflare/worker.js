@@ -295,7 +295,7 @@ async function generate(request, env) {
   }
 }
 
-const PUBLIC_ROOT_FILES = new Set(["/", "/index.html", "/favicon.ico", "/robots.txt", "/sitemap.xml", "/llms.txt"]);
+const PUBLIC_ROOT_FILES = new Set(["/", "/index.html", "/privacy.html", "/terms.html", "/favicon.ico", "/robots.txt", "/sitemap.xml", "/llms.txt"]);
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
