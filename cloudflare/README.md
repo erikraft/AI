@@ -15,9 +15,9 @@ This configuration serves the public ErikrafT AI frontend and routes API request
 - Responses are marked `Cache-Control: no-store`.
 - Static requests are routed through the Worker. Only the site entrypoint, `/assets/*`, and explicitly listed public root files are served; repository metadata, backend source, and config files return 404.
 
-## Cloudflare secrets and variables
+## Cloudflare runtime secrets and variables
 
-The production hostname `ai.erikraft.com` is attached to Worker `erikraft-ai` in the **Production** environment. Set these under **Workers & Pages → erikraft-ai → Settings → Variables and Secrets → Production**. A value saved only under another Worker or Preview is not available to this production binding:
+The production hostname `ai.erikraft.com` is attached to Worker `erikraft-ai` in the **Production** environment. Configure runtime bindings under **Workers & Pages → erikraft-ai → Settings → Variables and Secrets → Production**. A value saved only in the Workers Builds build environment, under another Worker, or under Preview is not automatically available to this production Worker binding:
 
 | Name | Type | Purpose |
 | --- | --- | --- |
@@ -28,9 +28,7 @@ The production hostname `ai.erikraft.com` is attached to Worker `erikraft-ai` in
 
 The service account's `project_id` must match the Firebase project used by the website's ID tokens. Grant only the permissions required for Firestore quota documents. Never commit the JSON or place secrets in browser code.
 
-**Deploy behavior:** the Worker is allowed to deploy even before `FIREBASE_SERVICE_ACCOUNT_JSON` is configured. The secret value is never stored in this repository. Until the secret is added, `/api/health` will report `firebaseServiceAccountConfigured: false`, and `POST /api/generate` will return HTTP 503 with a configuration message. This is intentional fail-closed behavior: it allows the frontend/static site and health endpoint to deploy without pretending Firebase generation is ready. Once the secret has been added in the correct Cloudflare environment, deploy a new Worker version and check that the three Firebase health booleans are true.
-
-To add the Firebase secret using Wrangler, run `npx wrangler secret put FIREBASE_SERVICE_ACCOUNT_JSON` from the repository root and paste the full service-account JSON only into Wrangler's interactive prompt. Do not commit it or paste it into chat. Saving a dashboard secret may require a new deploy before the active Worker receives it.
+**Deployment behavior:** the Worker is intentionally allowed to deploy before Firebase credentials are configured, so the static site and `/api/health` can be published and diagnosed independently. If `FIREBASE_SERVICE_ACCOUNT_JSON` is missing or invalid, `/api/health` reports `false` booleans and `POST /api/generate` fails closed with HTTP 503; generation will not work until the runtime secret is configured. This is expected while Firebase setup is incomplete, not a successful backend health state. To enable generation, add `FIREBASE_SERVICE_ACCOUNT_JSON` as a **Secret** under the Worker’s runtime **Settings → Variables and Secrets** for Production, then deploy/publish a new Worker version. Alternatively, run `npx wrangler secret put FIREBASE_SERVICE_ACCOUNT_JSON` from the repository root and paste the full service-account JSON only into Wrangler's interactive prompt (never into source control or chat). The `wrangler.jsonc` deliberately does not mark this secret as a deploy-time requirement, because Workers Builds must not be blocked when the API is intentionally not configured yet.
 
 `HF_SPACE_API_SECRET` is used only for the protected Cosmos and Qwen endpoints; keep it as a secret in both Cloudflare Worker and the Hugging Face Space. The Worker exposes their selectors when that secret and `HF_SPACE_ID=ErikrafT/erikraft-ai` are configured. The Space still controls runtime availability with `ENABLE_COSMOS_VIDEO` and `ENABLE_QWEN_TEXT`; a visible selector alone does not guarantee inference will succeed.
 
@@ -42,7 +40,7 @@ This repository branch cannot repair an account-side Hugging Face job timeout wi
 
 ## Deployment
 
-The canonical Wrangler config is `wrangler.jsonc` at the repository root. Workers Builds should run from `/`; leave the build command empty unless a separate build step is introduced, and use `npx wrangler deploy` as the deploy command. No build command is required for the Worker configuration. After deployment, open `https://ai.erikraft.com/api/health`; when Firebase is configured correctly, `firebaseServiceAccountConfigured`, `firebaseServiceAccountJsonValid`, and `firebaseProjectMatches` should all be `true`. The endpoint returns booleans only, never the secret.
+The canonical Wrangler config is `wrangler.jsonc` at the repository root. Workers Builds should run from `/`; leave the build command empty unless a separate build step is introduced, and use `npx wrangler deploy` as the deploy command. Deployment does not require Firebase to be configured. After deployment, open `https://ai.erikraft.com/api/health`: while Firebase is intentionally unset, `firebaseServiceAccountConfigured`, `firebaseServiceAccountJsonValid`, and `firebaseProjectMatches` should remain `false`; after adding the correct runtime secret and publishing a new Worker version, they should become `true`. The endpoint returns booleans only, never the secret.
 
 Use a preview hostname first. Firebase ID tokens must be issued for the same Firebase project; the Cloudflare hostname must be allowed by Firebase Authentication's authorized domains where applicable. Test login, quota, both image flows, invalid-token rejection, and static-file 404s before switching production traffic.
 
