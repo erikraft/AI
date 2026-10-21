@@ -423,7 +423,8 @@ for (const input of referenceFileInputs) {
   });
 }
 referenceDropzone.addEventListener("click", (event) => {
-  if (event.target.closest("button")) return;
+  // A programmatic file-input click bubbles back to the dropzone; do not trigger it again.
+  if (event.target.closest("button") || referenceFileInputs.includes(event.target)) return;
   referenceImageInput.click();
 });
 referenceBrowseButton.addEventListener("click", (event) => {
