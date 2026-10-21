@@ -308,11 +308,9 @@ const logoUploadPreview = $("logo-upload-preview");
 const logoUploadClear = $("logo-upload-clear");
 const logoOverlayPreview = $("logo-overlay-preview");
 let logoDataUrl = "";
-let logoFileName = "";
 
 function clearUploadedLogo() {
   logoDataUrl = "";
-  logoFileName = "";
   logoUploadInput.value = "";
   logoUploadPreview.removeAttribute("src");
   logoUploadPreview.classList.add("hidden");
@@ -339,7 +337,6 @@ logoUploadInput.addEventListener("change", async () => {
   }
   try {
     logoDataUrl = await readImageAsDataUrl(file);
-    logoFileName = file.name || "logo";
     logoUploadPreview.src = logoDataUrl;
     logoUploadPreview.classList.remove("hidden");
     logoUploadClear.classList.remove("hidden");
@@ -537,8 +534,7 @@ try{const saved=localStorage.getItem("erikraft-ai-language");setLanguage(saved&&
 updateModelSelection();
 if (!configured) $("studio-auth-error").textContent = languageText("auth_unavailable");
 
-// Bitcoin donation address copying and resilient QR generation.
- // Both QR codes use the single shared /assets/bitcoin-logo.svg asset.
+// Bitcoin donation address copying. Both QR codes are bundled SVG assets, with the shared Bitcoin logo layered in the markup.
 document.querySelectorAll(".copy-wallet").forEach(button=>button.addEventListener("click",async()=>{
   const original=button.textContent;
   try{await navigator.clipboard.writeText(button.dataset.copy);button.textContent=languageText("copied");}
