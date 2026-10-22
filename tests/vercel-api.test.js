@@ -133,11 +133,11 @@ test("health and model endpoints reject unsupported methods", () => {
 
 test("experimental inference has a bounded server-side timeout and actionable timeout response", () => {
   const source = readFileSync(new URL("../api/generate.js", import.meta.url), "utf8");
-  assert.match(source, /EXPERIMENTAL_INFERENCE_TIMEOUT_MS\\s*=\\s*235_000/);
-  assert.match(source, /predictWithTimeout\\(client, "\\/generate_video"/);
-  assert.match(source, /predictWithTimeout\\(client, "\\/generate_text"/);
-  assert.match(source, /InferenceTimeoutError/);
-  assert.match(source, /status\\(timedOut \\? 504 : 503\\)/);
+  assert.ok(source.includes("EXPERIMENTAL_INFERENCE_TIMEOUT_MS = 235_000"));
+  assert.ok(source.includes('predictWithTimeout(client, "/generate_video"'));
+  assert.ok(source.includes('predictWithTimeout(client, "/generate_text"'));
+  assert.ok(source.includes("InferenceTimeoutError"));
+  assert.ok(source.includes("status(timedOut ? 504 : 503)"));
 });
 
 test("Vercel deployment excludes repository-only backend source and test files", () => {
