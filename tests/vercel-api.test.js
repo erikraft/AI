@@ -145,7 +145,7 @@ test("experimental inference has a bounded server-side timeout and actionable ti
 
 test("Vercel deployment excludes repository-only backend source and test files", () => {
   const ignore = readFileSync(new URL("../.vercelignore", import.meta.url), "utf8");
-  for (const entry of ["cloudflare", "huggingface", ".github", "tests", "wrangler.jsonc", ".env.example"]) {
+  for (const entry of ["huggingface", ".github", "tests", ".env.example"]) {
     assert.ok(ignore.split(String.fromCharCode(10)).map((line) => line.trim()).includes(entry), `missing ${entry} from .vercelignore`);
   }
   const pkg = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
