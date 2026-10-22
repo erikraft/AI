@@ -152,4 +152,4 @@ Configure these server-side Vercel environment variables (never expose them in f
 - `MONGODB_DATABASE` — Configuration, optional; defaults to `ErikrafTAI`.
 - Keep `FIREBASE_SERVICE_ACCOUNT_JSON` as a server-side secret to verify Firebase ID tokens.
 
-MongoDB creates the database and collection on the first successful history insert. Restrict Atlas network access and grant the database user read/write access only to this database. MongoDB Atlas MCP access must be enabled for the Atlas organization before resources can be provisioned or inspected directly through the connector.
+MongoDB creates the database and collection when the configured history API first creates its index (for example, on the first successful history request). Restrict Atlas network access and grant the database user read/write access only to this database. MongoDB Atlas MCP access must be enabled for the Atlas organization before resources can be provisioned or inspected directly through the connector.
