@@ -131,6 +131,15 @@ test("health and model endpoints reject unsupported methods", () => {
   });
 });
 
+test("experimental inference has a bounded server-side timeout and actionable timeout response", () => {
+  const source = readFileSync(new URL("../api/generate.js", import.meta.url), "utf8");
+  assert.match(source, /EXPERIMENTAL_INFERENCE_TIMEOUT_MS\\s*=\\s*235_000/);
+  assert.match(source, /predictWithTimeout\\(client, "\\/generate_video"/);
+  assert.match(source, /predictWithTimeout\\(client, "\\/generate_text"/);
+  assert.match(source, /InferenceTimeoutError/);
+  assert.match(source, /status\\(timedOut \\? 504 : 503\\)/);
+});
+
 test("Vercel deployment excludes repository-only backend source and test files", () => {
   const ignore = readFileSync(new URL("../.vercelignore", import.meta.url), "utf8");
   for (const entry of ["cloudflare", "huggingface", ".github", "tests", "wrangler.jsonc", ".env.example"]) {
