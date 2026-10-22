@@ -26,7 +26,7 @@ if (!config.apiKey || !config.authDomain || !config.projectId || !config.appId) 
   trigger.setAttribute("aria-label", "Abrir perfil"); trigger.setAttribute("aria-expanded", "false");
   trigger.innerHTML = '<i class="fa-solid fa-user" aria-hidden="true"></i>';
   const logoutButton = $("logout");
-  if (logoutButton) logoutButton.replaceWith(trigger);
+  if (logoutButton) { logoutButton.before(trigger); logoutButton.style.display = "none"; }
   const popover = document.createElement("section");
   popover.className = "profile-popover"; popover.hidden = true; popover.setAttribute("aria-label", "Perfil da conta");
   popover.innerHTML = `
