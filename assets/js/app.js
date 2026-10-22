@@ -37,6 +37,9 @@ function updateStudioAccess(user) {
     $("generated-image").classList.add("hidden");
     $("generated-video").classList.add("hidden");
     $("generated-video").removeAttribute("src");
+    $("generated-audio").classList.add("hidden");
+    $("generated-audio").pause();
+    $("generated-audio").removeAttribute("src");
     $("generated-text").classList.add("hidden");
     $("generated-text").textContent = "";
     videoUrl = "";
@@ -357,6 +360,8 @@ function updateModelSelection() {
       : languageText("model_runtime_notice");
   $("result-title").textContent = isVoice ? (english ? "Generated voice audio" : "Áudio de voz gerado") : isCosmos ? languageText("video_result_title") : isQwen ? languageText("qwen_chat_title") : languageText("result_title");
   $("download").classList.toggle("hidden", isQwen);
+  $("download").setAttribute("aria-label", isVoice ? (english ? "Download audio" : "Baixar áudio") : isCosmos ? (english ? "Download video" : "Baixar vídeo") : (english ? "Download image" : "Baixar imagem"));
+  $("download").title = $("download").getAttribute("aria-label");
   $("download").disabled = true;
   $("generated-image").classList.add("hidden");
   
