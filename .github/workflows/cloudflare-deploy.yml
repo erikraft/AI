@@ -23,7 +23,7 @@ permissions:
 jobs:
   retired:
     name: Cloudflare deployment is retired
-    if: \${{ false }}
+    if: ${{ false }}
     runs-on: ubuntu-latest
     steps:
       - name: Explain retirement
