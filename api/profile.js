@@ -44,9 +44,14 @@ export default async function handler(req, res) {
     const photos = await collection();
     if (req.method === "GET") {
       const record = await photos.findOne({ userId: user.uid }, { projection: { _id: 0, userId: 0 } });
-      return res.status(200).json(record ? { photo: `data:${record.contentType};base64,${record.data.toString("base64")}` } : { photo: null });
+      if (record?.photoDisabled) return res.status(200).json({ photo: null, photoDisabled: true });
+      return res.status(200).json(record?.data ? { photo: `data:${record.contentType};base64,${record.data.toString("base64")}`, photoDisabled: false } : { photo: null, photoDisabled: false });
     }
     if (req.method === "PUT") {
+      if (req.body?.restoreProviderPhoto === true) {
+        await photos.deleteOne({ userId: user.uid });
+        return res.status(200).json({ restored: true, photo: user.picture || null, photoDisabled: false });
+      }
       const value = req.body?.photo;
       const match = typeof value === "string" && value.match(/^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/]+={0,2})$/i);
       if (!match) return res.status(400).json({ error: "Choose a PNG, JPEG, or WebP image." });
@@ -56,8 +61,8 @@ export default async function handler(req, res) {
       return res.status(200).json({ saved: true, photo: `data:${match[1].toLowerCase()};base64,${data.toString("base64")}` });
     }
     if (req.method === "DELETE") {
-      const result = await photos.deleteOne({ userId: user.uid });
-      return res.status(200).json({ deleted: result.deletedCount > 0 });
+      await photos.replaceOne({ userId: user.uid }, { userId: user.uid, photoDisabled: true, updatedAt: new Date() }, { upsert: true });
+      return res.status(200).json({ deleted: true, photo: null, photoDisabled: true });
     }
     res.setHeader("Allow", "GET, PUT, DELETE");
     return res.status(405).json({ error: "Method not allowed." });
