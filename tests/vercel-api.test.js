@@ -57,7 +57,7 @@ test("model API reports experimental routes fail-closed without backend credenti
     assert.equal(response.statusCode, 200);
     assert.equal(response.body.models[MODEL_COSMOS], false);
     assert.equal(response.body.models[MODEL_QWEN], false);
-    assert.equal(response.body.selectableModels.length, 4);
+    assert.equal(response.body.selectableModels.length, 5);
     assert.equal(response.body.runtimeChecksRequired, true);
     assert.equal(response.headers["cache-control"], "no-store");
     assert.equal(response.headers["x-content-type-options"], "nosniff");
@@ -135,7 +135,7 @@ test("experimental inference has a bounded server-side timeout and actionable ti
   const source = readFileSync(new URL("../api/generate.js", import.meta.url), "utf8");
   assert.ok(source.includes("EXPERIMENTAL_INFERENCE_TIMEOUT_MS = 235_000"));
   assert.ok(source.includes("SPACE_CONNECT_TIMEOUT_MS = 30_000"));
-  assert.ok(source.includes("Client.connect(spaceId, clientOptions)"));
+  assert.ok(source.includes("Client.connect(targetSpaceId, clientOptions)"));
   assert.ok(source.includes("Timed out connecting to the Hugging Face Space."));
   assert.ok(source.includes('predictWithTimeout(client, "/generate_video"'));
   assert.ok(source.includes('predictWithTimeout(client, "/generate_text"'));
