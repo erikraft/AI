@@ -1,0 +1,9 @@
+# Public deployment contains only frontend assets and the Vercel API Functions.
+cloudflare
+huggingface
+.github
+tests
+README.md
+SECURITY.md
+wrangler.jsonc
+.env.example

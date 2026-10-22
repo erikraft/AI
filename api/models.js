@@ -1,16 +1,45 @@
-const truthy = (value) => ["1", "true", "yes"].includes(String(value || "").trim().toLowerCase());
+const FLUX_MODEL_ID = "aoxo/flux.1dev-abliterated";
+const QWYTHOS_MODEL_ID = "fluffy12222/Qwythos-9B-Claude-Mythos-5-1M-heretic-abliterated";
+const COSMOS_MODEL_ID = "DuoNeural/Cosmos3-Nano-Abliterated";
+const QWEN_MODEL_ID = "0bserverx/Qwen3.8-27B-Heretic-Abliterated-Uncensored-GGUF";
+
+const SPACE_ID = "erikraft/erikraft-ai";
+const ENABLED_VALUES = new Set(["1", "true", "yes", "on"]);
+
+function featureEnabled(value) {
+  // Missing values mean "try it" so the real HF runtime can be validated.
+  // Set an explicit false/0/no/off in Vercel to disable a mode.
+  if (value == null || String(value).trim() === "") return true;
+  return ENABLED_VALUES.has(String(value).trim().toLowerCase());
+}
+
+function experimentalBackendConfigured() {
+  const spaceId = String(process.env.HF_SPACE_ID || "").trim().toLowerCase();
+  const secret = String(process.env.HF_SPACE_API_SECRET || "").trim();
+  return spaceId === SPACE_ID && secret.length >= 32;
+}
 
 export default function handler(req, res) {
   res.setHeader("Cache-Control", "no-store");
   res.setHeader("Content-Type", "application/json; charset=utf-8");
+  res.setHeader("X-Content-Type-Options", "nosniff");
+
   if (req.method !== "GET") {
     res.setHeader("Allow", "GET");
     return res.status(405).json({ error: "Method not allowed." });
   }
+
+  // Do not advertise a model as configured when /api/generate will fail its
+  // required HF_SPACE_ID or shared-secret checks.
+  const backendConfigured = experimentalBackendConfigured();
+  const models = {
+    [COSMOS_MODEL_ID]: backendConfigured && featureEnabled(process.env.ENABLE_COSMOS_VIDEO),
+    [QWEN_MODEL_ID]: backendConfigured && featureEnabled(process.env.ENABLE_QWEN_TEXT)
+  };
+
   return res.status(200).json({
-    models: {
-      "DuoNeural/Cosmos3-Nano-Abliterated": truthy(process.env.ENABLE_COSMOS_VIDEO),
-      "0bserverx/Qwen3.8-27B-Heretic-Abliterated-Uncensored-GGUF": truthy(process.env.ENABLE_QWEN_TEXT)
-    }
+    models,
+    selectableModels: [FLUX_MODEL_ID, QWYTHOS_MODEL_ID, COSMOS_MODEL_ID, QWEN_MODEL_ID],
+    runtimeChecksRequired: true
   });
 }

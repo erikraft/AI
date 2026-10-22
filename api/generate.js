@@ -10,7 +10,12 @@ const FLUX_MODEL_ID = "aoxo/flux.1dev-abliterated";
 const QWYTHOS_MODEL_ID = "fluffy12222/Qwythos-9B-Claude-Mythos-5-1M-heretic-abliterated";
 const COSMOS_MODEL_ID = "DuoNeural/Cosmos3-Nano-Abliterated";
 const QWEN_MODEL_ID = "0bserverx/Qwen3.8-27B-Heretic-Abliterated-Uncensored-GGUF";
-const envEnabled = (value) => ["1", "true", "yes"].includes(String(value || "").trim().toLowerCase());
+const ENABLED_VALUES = new Set(["1", "true", "yes", "on"]);
+const envEnabled = (value) => {
+  // Allow real inference attempts unless the operator explicitly disables a model.
+  if (value == null || String(value).trim() === "") return true;
+  return ENABLED_VALUES.has(String(value).trim().toLowerCase());
+};
 
 function getAdminApp() {
   if (getApps().length) return getApps()[0];
@@ -115,8 +120,8 @@ export default async function handler(req, res) {
     const isCosmos = model === COSMOS_MODEL_ID;
     const isQwen = model === QWEN_MODEL_ID;
     if (!allowedModels.has(model)) return res.status(400).json({ error: localized(req, "O modelo selecionado não é compatível.", "The selected model is not supported.") });
-    if (isCosmos && !envEnabled(process.env.ENABLE_COSMOS_VIDEO)) return res.status(503).json({ error: localized(req, "O modo de vídeo Cosmos está bloqueado até validar GPU e disco. Habilite ENABLE_COSMOS_VIDEO somente após verificar o Space.", "Cosmos video is gated until GPU and disk capacity are validated. Enable ENABLE_COSMOS_VIDEO only after checking the Space.") });
-    if (isQwen && !envEnabled(process.env.ENABLE_QWEN_TEXT)) return res.status(503).json({ error: localized(req, "O modo de texto Qwen está bloqueado até validar RAM, disco e runtime CPU. Habilite ENABLE_QWEN_TEXT somente após verificar o Space.", "Qwen text is gated until RAM, disk, and CPU runtime are validated. Enable ENABLE_QWEN_TEXT only after checking the Space.") });
+    if (isCosmos && !envEnabled(process.env.ENABLE_COSMOS_VIDEO)) return res.status(503).json({ error: localized(req, "O modo de vídeo Cosmos foi desativado pela configuração ENABLE_COSMOS_VIDEO. Defina-a como true para permitir a tentativa real; o Space continuará verificando GPU e disco.", "Cosmos video is disabled by ENABLE_COSMOS_VIDEO. Set it to true to allow a real attempt; the Space will still check GPU and disk resources.") });
+    if (isQwen && !envEnabled(process.env.ENABLE_QWEN_TEXT)) return res.status(503).json({ error: localized(req, "O modo de texto Qwen foi desativado pela configuração ENABLE_QWEN_TEXT. Defina-a como true para permitir a tentativa real; o Space continuará verificando RAM e disco.", "Qwen text is disabled by ENABLE_QWEN_TEXT. Set it to true to allow a real attempt; the Space will still check RAM and disk.") });
     if (isQwythos && !referenceImage) {
       return res.status(400).json({
         error: localized(req, "Envie uma imagem de referência para usar Qwythos com instruções.", "Upload a reference image to use Qwythos with instructions.")
@@ -140,14 +145,20 @@ export default async function handler(req, res) {
       });
     }
 
-    const spaceId = process.env.HF_SPACE_ID;
-    if ((isCosmos || isQwen) && (!process.env.HF_SPACE_API_SECRET || process.env.HF_SPACE_API_SECRET.length < 32)) {
-      return res.status(503).json({ error: localized(req, "Os modelos experimentais estão bloqueados: configure HF_SPACE_API_SECRET como segredo no backend do site e no Space.", "Experimental models are locked: configure HF_SPACE_API_SECRET as a secret in the server-side backend and the Space.") });
-    }
+    const spaceId = String(process.env.HF_SPACE_ID || "").trim();
     if (!spaceId) {
       return res.status(503).json({
-        error: localized(req, "O Space do Hugging Face não está configurado no servidor. Verifique HF_SPACE_ID.", "The Hugging Face Space is not configured on the server. Check HF_SPACE_ID.")
+        error: localized(req, "O Space do Hugging Face não está configurado no servidor. Defina HF_SPACE_ID=ErikrafT/erikraft-ai no ambiente Vercel.", "The Hugging Face Space is not configured on the server. Set HF_SPACE_ID=ErikrafT/erikraft-ai in the Vercel environment.")
       });
+    }
+    if (spaceId.toLowerCase() !== "erikraft/erikraft-ai") {
+      return res.status(503).json({
+        error: localized(req, "HF_SPACE_ID está configurado, mas não aponta para ErikrafT/erikraft-ai.", "HF_SPACE_ID is configured, but it does not point to ErikrafT/erikraft-ai.")
+      });
+    }
+    const spaceApiSecret = String(process.env.HF_SPACE_API_SECRET || "").trim();
+    if ((isCosmos || isQwen) && spaceApiSecret.length < 32) {
+      return res.status(503).json({ error: localized(req, "Os modelos experimentais exigem HF_SPACE_API_SECRET como segredo no backend Vercel e no Space do Hugging Face.", "Experimental models require HF_SPACE_API_SECRET as a secret in both the Vercel backend and the Hugging Face Space.") });
     }
 
     phase = "quota-check";
@@ -191,14 +202,14 @@ export default async function handler(req, res) {
     let result;
     if (isCosmos) {
       phase = "space-video";
-      result = await client.predict("/generate_video", [prompt.trim(), process.env.HF_SPACE_API_SECRET]);
+      result = await client.predict("/generate_video", [prompt.trim(), spaceApiSecret]);
       const first = result?.data?.[0];
       const videoUrl = typeof first === "string" ? first : (first?.url || first?.path || first?.video?.url || first?.video?.path);
       if (!videoUrl) throw new Error("Space returned no recognized video URL.");
       return res.status(200).json({ type: "video", videoUrl, limit, remaining: Math.max(0, limit - reservation.count), tier: "account" });
     } else if (isQwen) {
       phase = "space-text";
-      result = await client.predict("/generate_text", [prompt.trim(), requestLanguage(req), process.env.HF_SPACE_API_SECRET]);
+      result = await client.predict("/generate_text", [prompt.trim(), requestLanguage(req), spaceApiSecret]);
       const first = result?.data?.[0];
       const answer = typeof first === "string" ? first : (first?.text || first?.value || first?.content || "");
       if (typeof answer !== "string" || !answer.trim()) throw new Error("Space returned no recognized text response.");
