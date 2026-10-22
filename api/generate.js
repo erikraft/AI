@@ -79,7 +79,7 @@ function localized(req, portuguese, english) {
 }
 
 function voiceAudioToGradioFile(dataUrl) {
-  const match = /^data:(audio\\x2f(?:wav|x-wav|mpeg|mp3|ogg|webm|mp4|x-m4a));base64,([A-Za-z0-9+/]+={0,2})$/i.exec(dataUrl);
+  const match = /^data:(audio\x2f(?:wav|x-wav|mpeg|mp3|ogg|webm|mp4|x-m4a));base64,([A-Za-z0-9+/]+={0,2})$/i.exec(dataUrl);
   if (!match) throw new Error("Invalid voice reference audio data URL.");
   const mimeType = match[1].toLowerCase();
   const bytes = Buffer.from(match[2], "base64");
@@ -182,7 +182,7 @@ export default async function handler(req, res) {
         error: localized(req, "Envie uma imagem de referência para usar Qwythos com instruções.", "Upload a reference image to use Qwythos with instructions.")
       });
     }
-    if (isVoiceClone && (!voiceAudio || typeof voiceAudio !== "string" || !/^data:audio\\x2f(?:wav|x-wav|mpeg|mp3|ogg|webm|mp4|x-m4a);base64,[A-Za-z0-9+/]+={0,2}$/i.test(voiceAudio) || voiceAudio.length > 4_200_000)) return res.status(400).json({ error: localized(req, "Envie um áudio de referência válido de até 3 MiB.", "Upload a valid voice reference audio file up to 3 MiB.") });
+    if (isVoiceClone && (!voiceAudio || typeof voiceAudio !== "string" || !/^data:audio\x2f(?:wav|x-wav|mpeg|mp3|ogg|webm|mp4|x-m4a);base64,[A-Za-z0-9+/]+={0,2}$/i.test(voiceAudio) || voiceAudio.length > 4_200_000)) return res.status(400).json({ error: localized(req, "Envie um áudio de referência válido de até 3 MiB.", "Upload a valid voice reference audio file up to 3 MiB.") });
     if (!isVoiceClone && voiceAudio !== null) return res.status(400).json({ error: localized(req, "O áudio de referência só é aceito no modelo de clonagem de voz.", "Voice reference audio is only accepted for the voice-cloning model.") });
     if (referenceImage !== null && (!isQwythos || typeof referenceImage !== "string" || !/^data:image\/(?:png|jpeg|webp);base64,[A-Za-z0-9+/]+={0,2}$/i.test(referenceImage) || referenceImage.length > 4_200_000)) {
       return res.status(400).json({ error: localized(req, "Imagem inválida ou grande demais. Envie uma imagem compatível; a versão preparada para inferência pode ter até 3 MB.", "Invalid or oversized image. Upload a supported image; the prepared inference image may be up to 3 MB.") });
