@@ -25,14 +25,14 @@ The standalone text-only Qwythos prompt assistant has been removed. Qwythos is n
 
 The observed error was caused by the Qwythos decorator declaring 300 seconds, which ZeroGPU surfaced as a 450-second reservation and rejected. The implementation now declares 180 seconds for Qwythos and keeps FLUX at 120 seconds, in separate sequential GPU requests. Do not increase Qwythos back to 300 seconds without verifying the account's effective ZeroGPU cap.
 
-The lower Qwythos duration is intended to prevent the invalid 450-second reservation. It does not guarantee that cold model loads or inference finish before each deadline. Qwythos's BF16 weights alone are approximately 18.8 GB, before activations and runtime overhead; the currently available hardware may still be insufficient. Validate the actual Space logs and end-to-end inference after deployment. Do not remove the reference-image workflow merely because a live model or hardware issue still needs diagnosis.
+The lower Qwythos duration is intended to prevent the invalid 450-second reservation. It does not guarantee that cold model loads or inference finish before each deadline. The Vercel API also places a 235-second wall-clock budget on Cosmos and Qwen requests so the UI receives a bounded error before the 300-second Hobby Function limit. Qwythos's BF16 weights alone are approximately 18.8 GB, before activations and runtime overhead; the currently available hardware may still be insufficient. Validate the actual Space logs and end-to-end inference after deployment. Do not remove the reference-image workflow merely because a live model or hardware issue still needs diagnosis.
 
 
 ## Cosmos3 Nano — experimental text-to-video
 
 - Checkpoint: [DuoNeural/Cosmos3-Nano-Abliterated](https://huggingface.co/DuoNeural/Cosmos3-Nano-Abliterated)
 - Task/API: `/generate_video`; `Cosmos3OmniPipeline`; 16 frames, 256×256, 12 steps, declared GPU duration 180 seconds.
-- The implementation refuses to load on runtimes reporting less than 48 GiB total or 40 GiB free VRAM; it also asks for 36 GiB free disk for the cold cache. These thresholds reduce foreseeable OOM/disk failures but cannot guarantee a successful request. The upstream model is around 15.2B parameters and calls for roughly 48 GB VRAM; do not expect it to run reliably on arbitrary free/shared hardware.
+- The implementation refuses to load on runtimes reporting less than 42 GiB total or 36 GiB free VRAM. This accounts for ZeroGPU's advertised 48 GB being reported by PyTorch as roughly 44.7 GiB. It asks for 30 GiB free disk for a cold cache. These thresholds reduce foreseeable OOM/disk failures but cannot guarantee a successful request. The upstream model is around 15.2B parameters and calls for roughly 48 GB VRAM; do not expect it to run reliably on arbitrary free/shared hardware.
 - `ENABLE_COSMOS_VIDEO` defaults to enabled in the Space source unless the Space has an explicit environment override. The handler still refuses inference when CUDA/VRAM/disk checks fail.
 
 ## Qwen3.8 27B — experimental text generation

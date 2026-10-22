@@ -17,6 +17,39 @@ const envEnabled = (value) => {
   return ENABLED_VALUES.has(String(value).trim().toLowerCase());
 };
 
+ // Leave headroom before Vercel's 300-second Hobby function ceiling. A timeout
+// makes a stalled experimental request return an actionable error instead of
+// leaving the browser in an endless "Thinking…" state. It cannot cancel GPU work
+// already queued by Gradio, so users are warned not to retry immediately.
+const EXPERIMENTAL_INFERENCE_TIMEOUT_MS = 235_000;
+const SPACE_CONNECT_TIMEOUT_MS = 30_000;
+
+async function withTimeout(promise, timeoutMs, message) {
+  let timer;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise((_, reject) => {
+        timer = setTimeout(() => {
+          const error = new Error(message);
+          error.name = "InferenceTimeoutError";
+          reject(error);
+        }, timeoutMs);
+      })
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function predictWithTimeout(client, endpoint, args, timeoutMs = EXPERIMENTAL_INFERENCE_TIMEOUT_MS) {
+  return withTimeout(
+    client.predict(endpoint, args),
+    timeoutMs,
+    "Experimental inference exceeded its server-side time budget."
+  );
+}
+
 function getAdminApp() {
   if (getApps().length) return getApps()[0];
   const raw = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
@@ -197,19 +230,23 @@ export default async function handler(req, res) {
 
     phase = "space-connect";
     const clientOptions = process.env.HF_TOKEN ? { token: process.env.HF_TOKEN } : {};
-    const client = await Client.connect(spaceId, clientOptions);
+    const client = await withTimeout(
+      Client.connect(spaceId, clientOptions),
+      SPACE_CONNECT_TIMEOUT_MS,
+      "Timed out connecting to the Hugging Face Space."
+    );
 
     let result;
     if (isCosmos) {
       phase = "space-video";
-      result = await client.predict("/generate_video", [prompt.trim(), spaceApiSecret]);
+      result = await predictWithTimeout(client, "/generate_video", [prompt.trim(), spaceApiSecret]);
       const first = result?.data?.[0];
       const videoUrl = typeof first === "string" ? first : (first?.url || first?.path || first?.video?.url || first?.video?.path);
       if (!videoUrl) throw new Error("Space returned no recognized video URL.");
       return res.status(200).json({ type: "video", videoUrl, limit, remaining: Math.max(0, limit - reservation.count), tier: "account" });
     } else if (isQwen) {
       phase = "space-text";
-      result = await client.predict("/generate_text", [prompt.trim(), requestLanguage(req), spaceApiSecret]);
+      result = await predictWithTimeout(client, "/generate_text", [prompt.trim(), requestLanguage(req), spaceApiSecret]);
       const first = result?.data?.[0];
       const answer = typeof first === "string" ? first : (first?.text || first?.value || first?.content || "");
       if (typeof answer !== "string" || !answer.trim()) throw new Error("Space returned no recognized text response.");
@@ -282,10 +319,15 @@ export default async function handler(req, res) {
     console.error("[image-generation:" + phase + "]", error?.stack || rawMessage);
 
     if (phase === "space-video" || phase === "space-text") {
-      return res.status(503).json({
-        error: localized(req,
-          "O modelo experimental não concluiu a solicitação. O Space pode não ter memória, disco ou runtime suficiente; verifique os logs antes de habilitar novamente.",
-          "The experimental model did not complete the request. The Space may lack sufficient RAM, disk, or runtime; check its logs before enabling it again.")
+      const timedOut = error?.name === "InferenceTimeoutError" || /exceeded its server-side time budget/.test(normalized);
+      return res.status(timedOut ? 504 : 503).json({
+        error: timedOut
+          ? localized(req,
+              "A inferência experimental ultrapassou o limite de tempo do servidor. O processamento pode continuar na fila do Space; aguarde antes de repetir para evitar solicitações duplicadas.",
+              "Experimental inference exceeded the server time budget. Processing may still be queued in the Space; wait before retrying to avoid duplicate requests.")
+          : localized(req,
+              "O modelo experimental não concluiu a solicitação. O Space pode não ter memória, disco ou runtime suficiente; verifique os logs antes de habilitar novamente.",
+              "The experimental model did not complete the request. The Space may lack sufficient RAM, disk, or runtime; check its logs before enabling it again.")
       });
     }
 

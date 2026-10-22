@@ -296,7 +296,7 @@ def generate_video(prompt: str, api_secret: str):
         raise gr.Error("Cosmos requires a compatible CUDA GPU.")
     cached_size_gib = _cached_repo_size_gib("models--DuoNeural--Cosmos3-Nano-Abliterated")
     free_disk_gib = _disk_free_gib()
-    if cached_size_gib < 28 and free_disk_gib < 36:
+    if cached_size_gib < 28 and free_disk_gib < 30:
         raise gr.Error(
             f"Cosmos needs tens of gigabytes of model cache; only {free_disk_gib:.1f} GiB free disk space is available and the detected model cache is {cached_size_gib:.1f} GiB."
         )
@@ -304,9 +304,12 @@ def generate_video(prompt: str, api_secret: str):
     _clear_models("cosmos")
     total_gib = torch.cuda.get_device_properties(0).total_memory / (1024 ** 3)
     free_gib = torch.cuda.mem_get_info()[0] / (1024 ** 3)
-    if total_gib < 48 or free_gib < 40:
+    # ZeroGPU advertises a 48 GB card, which is about 44.7 GiB when
+    # torch reports bytes using 1024**3. A 48 GiB threshold would reject
+    # every nominal 48 GB ZeroGPU device before loading the model.
+    if total_gib < 42 or free_gib < 36:
         raise gr.Error(
-            f"Cosmos needs roughly 48 GB VRAM. This runtime reports {total_gib:.1f} GiB total and {free_gib:.1f} GiB free; refusing to load to reduce OOM risk."
+            f"Cosmos needs a 48 GB-class GPU with substantial free VRAM. This runtime reports {total_gib:.1f} GiB total and {free_gib:.1f} GiB free; refusing to load to reduce OOM risk."
         )
     path = None
     keep_path_for_gradio = False
@@ -369,6 +372,7 @@ def generate_text(prompt: str, language: str = "pt-BR", api_secret: str = ""):
         raise gr.Error(f"Qwen CPU inference needs roughly 12 GiB free RAM; only {available_ram:.1f} GiB appears available.")
     try:
         if qwen_text_model is None:
+            print(f"[qwen-diagnostics] loading GGUF model; available_ram_gib={available_ram:.2f}; free_disk_gib={_disk_free_gib():.2f}", flush=True)
             from llama_cpp import Llama
             qwen_text_model = Llama.from_pretrained(
                 repo_id=QWEN_MODEL_ID,
@@ -379,15 +383,17 @@ def generate_text(prompt: str, language: str = "pt-BR", api_secret: str = ""):
                 n_gpu_layers=0,
                 verbose=False,
             )
+            print("[qwen-diagnostics] model loaded; starting CPU inference", flush=True)
         language_name = "Brazilian Portuguese" if str(language).lower().startswith("pt") else "English"
         result = qwen_text_model.create_chat_completion(
             messages=[
                 {"role": "system", "content": "Answer helpfully in " + language_name + ". You are a third-party model running inside ErikrafT AI; do not claim ErikrafT created you."},
                 {"role": "user", "content": prompt},
             ],
-            max_tokens=512,
+            max_tokens=256,
             temperature=0.7,
         )
+        print("[qwen-diagnostics] CPU inference completed", flush=True)
         answer = result["choices"][0]["message"]["content"].strip()
         if not answer:
             raise gr.Error("Qwen returned an empty response.")
