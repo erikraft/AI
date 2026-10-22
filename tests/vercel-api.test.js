@@ -130,3 +130,15 @@ test("health and model endpoints reject unsupported methods", () => {
     assert.equal(models.headers.allow, "GET");
   });
 });
+
+test("Vercel deployment excludes repository-only backend source and test files", () => {
+  const ignore = readFileSync(new URL("../.vercelignore", import.meta.url), "utf8");
+  for (const entry of ["cloudflare", "huggingface", ".github", "tests", "wrangler.jsonc", ".env.example"]) {
+    assert.ok(ignore.split(/\\r?\\n/).map((line) => line.trim()).includes(entry), `missing ${entry} from .vercelignore`);
+  }
+  const pkg = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
+  assert.equal(pkg.type, "module");
+  assert.equal(pkg.engines.node, ">=20");
+  assert.ok(pkg.dependencies["@gradio/client"]);
+  assert.ok(pkg.dependencies["firebase-admin"]);
+});
