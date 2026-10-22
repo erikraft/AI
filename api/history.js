@@ -26,7 +26,9 @@ async function getCollection() {
     });
   }
   const client = await cachedClientPromise;
-  return client.db(DATABASE_NAME).collection(COLLECTION_NAME);
+  const collection = client.db(DATABASE_NAME).collection(COLLECTION_NAME);
+  await collection.createIndex({ userId: 1, createdAt: -1 }, { name: "user_history_by_owner_and_date" });
+  return collection;
 }
 
 async function authenticatedUser(req) {
