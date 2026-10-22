@@ -53,6 +53,73 @@ function updateStudioAccess(user) {
   }
 }
 
+
+async function historyRequest(method = "GET", body = undefined, id = "") {
+  if (!currentUser) throw new Error("Authentication required.");
+  const token = await currentUser.getIdToken();
+  const response = await fetch("/api/history" + (id ? "?id=" + encodeURIComponent(id) : ""), {
+    method, headers: { Authorization: "Bearer " + token, ...(body ? { "Content-Type": "application/json" } : {}) },
+    ...(body ? { body: JSON.stringify(body) } : {}), cache: "no-store"
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error || "History request failed.");
+  return data;
+}
+function historyText(key) {
+  const en = document.documentElement.lang === "en";
+  const copy = {
+    loading:["Carregando histórico…","Loading history…"],
+    empty:["Ainda não há itens salvos. Gere uma imagem, vídeo ou resposta de texto para começar.","No saved items yet. Generate an image, video, or text response to get started."],
+    loadError:["Não foi possível carregar o histórico. Verifique a configuração do banco de dados.","Could not load history. Check the database configuration."],
+    saveError:["O resultado está pronto, mas não foi possível salvá-lo no histórico.","The result is ready, but it could not be saved to history."],
+    deleteError:["Não foi possível excluir este registro.","Could not delete this record."],
+    deleted:["Registro excluído do histórico.","History record deleted."],
+    deleteLabel:["Excluir do histórico","Delete from history"],
+    image:["Imagem","Image"], video:["Vídeo","Video"], text:["Conversa","Conversation"]
+  };
+  return copy[key]?.[en ? 1 : 0] || key;
+}
+function renderHistory(items) {
+  const list = $("history-list"); list.replaceChildren();
+  if (!items.length) { $("history-status").textContent = historyText("empty"); return; }
+  $("history-status").textContent = "";
+  for (const item of items) {
+    const card = document.createElement("article"); card.className = "history-item";
+    const preview = document.createElement("div"); preview.className = "history-preview";
+    if (item.type === "image" && item.mediaUrl) {
+      const img = document.createElement("img"); img.src = item.mediaUrl; img.alt = item.prompt || historyText("image"); img.loading = "lazy"; preview.append(img);
+    } else if (item.type === "video" && item.mediaUrl) {
+      const video = document.createElement("video"); video.src = item.mediaUrl; video.controls = true; video.playsInline = true; video.preload = "metadata"; preview.append(video);
+    } else { const icon = document.createElement("i"); icon.className = "fa-solid fa-comments"; icon.setAttribute("aria-hidden","true"); preview.append(icon); }
+    const details = document.createElement("div"); details.className = "history-item-details";
+    const kind = document.createElement("span"); kind.className = "history-kind"; kind.textContent = historyText(item.type === "image" ? "image" : item.type === "video" ? "video" : "text");
+    const prompt = document.createElement("p"); prompt.className = "history-prompt"; prompt.textContent = item.prompt || "";
+    const meta = document.createElement("small"); meta.textContent = [item.model || "", item.createdAt ? new Date(item.createdAt).toLocaleString(document.documentElement.lang === "en" ? "en-US" : "pt-BR") : ""].filter(Boolean).join(" · ");
+    details.append(kind,prompt,meta);
+    if (item.outputText) { const output = document.createElement("p"); output.className = "history-output"; output.textContent = item.outputText; details.append(output); }
+    if (item.mediaUrl) { const open = document.createElement("a"); open.href = item.mediaUrl; open.target="_blank"; open.rel="noopener noreferrer"; open.className="history-open-link"; open.textContent=document.documentElement.lang==="en"?"Open media ↗":"Abrir mídia ↗"; details.append(open); }
+    const remove = document.createElement("button"); remove.type="button"; remove.className="history-delete"; remove.setAttribute("aria-label",historyText("deleteLabel")); remove.title=historyText("deleteLabel"); remove.innerHTML='<i class="fa-solid fa-trash-can" aria-hidden="true"></i>';
+    remove.addEventListener("click", async () => { remove.disabled=true; try { await historyRequest("DELETE",undefined,item._id); card.remove(); $("history-status").textContent=$("history-list").children.length ? historyText("deleted") : historyText("empty"); } catch { $("history-status").textContent=historyText("deleteError"); remove.disabled=false; } });
+    card.append(preview,details,remove); list.append(card);
+  }
+}
+async function loadHistory() {
+  if (!currentUser) { $("history-list").replaceChildren(); $("history-status").textContent=""; return; }
+  $("history-status").textContent=historyText("loading");
+  try { const data=await historyRequest("GET"); renderHistory(Array.isArray(data.items)?data.items:[]); }
+  catch { $("history-status").textContent=historyText("loadError"); }
+}
+async function saveHistoryEntry(type,prompt,model,fields={}) {
+  try { await historyRequest("POST",{type,prompt,model,...fields}); await loadHistory(); }
+  catch { $("history-status").textContent=historyText("saveError"); }
+}
+function collectQwenMessages() {
+  return [...$("qwen-chat-thread").querySelectorAll(".qwen-chat-message")]
+    .filter((message)=>!message.classList.contains("is-pending")&&!message.classList.contains("has-error"))
+    .slice(-30).map((message)=>({role:message.dataset.role==="assistant"?"assistant":"user",text:message.querySelector(".qwen-message-content")?.textContent||""}));
+}
+$("history-refresh")?.addEventListener("click",()=>void loadHistory());
+
 if (configured) {
   const app = initializeApp(firebaseConfig);
   auth = getAuth(app);
@@ -62,6 +129,7 @@ if (configured) {
     $("login-open").classList.toggle("hidden", Boolean(currentUser));
     $("logout").classList.toggle("hidden", !user);
     updateStudioAccess(currentUser);
+    void loadHistory();
     if (user && !currentUser) {
       $("studio-auth-error").textContent = languageText("email_verification_required");
     }
@@ -601,6 +669,7 @@ $("generator-form").addEventListener("submit", async (event) => {
       $("download").classList.add("hidden");
       $("result-status").textContent = document.documentElement.lang === "en" ? "Qwen response ready." : "Resposta do Qwen pronta.";
       $("result-status").className = "result-status status-success";
+      void saveHistoryEntry("text", prompt, modelSelect.value, { outputText: answer, messages: collectQwenMessages() });
       return;
     }
     if (data.type === "video") {
@@ -619,7 +688,9 @@ $("generator-form").addEventListener("submit", async (event) => {
         $("result-status").textContent = document.documentElement.lang === "en" ? "The temporary video could not be loaded." : "Não foi possível carregar o vídeo temporário.";
         $("result-status").className = "result-status status-error";
       };
-      video.src = videoUrl; video.load(); return;
+      video.src = videoUrl; video.load();
+      void saveHistoryEntry("video", prompt, modelSelect.value, { mediaUrl: videoUrl });
+      return;
     }
     imageUrl = data.imageUrl || "";
     resultType = "image"; videoUrl = "";
@@ -628,6 +699,7 @@ $("generator-form").addEventListener("submit", async (event) => {
     img.onload = () => { $("loading-result").classList.add("hidden"); img.classList.remove("hidden"); $("download").disabled = false; $("download").classList.remove("hidden"); $("empty-result").classList.add("hidden"); $("result-status").textContent = languageText("image_ready"); $("result-status").className = "result-status status-success"; };
     img.onerror = () => { $("loading-result").classList.add("hidden"); $("empty-result").classList.remove("hidden"); $("result-status").textContent = languageText("image_load_error"); $("result-status").className = "result-status status-error"; };
     img.src = imageUrl;
+    void saveHistoryEntry("image", prompt, modelSelect.value, { mediaUrl: imageUrl });
   } catch (error) {
     $("loading-result").classList.add("hidden");
     const errorMessage = error?.name === "AbortError"
