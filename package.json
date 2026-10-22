@@ -5,7 +5,7 @@
   "type": "module",
   "description": "Prompt-based AI image generation website using aoxo/flux.1dev-abliterated",
   "engines": {
-    "node": "22.x"
+    "node": "24.x"
   },
   "dependencies": {
     "@gradio/client": "^1.15.0",
