@@ -4,7 +4,14 @@ import { getFirestore, Timestamp } from "firebase-admin/firestore";
 import { Client, handle_file } from "@gradio/client";
 
 const WINDOW_MS = 60 * 60 * 1000;
-const ACCOUNT_MAX_PER_WINDOW = 5;
+// Keep a finite free-tier default; provider limits remain independent.
+const DEFAULT_ACCOUNT_MAX_PER_WINDOW = 10;
+const MAX_CONFIGURABLE_ACCOUNT_MAX_PER_WINDOW = 20;
+function getAccountMaxPerWindow() {
+  const configured = Number.parseInt(process.env.GENERATION_MAX_PER_HOUR || "", 10);
+  if (!Number.isInteger(configured) || configured < 1 || configured > MAX_CONFIGURABLE_ACCOUNT_MAX_PER_WINDOW) return DEFAULT_ACCOUNT_MAX_PER_WINDOW;
+  return configured;
+}
 const MAX_PROMPT_LENGTH = 1500;
 const FLUX_MODEL_ID = "aoxo/flux.1dev-abliterated";
 const QWYTHOS_MODEL_ID = "fluffy12222/Qwythos-9B-Claude-Mythos-5-1M-heretic-abliterated";
@@ -197,7 +204,7 @@ export default async function handler(req, res) {
 
     phase = "quota-check";
     db = getFirestore(app);
-    const limit = ACCOUNT_MAX_PER_WINDOW;
+    const limit = getAccountMaxPerWindow();
     quotaRef = db.collection("generation_limits").doc(user.uid);
     const now = Date.now();
 
@@ -221,8 +228,8 @@ export default async function handler(req, res) {
     if (!reservation.allowed) {
       return res.status(429).json({
         error: localized(req,
-          "Você atingiu o limite gratuito de 5 gerações por hora nesta conta. Tente novamente depois que a cota for renovada.",
-          "You have reached the free limit of 5 generations per hour for this account. Please try again after the quota resets."),
+          "Você atingiu o limite gratuito de gerações por hora nesta conta. Tente novamente depois que a cota for renovada.",
+          "You have reached this account’s free hourly generation limit. Please try again after the quota resets."),
         limit,
         remaining: 0,
         resetAt: reservation.startedAt + WINDOW_MS
@@ -391,8 +398,8 @@ export default async function handler(req, res) {
     if (/quota|rate.?limit|too many requests|resource exhausted|gpu.?time|\b429\b/.test(normalized)) {
       return res.status(429).json({
         error: localized(req,
-          "O Hugging Face informou um limite de uso ou cota do provedor. Isso é diferente da cota de 5 gerações por hora do site. Confira a disponibilidade e a cota do seu Space.",
-          "Hugging Face reported a provider usage limit or quota. This is separate from the website's five-generations-per-hour limit. Check your Space availability and quota.")
+          "O Hugging Face informou um limite de uso ou cota do provedor. Isso é diferente da cota por conta do site. Confira a disponibilidade e a cota do seu Space.",
+          "Hugging Face reported a provider usage limit or quota. This is separate from the website's account quota. Check your Space availability and quota.")
       });
     }
 

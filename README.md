@@ -5,7 +5,7 @@ ErikrafT AI is an open-source AI model hub with a responsive dark interface and 
 - **Frontend:** static HTML/CSS/JavaScript hosted on Vercel.
 - **Authentication:** Firebase Authentication with Google, GitHub, and email/password; email/password accounts must verify their address before generating images.
 - **Generation:** Hugging Face Gradio Space routing the selected image, video, or text model.
-- **Abuse prevention:** Firebase ID-token verification, verified-email enforcement for password accounts, and a Firestore-backed limit of five generations per account per hour.
+- **Abuse prevention:** Firebase ID-token verification, verified-email enforcement for password accounts, and a configurable Firestore-backed limit of 10 generations per account per rolling hour by default (operator-configurable from 1 to 20).
 - **Cost goal:** use free tiers where possible. Provider quotas, availability, model compatibility, and GPU access are not guaranteed.
 
 ## Architecture
@@ -61,7 +61,7 @@ After assigning the Vercel deployment domain, add that exact domain under **Fire
 
 - `GET /api/health` — returns configuration booleans only; it does not test credentials against Google or execute a model.
 - `GET /api/models` — returns the four current model identifiers and marks Cosmos/Qwen configured only when `HF_SPACE_ID` and the protected API secret are present.
-- `POST /api/generate` — validates the Firebase ID token, applies the five-request/hour quota, then calls the selected Hugging Face task.
+- `POST /api/generate` — validates the Firebase ID token, applies the configurable per-account hourly quota, then calls the selected Hugging Face task.
 
 Vercel Functions have a **4.5 MB request/response body limit**. The current Qwythos browser flow compresses its image to at most 3 MiB so the base64 JSON request fits below this ceiling. The Hobby plan's Fluid Compute maximum is **300 seconds**; Cosmos and especially the sequential Qwythos→FLUX path may still hit that deadline if provider queueing or cold model loads take too long. Qwen runs in the Hugging Face Space, not inside Vercel, but its CPU inference can also be slow. These are provider/runtime constraints—not reasons to change or remove any model. Test real calls and check both Vercel Function logs and Space logs before calling a deployment production-ready.
 
@@ -93,7 +93,7 @@ The Space endpoint used by `@gradio/client` is `/generate_image`, with inputs in
 ## 3. Limits and abuse prevention
 
 - Requests without a valid Firebase ID token are rejected.
-- Default quota: **5 generation requests per authenticated account per rolling hour**.
+- Default quota: **10 generation requests per authenticated account per rolling hour**. Operators can set `GENERATION_MAX_PER_HOUR` to an integer from `1` to `20`; missing or invalid values use the safe default of `10`.
 - The Vercel API reserves Firestore quota slots transactionally; concurrency/conflict handling needs live testing.
 - Provider failures currently consume a reserved quota slot until the rolling window resets; a transaction-safe refund remains a follow-up.
 - Account-based limits cannot fully prevent users from creating multiple accounts. Consider Firebase App Check and monitoring before public launch.
@@ -153,3 +153,11 @@ Configure these server-side Vercel environment variables (never expose them in f
 - Keep `FIREBASE_SERVICE_ACCOUNT_JSON` as a server-side secret to verify Firebase ID tokens.
 
 MongoDB creates the database and collection when the configured history API first creates its index (for example, on the first successful history request). Restrict Atlas network access and grant the database user read/write access only to this database. MongoDB Atlas MCP access must be enabled for the Atlas organization before resources can be provisioned or inspected directly through the connector.
+
+
+### Free-tier generation quota configuration
+
+- `GENERATION_MAX_PER_HOUR` is an optional server-side Vercel environment variable. Set it to an integer from `1` to `20`; if missing, invalid, or outside that range, the API uses the safe default of `10` requests per account per rolling hour.
+- The quota is keyed by Firebase UID, not by email string. Gmail aliases or creating additional email accounts are not a supported way to multiply quota; separate accounts may still be created, so use Firebase App Check and abuse monitoring for stronger controls.
+- This is **not unlimited generation**. Vercel Hobby execution limits, Hugging Face ZeroGPU/provider quotas, queue availability, model memory, and inference time remain independent hard constraints. Raising the website quota does not increase those platform limits or guarantee every request succeeds.
+- Failed inference reservations are refunded where the existing transaction-safe refund path can confirm the same quota window; provider-side GPU work may continue after a client/server timeout, so avoid rapid retries.
