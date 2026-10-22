@@ -138,7 +138,16 @@ async function reserveQuota(env, user) {
         }]
       })
     });
-    if (!commit.ok) throw new Error("firestore-commit-failed");
+    if (!commit.ok) {
+      const details = await commit.text();
+
+      console.error("[firestore-commit-debug]", {
+        status: commit.status,
+        details: details.slice(0, 2000)
+      });
+
+      throw new Error("firestore-commit-failed");
+    }
     return { allowed: true, remaining: ACCOUNT_LIMIT - count, resetAt: windowStartedAt + WINDOW_MS, count, windowStartedAt };
   } catch (error) {
     await fetch(base + ":rollback", { method: "POST", headers: { Authorization: "Bearer " + token, "Content-Type": "application/json" }, body: JSON.stringify({ transaction }) }).catch(() => {});
