@@ -18,9 +18,9 @@ test("voice cloning is exposed in the selector and has upload, recording, and au
 
 test("voice cloning routes through the authenticated generation API to the upstream Gradio endpoint", () => {
   const api = read("../api/generate.js");
-  assert.match(api, /VOICE_CLONE_SPACE_ID = "tonyassi\/voice-clone"/);
+  assert.ok(api.includes('VOICE_CLONE_SPACE_ID = "tonyassi/voice-clone"'));
   assert.match(api, /Client\.connect\(targetSpaceId/);
-  assert.match(api, /predictWithTimeout\(client, "\/clone", \[prompt\.trim\(\), voiceAudioFile\]/);
+  assert.ok(api.includes('predictWithTimeout(client, "/clone", [prompt.trim(), voiceAudioFile]'));
   assert.match(api, /MAX_VOICE_AUDIO_BYTES = 3 \* 1024 \* 1024/);
 });
 
