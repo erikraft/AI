@@ -138,7 +138,7 @@ test("Vercel deployment excludes repository-only backend source and test files",
   }
   const pkg = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
   assert.equal(pkg.type, "module");
-  assert.equal(pkg.engines.node, ">=20");
+  assert.equal(pkg.engines.node, "22.x");
   assert.ok(pkg.dependencies["@gradio/client"]);
   assert.ok(pkg.dependencies["firebase-admin"]);
 });
