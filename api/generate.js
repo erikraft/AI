@@ -17,6 +17,9 @@ const FLUX_MODEL_ID = "aoxo/flux.1dev-abliterated";
 const QWYTHOS_MODEL_ID = "fluffy12222/Qwythos-9B-Claude-Mythos-5-1M-heretic-abliterated";
 const COSMOS_MODEL_ID = "DuoNeural/Cosmos3-Nano-Abliterated";
 const QWEN_MODEL_ID = "0bserverx/Qwen3.8-27B-Heretic-Abliterated-Uncensored-GGUF";
+const VOICE_CLONE_MODEL_ID = "tonyassi/voice-clone";
+const VOICE_CLONE_SPACE_ID = "tonyassi/voice-clone";
+const MAX_VOICE_AUDIO_BYTES = 3 * 1024 * 1024;
 const ENABLED_VALUES = new Set(["1", "true", "yes", "on"]);
 const envEnabled = (value) => {
   // Allow real inference attempts unless the operator explicitly disables a model.
@@ -73,6 +76,16 @@ function requestLanguage(req) {
 
 function localized(req, portuguese, english) {
   return requestLanguage(req) === "en" ? english : portuguese;
+}
+
+function voiceAudioToGradioFile(dataUrl) {
+  const match = /^data:(audio\\/(?:wav|x-wav|mpeg|mp3|ogg|webm|mp4|x-m4a));base64,([A-Za-z0-9+/]+={0,2})$/i.exec(dataUrl);
+  if (!match) throw new Error("Invalid voice reference audio data URL.");
+  const mimeType = match[1].toLowerCase();
+  const bytes = Buffer.from(match[2], "base64");
+  if (!bytes.length || bytes.byteLength > MAX_VOICE_AUDIO_BYTES) throw new Error("Voice reference audio exceeds the 3 MiB inference payload limit.");
+  const extension = mimeType.includes("wav") ? "wav" : mimeType.includes("mpeg") || mimeType.includes("mp3") ? "mp3" : mimeType.includes("ogg") ? "ogg" : mimeType.includes("mp4") || mimeType.includes("m4a") ? "m4a" : "webm";
+  return handle_file(new File([bytes], "voice-reference." + extension, { type: mimeType }));
 }
 
 function referenceImageToGradioFile(dataUrl) {
@@ -149,7 +162,7 @@ export default async function handler(req, res) {
       });
     }
 
-    const { prompt, model = "aoxo/flux.1dev-abliterated", width = 768, height = 768, steps = 20, referenceImage = null } = req.body || {};
+    const { prompt, model = "aoxo/flux.1dev-abliterated", width = 768, height = 768, steps = 20, referenceImage = null, voiceAudio = null } = req.body || {};
     if (typeof prompt !== "string" || !prompt.trim() || prompt.trim().length > MAX_PROMPT_LENGTH) {
       return res.status(400).json({
         error: localized(req, "O prompt deve ter entre 1 e 1500 caracteres.", "The prompt must contain between 1 and 1500 characters.")
@@ -160,6 +173,8 @@ export default async function handler(req, res) {
     const isQwythos = model === QWYTHOS_MODEL_ID;
     const isCosmos = model === COSMOS_MODEL_ID;
     const isQwen = model === QWEN_MODEL_ID;
+    const isVoiceClone = model === VOICE_CLONE_MODEL_ID;
+    allowedModels.add(VOICE_CLONE_MODEL_ID);
     if (!allowedModels.has(model)) return res.status(400).json({ error: localized(req, "O modelo selecionado não é compatível.", "The selected model is not supported.") });
     if (isCosmos && !envEnabled(process.env.ENABLE_COSMOS_VIDEO)) return res.status(503).json({ error: localized(req, "O modo de vídeo Cosmos foi desativado pela configuração ENABLE_COSMOS_VIDEO. Defina-a como true para permitir a tentativa real; o Space continuará verificando GPU e disco.", "Cosmos video is disabled by ENABLE_COSMOS_VIDEO. Set it to true to allow a real attempt; the Space will still check GPU and disk resources.") });
     if (isQwen && !envEnabled(process.env.ENABLE_QWEN_TEXT)) return res.status(503).json({ error: localized(req, "O modo de texto Qwen foi desativado pela configuração ENABLE_QWEN_TEXT. Defina-a como true para permitir a tentativa real; o Space continuará verificando RAM e disco.", "Qwen text is disabled by ENABLE_QWEN_TEXT. Set it to true to allow a real attempt; the Space will still check RAM and disk.") });
@@ -168,6 +183,8 @@ export default async function handler(req, res) {
         error: localized(req, "Envie uma imagem de referência para usar Qwythos com instruções.", "Upload a reference image to use Qwythos with instructions.")
       });
     }
+    if (isVoiceClone && (!voiceAudio || typeof voiceAudio !== "string" || !/^data:audio\\/(?:wav|x-wav|mpeg|mp3|ogg|webm|mp4|x-m4a);base64,[A-Za-z0-9+/]+={0,2}$/i.test(voiceAudio) || voiceAudio.length > 4_200_000)) return res.status(400).json({ error: localized(req, "Envie um áudio de referência válido de até 3 MiB.", "Upload a valid voice reference audio file up to 3 MiB.") });
+    if (!isVoiceClone && voiceAudio !== null) return res.status(400).json({ error: localized(req, "O áudio de referência só é aceito no modelo de clonagem de voz.", "Voice reference audio is only accepted for the voice-cloning model.") });
     if (referenceImage !== null && (!isQwythos || typeof referenceImage !== "string" || !/^data:image\/(?:png|jpeg|webp);base64,[A-Za-z0-9+/]+={0,2}$/i.test(referenceImage) || referenceImage.length > 4_200_000)) {
       return res.status(400).json({ error: localized(req, "Imagem inválida ou grande demais. Envie uma imagem compatível; a versão preparada para inferência pode ter até 3 MB.", "Invalid or oversized image. Upload a supported image; the prepared inference image may be up to 3 MB.") });
     }
@@ -179,20 +196,25 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: localized(req, "Não foi possível preparar a imagem para o Qwythos. Selecione a imagem novamente e tente outra vez.", "Could not prepare the image for Qwythos. Select the image again and retry.") });
       }
     }
+    let voiceAudioFile = null;
+    if (isVoiceClone) {
+      try { voiceAudioFile = voiceAudioToGradioFile(voiceAudio); }
+      catch { return res.status(400).json({ error: localized(req, "Não foi possível preparar o áudio. Use WAV, MP3, OGG, WebM ou M4A de até 3 MiB.", "Could not prepare the audio. Use WAV, MP3, OGG, WebM, or M4A up to 3 MiB.") }); }
+    }
     const allowedSizes = new Set(["768x768", "1024x768", "768x1024"]);
-    if (!isCosmos && !isQwen && (!allowedSizes.has(width + "x" + height) || ![20, 28].includes(Number(steps)))) {
+    if (!isCosmos && !isQwen && !isVoiceClone && (!allowedSizes.has(width + "x" + height) || ![20, 28].includes(Number(steps)))) {
       return res.status(400).json({
         error: localized(req, "A configuração da imagem é inválida.", "The image settings are invalid.")
       });
     }
 
     const spaceId = String(process.env.HF_SPACE_ID || "").trim();
-    if (!spaceId) {
+    if (!isVoiceClone && !spaceId) {
       return res.status(503).json({
         error: localized(req, "O Space do Hugging Face não está configurado no servidor. Defina HF_SPACE_ID=ErikrafT/erikraft-ai no ambiente Vercel.", "The Hugging Face Space is not configured on the server. Set HF_SPACE_ID=ErikrafT/erikraft-ai in the Vercel environment.")
       });
     }
-    if (spaceId.toLowerCase() !== "erikraft/erikraft-ai") {
+    if (!isVoiceClone && spaceId.toLowerCase() !== "erikraft/erikraft-ai") {
       return res.status(503).json({
         error: localized(req, "HF_SPACE_ID está configurado, mas não aponta para ErikrafT/erikraft-ai.", "HF_SPACE_ID is configured, but it does not point to ErikrafT/erikraft-ai.")
       });
@@ -238,14 +260,22 @@ export default async function handler(req, res) {
 
     phase = "space-connect";
     const clientOptions = process.env.HF_TOKEN ? { token: process.env.HF_TOKEN } : {};
+    const targetSpaceId = isVoiceClone ? VOICE_CLONE_SPACE_ID : spaceId;
     const client = await withTimeout(
-      Client.connect(spaceId, clientOptions),
+      Client.connect(targetSpaceId, clientOptions),
       SPACE_CONNECT_TIMEOUT_MS,
       "Timed out connecting to the Hugging Face Space."
     );
 
     let result;
-    if (isCosmos) {
+    if (isVoiceClone) {
+      phase = "space-voice-clone";
+      result = await predictWithTimeout(client, "/clone", [prompt.trim(), voiceAudioFile], EXPERIMENTAL_INFERENCE_TIMEOUT_MS);
+      const first = result?.data?.[0];
+      const audioUrl = typeof first === "string" ? first : (first?.url || first?.path || first?.audio?.url || first?.audio?.path);
+      if (!audioUrl) throw new Error("Voice-clone Space returned no recognized audio URL.");
+      return res.status(200).json({ type: "audio", audioUrl, limit, remaining: Math.max(0, limit - reservation.count), tier: "account" });
+    } else if (isCosmos) {
       phase = "space-video";
       result = await predictWithTimeout(client, "/generate_video", [prompt.trim(), spaceApiSecret]);
       const first = result?.data?.[0];
