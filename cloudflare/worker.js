@@ -219,6 +219,15 @@ async function generate(request, env) {
   if (!env.FIREBASE_SERVICE_ACCOUNT_JSON) return json({
     error: "O Worker não recebeu o Secret FIREBASE_SERVICE_ACCOUNT_JSON. Configure-o em Cloudflare → Workers & Pages → erikraft-ai → Settings → Variables and Secrets, no ambiente que está atendendo este domínio (Production e, se usar, Preview), e publique novamente."
   }, 503);
+  const configuredSpaceId = typeof env.HF_SPACE_ID === "string" ? env.HF_SPACE_ID.trim() : "";
+  if (!configuredSpaceId) return json({
+    error: "A variável HF_SPACE_ID não está configurada no ambiente de execução deste Worker. Defina HF_SPACE_ID=ErikrafT/erikraft-ai em Runtime → Production e publique uma nova versão.",
+    code: "hf-space-id-missing"
+  }, 503);
+  if (configuredSpaceId.toLowerCase() !== "erikraft/erikraft-ai") return json({
+    error: "A variável HF_SPACE_ID está configurada, mas não aponta para o Space esperado (ErikrafT/erikraft-ai).",
+    code: "invalid-space-id"
+  }, 503);
   const authorization = request.headers.get("Authorization") || "";
   const match = /^Bearer\s+(.+)$/i.exec(authorization);
   if (!match) return json({ error: "Entre na sua conta para gerar imagens." }, 401);
