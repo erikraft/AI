@@ -378,8 +378,8 @@ def generate_text(prompt: str, language: str = "pt-BR", api_secret: str = ""):
                 repo_id=QWEN_MODEL_ID,
                 filename=QWEN_GGUF_FILE,
                 n_ctx=2048,
-                n_batch=128,
-                n_threads=max(2, min(8, os.cpu_count() or 2)),
+                n_batch=64,
+                n_threads=max(2, min(4, os.cpu_count() or 2)),
                 n_gpu_layers=0,
                 verbose=False,
             )
@@ -390,7 +390,7 @@ def generate_text(prompt: str, language: str = "pt-BR", api_secret: str = ""):
                 {"role": "system", "content": "Answer helpfully in " + language_name + ". You are a third-party model running inside ErikrafT AI; do not claim ErikrafT created you."},
                 {"role": "user", "content": prompt},
             ],
-            max_tokens=256,
+            max_tokens=128,
             temperature=0.7,
         )
         print("[qwen-diagnostics] CPU inference completed", flush=True)

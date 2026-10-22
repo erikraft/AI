@@ -22,6 +22,7 @@ const envEnabled = (value) => {
 // leaving the browser in an endless "Thinking…" state. It cannot cancel GPU work
 // already queued by Gradio, so users are warned not to retry immediately.
 const EXPERIMENTAL_INFERENCE_TIMEOUT_MS = 235_000;
+const QWEN_INFERENCE_TIMEOUT_MS = 135_000;
 const SPACE_CONNECT_TIMEOUT_MS = 30_000;
 
 async function withTimeout(promise, timeoutMs, message) {
@@ -246,7 +247,7 @@ export default async function handler(req, res) {
       return res.status(200).json({ type: "video", videoUrl, limit, remaining: Math.max(0, limit - reservation.count), tier: "account" });
     } else if (isQwen) {
       phase = "space-text";
-      result = await predictWithTimeout(client, "/generate_text", [prompt.trim(), requestLanguage(req), spaceApiSecret]);
+      result = await predictWithTimeout(client, "/generate_text", [prompt.trim(), requestLanguage(req), spaceApiSecret], QWEN_INFERENCE_TIMEOUT_MS);
       const first = result?.data?.[0];
       const answer = typeof first === "string" ? first : (first?.text || first?.value || first?.content || "");
       if (typeof answer !== "string" || !answer.trim()) throw new Error("Space returned no recognized text response.");
@@ -320,14 +321,46 @@ export default async function handler(req, res) {
 
     if (phase === "space-video" || phase === "space-text") {
       const timedOut = error?.name === "InferenceTimeoutError" || /exceeded its server-side time budget/.test(normalized);
+      const diskFailure = /disk|no space left|not enough space|cache.*space/.test(normalized);
+      const memoryFailure = /out of memory|cuda.*memory|vram|free ram|available.*ram|system ram|requires a compatible cuda gpu|requires.*gpu/.test(normalized);
+      const quotaFailure = /zerogpu|gpu quota|quota.*gpu|rate.?limit|too many requests/.test(normalized);
+      const resourceError = phase === "space-video"
+        ? (diskFailure
+            ? localized(req,
+                "O Cosmos não tem espaço de cache suficiente no Hugging Face Space. Verifique o disco disponível e os logs antes de tentar novamente.",
+                "Cosmos does not have enough model-cache disk space in the Hugging Face Space. Check free disk space and Space logs before retrying.")
+            : memoryFailure
+              ? localized(req,
+                  "O Cosmos exige uma GPU CUDA compatível, da classe de 48 GB, com VRAM livre e espaço de cache suficientes. O hardware gratuito pode não atender a esses requisitos; confira os logs do Space.",
+                  "Cosmos requires a compatible 48 GB-class CUDA GPU, sufficient free VRAM, and model-cache disk space. Free hardware may not meet these requirements; check Space logs.")
+              : quotaFailure
+                ? localized(req,
+                    "A cota ou a fila do ZeroGPU pode estar impedindo a geração. Confira a cota diária e os logs do Hugging Face antes de repetir.",
+                    "The ZeroGPU quota or queue may be preventing generation. Check the daily quota and Hugging Face logs before retrying.")
+                : localized(req,
+                    "O Cosmos não concluiu a geração de vídeo. Confira os logs recentes do Hugging Face Space para distinguir erro do modelo, fila e limites de hardware.",
+                    "Cosmos did not complete video generation. Check recent Hugging Face Space logs to distinguish model errors, queue issues, and hardware limits."))
+        : (diskFailure
+            ? localized(req,
+                "O Qwen não tem espaço livre suficiente para baixar o arquivo GGUF. Confira o disco do Space antes de repetir.",
+                "Qwen does not have enough free disk space to download the GGUF file. Check Space disk capacity before retrying.")
+            : memoryFailure
+              ? localized(req,
+                  "O Qwen precisa de aproximadamente 12 GiB de RAM disponível e está limitado à CPU neste Space. A memória gratuita disponível pode não ser suficiente; confira os logs.",
+                  "Qwen needs roughly 12 GiB of available RAM and is CPU-only in this Space. Free-tier available memory may be insufficient; check the logs.")
+              : localized(req,
+                  "O Qwen não concluiu a resposta dentro das condições atuais do Space. Confira os logs e aguarde antes de repetir, pois uma carga ou inferência anterior pode continuar em execução.",
+                  "Qwen did not complete a response under the Space's current conditions. Check the logs and wait before retrying because a previous load or inference may still be running."));
       return res.status(timedOut ? 504 : 503).json({
         error: timedOut
-          ? localized(req,
-              "A inferência experimental ultrapassou o limite de tempo do servidor. O processamento pode continuar na fila do Space; aguarde antes de repetir para evitar solicitações duplicadas.",
-              "Experimental inference exceeded the server time budget. Processing may still be queued in the Space; wait before retrying to avoid duplicate requests.")
-          : localized(req,
-              "O modelo experimental não concluiu a solicitação. O Space pode não ter memória, disco ou runtime suficiente; verifique os logs antes de habilitar novamente.",
-              "The experimental model did not complete the request. The Space may lack sufficient RAM, disk, or runtime; check its logs before enabling it again.")
+          ? (phase === "space-text"
+              ? localized(req,
+                  "O Qwen não respondeu em 135 segundos. A geração foi encerrada para evitar espera indefinida; confira os logs do Space e aguarde antes de repetir.",
+                  "Qwen did not respond within 135 seconds. The request was stopped to avoid an indefinite wait; check Space logs and wait before retrying.")
+              : localized(req,
+                  "A inferência experimental ultrapassou o limite de tempo do servidor. O processamento pode continuar na fila do Space; aguarde antes de repetir para evitar solicitações duplicadas.",
+                  "Experimental inference exceeded the server time budget. Processing may still be queued in the Space; wait before retrying to avoid duplicate requests."))
+          : resourceError
       });
     }
 
