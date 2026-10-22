@@ -31,7 +31,7 @@ if (!config.apiKey || !config.authDomain || !config.projectId || !config.appId) 
   popover.className = "profile-popover"; popover.hidden = true; popover.setAttribute("aria-label", "Perfil da conta");
   popover.innerHTML = `
     <div class="profile-head"><img class="profile-large-avatar" alt="Foto de perfil"><div><div class="profile-email"></div><div class="profile-subtitle">Conta conectada</div></div></div>
-    <div class="profile-actions"><button class="profile-action" type="button" data-profile-upload><i class="fa-solid fa-pen" aria-hidden="true"></i> Alterar foto</button><button class="profile-action danger" type="button" data-profile-delete><i class="fa-solid fa-trash" aria-hidden="true"></i> Remover foto</button></div>
+    <div class="profile-actions"><button class="profile-action" type="button" data-profile-upload><i class="fa-solid fa-pen" aria-hidden="true"></i> Alterar foto</button><button class="profile-action danger" type="button" data-profile-delete><i class="fa-solid fa-trash" aria-hidden="true"></i> Remover foto</button><button class="profile-action" type="button" data-profile-restore title="Restaurar foto do provedor" aria-label="Restaurar foto do provedor"><i class="fa-solid fa-rotate-right" aria-hidden="true"></i> Restaurar foto</button></div>
     <input class="profile-file" type="file" accept="image/png,image/jpeg,image/webp"><p class="profile-status" role="status" aria-live="polite"></p><div class="profile-divider"></div><button class="button secondary small profile-signout" type="button"><i class="fa-solid fa-right-from-bracket" aria-hidden="true"></i> Sair</button>`;
   document.body.append(popover);
   const avatar = popover.querySelector(".profile-large-avatar");
@@ -83,6 +83,10 @@ if (!config.apiKey || !config.authDomain || !config.projectId || !config.appId) 
       const photo = await new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(reader.result); reader.onerror = () => reject(new Error("Não foi possível ler a imagem.")); reader.readAsDataURL(selected); });
       const result = await request("PUT", { photo }); setPhoto(result.photo); status.textContent = "Foto de perfil atualizada.";
     } catch (error) { status.textContent = error.message || "Falha ao salvar a foto."; }
+  });
+  popover.querySelector("[data-profile-restore]").addEventListener("click", () => {
+    setPhoto(user?.photoURL || "");
+    status.textContent = user?.photoURL ? "Foto do provedor restaurada neste site." : "O provedor não disponibilizou uma foto de perfil.";
   });
   popover.querySelector("[data-profile-delete]").addEventListener("click", async () => {
     status.textContent = "Removendo foto…";
