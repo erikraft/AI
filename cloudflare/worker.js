@@ -323,12 +323,13 @@ async function generate(request, env) {
         message.startsWith("hf-result-") ? "result-stream" :
         message.startsWith("hf-upload-") ? "upload" :
         message === "hf-inference-failed" ? "inference" : "response-parse";
-      const upstreamStatusMatch = /^hf-(?:start|result)-(\\d{3})$/.exec(message);
+      const upstreamStatus = message.startsWith("hf-start-") || message.startsWith("hf-result-")
+        ? Number(message.slice(message.lastIndexOf("-") + 1)) : null;
       return json({
         error: "O Hugging Face Space falhou ao processar a solicitação. Consulte os logs do Worker e do Space para identificar a etapa.",
         code: "huggingface-request-failed",
         stage,
-        upstreamStatus: upstreamStatusMatch ? Number(upstreamStatusMatch[1]) : null
+        upstreamStatus
       }, 503);
     }
     if (message.includes("invalid-reference-image")) return json({ error: "Imagem de referência inválida. Use PNG, JPEG ou WebP de até 3 MiB." }, 400);
