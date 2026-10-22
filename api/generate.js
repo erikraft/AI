@@ -17,20 +17,21 @@ const envEnabled = (value) => {
   return ENABLED_VALUES.has(String(value).trim().toLowerCase());
 };
 
- // Leave headroom before Vercel's 300-second Hobby function ceiling. This timeout
-// makes a stalled experimental inference return an actionable error instead of
+ // Leave headroom before Vercel's 300-second Hobby function ceiling. A timeout
+// makes a stalled experimental request return an actionable error instead of
 // leaving the browser in an endless "Thinking…" state. It cannot cancel GPU work
-// already queued by Gradio, so keep it below the platform timeout.
+// already queued by Gradio, so users are warned not to retry immediately.
 const EXPERIMENTAL_INFERENCE_TIMEOUT_MS = 235_000;
+const SPACE_CONNECT_TIMEOUT_MS = 30_000;
 
-async function predictWithTimeout(client, endpoint, args, timeoutMs = EXPERIMENTAL_INFERENCE_TIMEOUT_MS) {
+async function withTimeout(promise, timeoutMs, message) {
   let timer;
   try {
     return await Promise.race([
-      client.predict(endpoint, args),
+      promise,
       new Promise((_, reject) => {
         timer = setTimeout(() => {
-          const error = new Error("Experimental inference exceeded its server-side time budget.");
+          const error = new Error(message);
           error.name = "InferenceTimeoutError";
           reject(error);
         }, timeoutMs);
@@ -39,6 +40,14 @@ async function predictWithTimeout(client, endpoint, args, timeoutMs = EXPERIMENT
   } finally {
     clearTimeout(timer);
   }
+}
+
+async function predictWithTimeout(client, endpoint, args, timeoutMs = EXPERIMENTAL_INFERENCE_TIMEOUT_MS) {
+  return withTimeout(
+    client.predict(endpoint, args),
+    timeoutMs,
+    "Experimental inference exceeded its server-side time budget."
+  );
 }
 
 function getAdminApp() {
@@ -221,7 +230,11 @@ export default async function handler(req, res) {
 
     phase = "space-connect";
     const clientOptions = process.env.HF_TOKEN ? { token: process.env.HF_TOKEN } : {};
-    const client = await Client.connect(spaceId, clientOptions);
+    const client = await withTimeout(
+      Client.connect(spaceId, clientOptions),
+      SPACE_CONNECT_TIMEOUT_MS,
+      "Timed out connecting to the Hugging Face Space."
+    );
 
     let result;
     if (isCosmos) {
