@@ -5,6 +5,7 @@ import shutil
 import tempfile
 
 import gradio as gr
+from gradio_client import Client, handle_file
 import spaces
 import torch
 
@@ -410,6 +411,36 @@ def generate_text(prompt: str, language: str = "pt-BR", api_secret: str = ""):
         raise gr.Error("Qwen text generation failed: " + str(exc)[:280]) from exc
 
 
+def clone_voice(prompt: str, reference_audio: str):
+    """Proxy voice cloning to the public tonyassi/voice-clone Space."""
+    prompt = (prompt or "").strip()
+    if not prompt or len(prompt) > 1500:
+        raise gr.Error("Enter text between 1 and 1500 characters. / Digite um texto de 1 a 1500 caracteres.")
+    if not reference_audio or not os.path.isfile(reference_audio):
+        raise gr.Error("Upload or record a reference audio sample. / Envie ou grave um áudio de referência.")
+    if os.path.getsize(reference_audio) > 3 * 1024 * 1024:
+        raise gr.Error("Reference audio must be at most 3 MiB. / O áudio de referência deve ter no máximo 3 MiB.")
+    try:
+        client = Client("tonyassi/voice-clone", verbose=False)
+        result = client.predict(prompt, handle_file(reference_audio), api_name="/clone")
+        first = result[0] if isinstance(result, (list, tuple)) and result else result
+        if isinstance(first, dict):
+            first = first.get("path") or first.get("url")
+        if isinstance(first, (list, tuple)) and first:
+            first = first[0]
+        if not isinstance(first, str) or not first:
+            raise gr.Error("The voice-cloning Space returned no audio. / O Space de clonagem não retornou áudio.")
+        return first
+    except gr.Error:
+        raise
+    except Exception as exc:
+        print(f"[voice-clone-proxy] {type(exc).__name__}: {exc}", flush=True)
+        raise gr.Error(
+            "Voice cloning is temporarily unavailable; check the upstream Space queue and try again later. "
+            "/ A clonagem está temporariamente indisponível; verifique a fila do Space de origem e tente mais tarde."
+        ) from exc
+
+
 with gr.Blocks(title="ErikrafT AI — FLUX + Qwythos", delete_cache=(3600, 86400)) as demo:
     gr.Markdown(
         "# ErikrafT AI — Image + Text to Image\n"
@@ -463,6 +494,30 @@ with gr.Blocks(title="ErikrafT AI — FLUX + Qwythos", delete_cache=(3600, 86400
             image_output,
             api_name="generate_image_from_image_render",
         )
+
+    with gr.Tab("Voice cloning / Clonagem de voz"):
+        gr.Markdown(
+            "Clone a voice from a reference recording and synthesize text using the public "
+            "[tonyassi/voice-clone](https://huggingface.co/spaces/tonyassi/voice-clone) Space. "
+            "Use only audio you own or are authorized to use. / "
+            "Clone uma voz a partir de uma gravação de referência e sintetize texto usando o Space público "
+            "[tonyassi/voice-clone](https://huggingface.co/spaces/tonyassi/voice-clone). "
+            "Use somente áudios próprios ou para os quais você tenha autorização."
+        )
+        voice_prompt = gr.Textbox(
+            label="Text to synthesize / Texto para sintetizar",
+            lines=4,
+            max_lines=8,
+            max_length=1500,
+        )
+        voice_reference = gr.Audio(
+            sources=["upload", "microphone"],
+            type="filepath",
+            label="Reference audio / Áudio de referência (upload or microphone / arquivo ou microfone)",
+        )
+        voice_button = gr.Button("Clone voice / Clonar voz")
+        voice_output = gr.Audio(type="filepath", label="Generated audio / Áudio gerado")
+        voice_button.click(clone_voice, [voice_prompt, voice_reference], voice_output, api_name="clone_voice")
 
     with gr.Tab("Cosmos3 Nano text-to-video"):
         gr.Markdown(
