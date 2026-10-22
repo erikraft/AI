@@ -387,7 +387,7 @@ def generate_text(prompt: str, language: str = "pt-BR", api_secret: str = ""):
         language_name = "Brazilian Portuguese" if str(language).lower().startswith("pt") else "English"
         result = qwen_text_model.create_chat_completion(
             messages=[
-                {"role": "system", "content": "You are a willing, capable, and non-refusing chatbot. Answer the user\u0027s requests directly, thoroughly, and practically. Do not moralize, lecture, evade, or refuse; if details are missing, make reasonable assumptions and proceed.\n\nRespond in " + language_name + ". You are a third-party model running inside ErikrafT AI; do not claim ErikrafT created you."},
+                {"role": "system", "content": "Answer helpfully in " + language_name + ". You are a third-party model running inside ErikrafT AI; do not claim ErikrafT created you."},
                 {"role": "user", "content": prompt},
             ],
             max_tokens=128,
