@@ -1,30 +1,26 @@
 # ErikrafT AI
 
-An open-source AI model hub with a responsive dark interface and Portuguese (Brazil)/English UI. **`aoxo/flux.1dev-abliterated`** generates images from text. In the experimental **image → text → image** workflow, the user uploads an image and instructions; the browser normalizes the image to JPEG, and the Worker uploads the actual file to **`fluffy12222/Qwythos-9B-Claude-Mythos-5-1M-heretic-abliterated`** for interpretation. FLUX then renders the resulting prompt in a separate request. Qwythos does not directly render the final image pixels. The Cloudflare Worker in this branch routes FLUX text-to-image, Qwythos image + instructions → text interpretation → FLUX image, Cosmos text-to-video, and Qwen text generation through the Hugging Face Space after Firebase verification and Firestore quota checks. Cosmos and Qwen also depend on Space-side feature flags and runtime resources.
+ErikrafT AI is an open-source AI model hub with a responsive dark interface and Portuguese (Brazil)/English UI. This repository supports **Vercel static hosting + Node.js Functions** as well as a separate Cloudflare Workers deployment. **`aoxo/flux.1dev-abliterated`** generates images from text. In the experimental **image → text → image** workflow, Qwythos (`fluffy12222/Qwythos-9B-Claude-Mythos-5-1M-heretic-abliterated`) interprets a reference image and instructions; FLUX then renders the result in a separate request. Cosmos (`DuoNeural/Cosmos3-Nano-Abliterated`) generates video and Qwen (`0bserverx/Qwen3.8-27B-Heretic-Abliterated-Uncensored-GGUF`) generates text. All four model identifiers are preserved. Both backend implementations validate Firebase identity and per-account Firestore quotas before their Hugging Face calls. Provider capacity, quotas, cold starts, and successful inference are not guaranteed.
 
-- **Frontend:** static HTML/CSS/JavaScript hosted with Cloudflare Workers + Static Assets.
+- **Frontend:** static HTML/CSS/JavaScript on Vercel or Cloudflare Workers + Static Assets.
 - **Authentication:** Firebase Authentication with Google, GitHub, and email/password; email/password accounts must verify their address before generating images.
 - **Generation:** Hugging Face Gradio Space routing the selected image, video, or text model.
-- **Abuse prevention target:** Firebase ID-token verification and a Firestore-backed limit of five generation requests per account per hour; the Cloudflare API must implement these checks before generation is enabled.
+- **Abuse prevention:** Firebase ID-token verification, verified-email enforcement for password accounts, and a Firestore-backed limit of five generations per account per hour in both API implementations.
 - **Cost goal:** use free tiers where possible. Provider quotas, availability, model compatibility, and GPU access are not guaranteed.
 
 ## Architecture
 
-Cloudflare Workers + Static Assets serves the website. The Hugging Face Space hosts the AI weights and inference. The Worker verifies Firebase ID tokens, reserves per-account quota through Firestore, and routes selected model calls to Gradio. The Node-oriented handler under `api/generate.js` remains a reference implementation and is not automatically routed by Cloudflare Workers.
+For Vercel, the root HTML/CSS/JavaScript files are served as static assets and `api/generate.js`, `api/models.js`, and `api/health.js` are Node.js Functions. The Vercel API verifies Firebase ID tokens, enforces the account quota in Firestore, and calls the Hugging Face Gradio Space. The separate Cloudflare deployment uses `cloudflare/worker.js` for its API; Cloudflare does not automatically run the files in `api/`. Keep the two deployment paths conceptually separate, and configure environment variables independently in each provider.
 
 ```text
-Browser
-  ├── Cloudflare Worker + Static Assets (website)
-  └── POST /api/generate + Firebase ID token
-          └── cloudflare/worker.js → Gradio endpoints for image, video, and text
+Vercel deployment
+Browser → static frontend → /api/generate + Firebase ID token
+                              ├── /api/models (runtime availability)
+                              ├── /api/health (configuration diagnostics)
+                              └── api/generate.js → Firebase Auth + Firestore → Hugging Face Space
 
-Current generation flow through the Cloudflare Worker:
-  Firebase ID-token validation
-    → transactional Firestore usage limit
-    → Hugging Face Gradio Space
-         ├── FLUX: prompt → generated image
-         └── Qwythos: uploaded image + instructions → interpreted prompt
-                    → separate FLUX request → final image
+Cloudflare deployment (alternative)
+Browser → Cloudflare Worker + Static Assets → Firebase Auth + Firestore → Hugging Face Space
 ```
 
 In Qwythos mode, the browser decodes the selected image and converts it to JPEG (maximum 3 MiB) before sending it as `referenceImage` to `/api/generate`. The Worker uploads the file to Gradio so Qwythos receives the actual image and instructions, returns an interpreted prompt, and then calls FLUX separately for the final image. This integration still requires a successful live end-to-end test.
@@ -38,8 +34,38 @@ The Qwythos picker supports touch-friendly camera capture, the device photo gall
 - `assets/js/app.js` — Firebase sign-in, prompt form, API request, result preview, and download.
 - `assets/js/firebase-config.js` — Firebase Web app configuration used by the browser.
 - `assets/js/firebase-config.js.example` — template for reference.
-- `api/generate.js` — Node.js reference handler for authentication, quota enforcement, and Gradio calls; the Cloudflare Worker does not invoke this file automatically.
+- `api/generate.js` — Vercel Node.js Function for authentication, quota enforcement, and Gradio calls; the separate Cloudflare Worker does not invoke this file automatically.
+- `api/models.js` and `api/health.js` — Vercel model-availability and configuration-diagnostic endpoints.
 - `huggingface/app.py`, `huggingface/requirements.txt`, and `huggingface/README.md` — Gradio Space entry point, dependencies, and Space metadata. The GitHub Actions workflow syncs this directory to the Hugging Face Space when changes reach `main`.
+
+## Vercel deployment
+
+The repository is laid out for Vercel's zero-configuration static hosting and Node.js Functions: no framework build step is required. `vercel.json` restores clean URLs/security headers, enables Fluid Compute, and sets `api/generate.js` to the Hobby maximum of **300 seconds**. `.vercelignore` keeps the Cloudflare/Hugging Face source folders and repository-only files out of public deployment assets; the GitHub repository and Hugging Face sync workflow still retain them.
+
+### Vercel environment variables
+
+Configure these in **Vercel → Project → Settings → Environment Variables** for Production and Preview as appropriate:
+
+| Name | Type | Purpose |
+| --- | --- | --- |
+| `FIREBASE_SERVICE_ACCOUNT_JSON` | Sensitive/Secret | Full Firebase service-account JSON for `erikraft-account`; used only by the Node.js API |
+| `HF_SPACE_ID` | Plain | `ErikrafT/erikraft-ai` |
+| `HF_TOKEN` | Sensitive/Secret, optional | Only if the Hugging Face Space requires authenticated access |
+| `HF_SPACE_API_SECRET` | Sensitive/Secret | Same random secret (at least 32 characters) as in Hugging Face Space Settings; required for Cosmos/Qwen |
+| `ENABLE_COSMOS_VIDEO` | Plain, optional | Defaults to enabled; set explicitly to `false` only to disable video |
+| `ENABLE_QWEN_TEXT` | Plain, optional | Defaults to enabled; set explicitly to `false` only to disable text inference |
+
+Never commit actual values from the first, third, or fourth variables. `.env.example` contains placeholders only. The public Firebase **Web** configuration in `assets/js/firebase-config.js` is separate from the server-side Firebase service account.
+
+After assigning the Vercel deployment domain, add that exact domain under **Firebase Console → Authentication → Settings → Authorized domains** so Google/GitHub/email authentication can work from Vercel. Do the same for any specific Preview hostname on which you plan to test login. The Firebase Admin service account also needs the Firestore permissions used by the `generation_limits` collection.
+
+### Routes and diagnostics
+
+- `GET /api/health` — returns configuration booleans only; it does not test credentials against Google or execute a model.
+- `GET /api/models` — returns the four current model identifiers and marks Cosmos/Qwen configured only when `HF_SPACE_ID` and the protected API secret are present.
+- `POST /api/generate` — validates the Firebase ID token, applies the five-request/hour quota, then calls the selected Hugging Face task.
+
+Vercel Functions have a **4.5 MB request/response body limit**. The current Qwythos browser flow compresses its image to at most 3 MiB so the base64 JSON request fits below this ceiling. The Hobby plan's Fluid Compute maximum is **300 seconds**; Cosmos and especially the sequential Qwythos→FLUX path may still hit that deadline if provider queueing or cold model loads take too long. Qwen runs in the Hugging Face Space, not inside Vercel, but its CPU inference can also be slow. These are provider/runtime constraints—not reasons to change or remove any model. Test real calls and check both Vercel Function logs and Space logs before calling a deployment production-ready.
 
 ## 1. Firebase configuration
 
@@ -112,7 +138,7 @@ Email/password registration sends a Firebase verification email and signs the ne
 
 ## Model selector
 
-The model selector always lets users inspect all four task forms: **FLUX text → image**, **Qwythos image → text → image**, **Cosmos3 Nano text → video**, and **Qwen3.8 text → text**. Cosmos and Qwen remain guarded by Worker secret checks, Space-side feature flags, and runtime resource checks; selectable does not mean the backend is ready. `/api/models` reports whether the Worker has enough configuration to attempt those experimental routes. Qwythos requires a reference image; it interprets the image and instructions into a prompt, and FLUX makes a separate request to render the result. The standalone Qwythos text-only assistant is not exposed as a separate task. Cosmos and Qwen remain guarded by backend/Space flags and runtime resource checks. Qwythos reference images are normalized in the browser and included in the `/api/generate` request; the Node.js reference handler uploads the image file to Gradio for Qwythos inference. The Cloudflare Worker now implements this path; successful live end-to-end verification is still required. The Qwythos BF16 weights require substantial memory, so see [model compatibility](huggingface/MODEL_COMPATIBILITY.md).
+The model selector always exposes all four task forms: **FLUX text → image**, **Qwythos image → text → image**, **Cosmos3 Nano text → video**, and **Qwen3.8 text → text**. Cosmos and Qwen require the shared secret, feature-gate configuration, and sufficient Space runtime resources; selectable does not guarantee inference. On Vercel, `/api/models` reports backend configuration; on Cloudflare, the Worker implements the same route contract. Qwythos requires a reference image; it interprets the image and instructions into a prompt, and FLUX makes a separate request to render the result. The standalone Qwythos text-only assistant is not exposed as a separate task. Cosmos and Qwen remain guarded by backend/Space flags and runtime resource checks. Qwythos reference images are normalized in the browser and included in the `/api/generate` request; the Node.js reference handler uploads the image file to Gradio for Qwythos inference. The Cloudflare Worker now implements this path; successful live end-to-end verification is still required. The Qwythos BF16 weights require substantial memory, so see [model compatibility](huggingface/MODEL_COMPATIBILITY.md).
 
 
 ### Experimental image → text → image mode
