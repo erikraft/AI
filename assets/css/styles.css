@@ -57,6 +57,20 @@
 @media(max-width:600px){.quota-information{padding:17px}.quota-grid{grid-template-columns:1fr}.quota-item:last-child{grid-column:auto}.quota-links{flex-direction:column;gap:10px}}
 
 
+/* Featured Hugging Face Space card, styled to match quota-information */
+.space-feature{display:grid;grid-template-columns:minmax(116px,180px) minmax(0,1fr);align-items:center;gap:clamp(18px,3vw,30px);margin-top:16px;padding:clamp(20px,3vw,30px);border:1px solid #ffb45b55;border-radius:16px;background:radial-gradient(ellipse at 12% 18%,rgba(255,190,95,.13),transparent 46%),linear-gradient(135deg,rgba(42,29,22,.8),rgba(17,16,19,.94));overflow:hidden;}
+.space-feature-logo-wrap{display:grid;place-items:center;min-width:0;min-height:132px;padding:8px;border:1px solid rgba(255,190,95,.18);border-radius:15px;background:rgba(255,255,255,.035);}
+.space-feature-logo{display:block;width:min(100%,160px);height:auto;max-height:160px;object-fit:contain;filter:drop-shadow(0 8px 24px rgba(255,174,75,.16));}
+.space-feature-content{min-width:0;}
+.space-feature-content .eyebrow{margin:0 0 8px;color:#ffc37b;font:700 9px/1.7 var(--mono);letter-spacing:.7px;}
+.space-feature-content h3{margin:0 0 9px;font-size:clamp(17px,2.3vw,22px);line-height:1.35;letter-spacing:-.35px;}
+.space-feature-description{max-width:760px;margin:0;color:var(--muted);font-size:11px;line-height:1.9;}
+.space-feature-actions{display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;margin-top:18px;}
+.space-feature-link{display:inline-flex;align-items:center;justify-content:center;min-height:40px;padding:9px 13px;border:1px solid #ffbd7055;border-radius:9px;color:#ffd19b;font-size:10px;font-weight:700;line-height:1.6;text-decoration:none;transition:background .18s ease,border-color .18s ease,transform .18s ease;}
+.space-feature-link:hover{transform:translateY(-1px);border-color:#ffc37b;background:rgba(255,190,95,.09);}
+.space-feature-link-primary{background:rgba(255,190,95,.12);border-color:#ffc37b99;color:#ffe2bf;}
+@media(max-width:600px){.space-feature{grid-template-columns:1fr;gap:17px;padding:18px}.space-feature-logo-wrap{min-height:100px}.space-feature-logo{width:110px;max-height:110px}.space-feature-actions{align-items:stretch;flex-direction:column}.space-feature-link{width:100%;text-align:center}}
+
 /* Authentication gate for the image generator */
 .studio-login-panel{grid-column:1/-1;justify-self:center;width:min(100%,640px);padding:clamp(22px,4vw,34px);}
 .studio-login-symbol{display:grid;place-items:center;width:46px;height:46px;margin-bottom:17px;border:1px solid #4285f444;border-radius:14px;background:var(--blue-soft);color:#9dc2ff;}
