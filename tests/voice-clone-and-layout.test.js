@@ -66,3 +66,23 @@ test("privacy and terms explain MongoDB Atlas profile-photo storage and no-photo
   assert.match(terms, /MongoDB Atlas, fotos de perfil e dados armazenados/);
   assert.match(terms, /MongoDB Atlas, profile photos, and stored data/);
 });
+
+test("history prompts are readonly, selectable, scrollable, and localized for assistive technology", () => {
+  const app = read("../assets/js/app.js");
+  const css = read("../assets/css/styles.css");
+  assert.match(app, /document\.createElement\("textarea"\); prompt\.className = "history-prompt"/);
+  assert.match(app, /prompt\.readOnly = true/);
+  assert.match(app, /prompt\.setAttribute\("aria-label", document\.documentElement\.lang === "en"/);
+  assert.match(css, /\.history-prompt\{[^}]*overflow:auto/);
+  assert.match(css, /\.history-prompt\{[^}]*resize:none/);
+});
+
+test("privacy policy and terms use the requested October 23, 2026 date in both languages", () => {
+  for (const path of ["../privacy.html", "../terms.html"]) {
+    const html = read(path);
+    assert.match(html, /dateModified": "2026-10-23"/);
+    assert.match(html, /23 de outubro de 2026/);
+    assert.match(html, /October 23, 2026/);
+    assert.doesNotMatch(html, /October 22, 2026|22 de outubro de 2026|dateModified": "2026-10-22"/);
+  }
+});
