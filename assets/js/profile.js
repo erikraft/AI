@@ -1,11 +1,11 @@
-import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-app.js";
+import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-app.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-auth.js";
 
 const config = window.ERIKRAFT_FIREBASE_CONFIG || {};
 if (!config.apiKey || !config.authDomain || !config.projectId || !config.appId) {
   // The existing sign-in UI already reports missing Firebase configuration.
 } else {
-  const auth = getAuth(initializeApp(config));
+  const auth = getAuth(getApps().length ? getApp() : initializeApp(config));
   const $ = (id) => document.getElementById(id);
   let user = null;
   let photoUrl = "";
