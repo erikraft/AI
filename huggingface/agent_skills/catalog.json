@@ -1,0 +1,458 @@
+{
+  "schemaVersion": 1,
+  "name": "Pedro Nauck's Agent Skills",
+  "source": {
+    "repository": "https://github.com/pedronauck/skills",
+    "commit": "9a5254eba0a80d1245214f0ce476622fb23d762c"
+  },
+  "installCommand": "npx skills add https://github.com/pedronauck/skills",
+  "purpose": "Development-agent instructions only. This Space does not load these skills into model inference requests.",
+  "buckets": {
+    "mine": [
+      {
+        "name": "agent-exploration",
+        "path": "skills/mine/agent-exploration",
+        "url": "https://github.com/pedronauck/skills/tree/9a5254eba0a80d1245214f0ce476622fb23d762c/skills/mine/agent-exploration"
+      },
+      {
+        "name": "app-renderer-systems",
+        "path": "skills/mine/app-renderer-systems",
+        "url": "https://github.com/pedronauck/skills/tree/9a5254eba0a80d1245214f0ce476622fb23d762c/skills/mine/app-renderer-systems"
+      },
+      {
+        "name": "architectural-analysis",
+        "path": "skills/mine/architectural-analysis",
+        "url": "https://github.com/pedronauck/skills/tree/9a5254eba0a80d1245214f0ce476622fb23d762c/skills/mine/architectural-analysis"
+      },
+      {
+        "name": "bubbletea",
+        "path": "skills/mine/bubbletea",
+        "url": "https://github.com/pedronauck/skills/tree/9a5254eba0a80d1245214f0ce476622fb23d762c/skills/mine/bubbletea"
+      },
+      {
+        "name": "ddd-master",
+        "path": "skills/mine/ddd-master",
+        "url": "https://github.com/pedronauck/skills/tree/9a5254eba0a80d1245214f0ce476622fb23d762c/skills/mine/ddd-master"
+      },
+      {
+        "name": "deep-review",
+        "path": "skills/mine/deep-review",
+        "url": "https://github.com/pedronauck/skills/tree/9a5254eba0a80d1245214f0ce476622fb23d762c/skills/mine/deep-review"
+      },
+      {
+        "name": "deslop",
+        "path": "skills/mine/deslop",
+        "url": "https://github.com/pedronauck/skills/tree/9a5254eba0a80d1245214f0ce476622fb23d762c/skills/mine/deslop"
+      },
+      {
+        "name": "drizzle-safe-migrations",
+        "path": "skills/mine/drizzle-safe-migrations",
+        "url": "https://github.com/pedronauck/skills/tree/9a5254eba0a80d1245214f0ce476622fb23d762c/skills/mine/drizzle-safe-migrations"
+      },
+      {
+        "name": "git-rebase",
+        "path": "skills/mine/git-rebase",
+        "url": "https://github.com/pedronauck/skills/tree/9a5254eba0a80d1245214f0ce476622fb23d762c/skills/mine/git-rebase"
+      },
+      {
+        "name": "glassmorphism",
+        "path": "skills/mine/glassmorphism",
+        "url": "https://github.com/pedronauck/skills/tree/9a5254eba0a80d1245214f0ce476622fb23d762c/skills/mine/glassmorphism"
+      },
+      {
+        "name": "golang-master",
+        "path": "skills/mine/golang-master",
+        "url": "https://github.com/pedronauck/skills/tree/9a5254eba0a80d1245214f0ce476622fb23d762c/skills/mine/golang-master"
+      },
+      {
+        "name": "herdr-orchestration",
+        "path": "skills/mine/herdr-orchestration",
+        "url": "https://github.com/pedronauck/skills/tree/9a5254eba0a80d1245214f0ce476622fb23d762c/skills/mine/herdr-orchestration"
+      },
+      {
+        "name": "insta-master",
+        "path": "skills/mine/insta-master",
+        "url": "https://github.com/pedronauck/skills/tree/9a5254eba0a80d1245214f0ce476622fb23d762c/skills/mine/insta-master"
+      },
+      {
+        "name": "jev-engineering",
+        "path": "skills/mine/jev-engineering",
+        "url": "https://github.com/pedronauck/skills/tree/9a5254eba0a80d1245214f0ce476622fb23d762c/skills/mine/jev-engineering"
+      },
+      {
+        "name": "kb-yt-channel",
+        "path": "skills/mine/kb-yt-channel",
+        "url": "https://github.com/pedronauck/skills/tree/9a5254eba0a80d1245214f0ce476622fb23d762c/skills/mine/kb-yt-channel"
+      },
+      {
+        "name": "no-workarounds",
+        "path": "skills/mine/no-workarounds",
+        "url": "https://github.com/pedronauck/skills/tree/9a5254eba0a80d1245214f0ce476622fb23d762c/skills/mine/no-workarounds"
+      },
+      {
+        "name": "qa-execution",
+        "path": "skills/mine/qa-execution",
+        "url": "https://github.com/pedronauck/skills/tree/9a5254eba0a80d1245214f0ce476622fb23d762c/skills/mine/qa-execution"
+      },
+      {
+        "name": "qa-report",
+        "path": "skills/mine/qa-report",
+        "url": "https://github.com/pedronauck/skills/tree/9a5254eba0a80d1245214f0ce476622fb23d762c/skills/mine/qa-report"
+      },
+      {
+        "name": "react",
+        "path": "skills/mine/react",
+        "url": "https://github.com/pedronauck/skills/tree/9a5254eba0a80d1245214f0ce476622fb23d762c/skills/mine/react"
+      },
+      {
+        "name": "refactoring-analysis",
+        "path": "skills/mine/refactoring-analysis",
+        "url": "https://github.com/pedronauck/skills/tree/9a5254eba0a80d1245214f0ce476622fb23d762c/skills/mine/refactoring-analysis"
+      },
+      {
+        "name": "rust-best-practices",
+        "path": "skills/mine/rust-best-practices",
+        "url": "https://github.com/pedronauck/skills/tree/9a5254eba0a80d1245214f0ce476622fb23d762c/skills/mine/rust-best-practices"
+      },
+      {
+        "name": "ship-pr",
+        "path": "skills/mine/ship-pr",
+        "url": "https://github.com/pedronauck/skills/tree/9a5254eba0a80d1245214f0ce476622fb23d762c/skills/mine/ship-pr"
+      },
+      {
+        "name": "spec-peer-review",
+        "path": "skills/mine/spec-peer-review",
+        "url": "https://github.com/pedronauck/skills/tree/9a5254eba0a80d1245214f0ce476622fb23d762c/skills/mine/spec-peer-review"
+      },
+      {
+        "name": "storybook-stories",
+        "path": "skills/mine/storybook-stories",
+        "url": "https://github.com/pedronauck/skills/tree/9a5254eba0a80d1245214f0ce476622fb23d762c/skills/mine/storybook-stories"
+      },
+      {
+        "name": "tailwindcss",
+        "path": "skills/mine/tailwindcss",
+        "url": "https://github.com/pedronauck/skills/tree/9a5254eba0a80d1245214f0ce476622fb23d762c/skills/mine/tailwindcss"
+      },
+      {
+        "name": "tanstack",
+        "path": "skills/mine/tanstack",
+        "url": "https://github.com/pedronauck/skills/tree/9a5254eba0a80d1245214f0ce476622fb23d762c/skills/mine/tanstack"
+      },
+      {
+        "name": "tech-logos",
+        "path": "skills/mine/tech-logos",
+        "url": "https://github.com/pedronauck/skills/tree/9a5254eba0a80d1245214f0ce476622fb23d762c/skills/mine/tech-logos"
+      },
+      {
+        "name": "testing-boss",
+        "path": "skills/mine/testing-boss",
+        "url": "https://github.com/pedronauck/skills/tree/9a5254eba0a80d1245214f0ce476622fb23d762c/skills/mine/testing-boss"
+      },
+      {
+        "name": "to-prompt",
+        "path": "skills/mine/to-prompt",
+        "url": "https://github.com/pedronauck/skills/tree/9a5254eba0a80d1245214f0ce476622fb23d762c/skills/mine/to-prompt"
+      },
+      {
+        "name": "tweetsmash-api",
+        "path": "skills/mine/tweetsmash-api",
+        "url": "https://github.com/pedronauck/skills/tree/9a5254eba0a80d1245214f0ce476622fb23d762c/skills/mine/tweetsmash-api"
+      },
+      {
+        "name": "typescript-advanced",
+        "path": "skills/mine/typescript-advanced",
+        "url": "https://github.com/pedronauck/skills/tree/9a5254eba0a80d1245214f0ce476622fb23d762c/skills/mine/typescript-advanced"
+      },
+      {
+        "name": "ui-craft",
+        "path": "skills/mine/ui-craft",
+        "url": "https://github.com/pedronauck/skills/tree/9a5254eba0a80d1245214f0ce476622fb23d762c/skills/mine/ui-craft"
+      },
+      {
+        "name": "vc-outreach",
+        "path": "skills/mine/vc-outreach",
+        "url": "https://github.com/pedronauck/skills/tree/9a5254eba0a80d1245214f0ce476622fb23d762c/skills/mine/vc-outreach"
+      },
+      {
+        "name": "vc-pitch-deck",
+        "path": "skills/mine/vc-pitch-deck",
+        "url": "https://github.com/pedronauck/skills/tree/9a5254eba0a80d1245214f0ce476622fb23d762c/skills/mine/vc-pitch-deck"
+      },
+      {
+        "name": "vc-strategy",
+        "path": "skills/mine/vc-strategy",
+        "url": "https://github.com/pedronauck/skills/tree/9a5254eba0a80d1245214f0ce476622fb23d762c/skills/mine/vc-strategy"
+      },
+      {
+        "name": "writing-agents-md",
+        "path": "skills/mine/writing-agents-md",
+        "url": "https://github.com/pedronauck/skills/tree/9a5254eba0a80d1245214f0ce476622fb23d762c/skills/mine/writing-agents-md"
+      },
+      {
+        "name": "writing-skills",
+        "path": "skills/mine/writing-skills",
+        "url": "https://github.com/pedronauck/skills/tree/9a5254eba0a80d1245214f0ce476622fb23d762c/skills/mine/writing-skills"
+      },
+      {
+        "name": "writing-tech-post",
+        "path": "skills/mine/writing-tech-post",
+        "url": "https://github.com/pedronauck/skills/tree/9a5254eba0a80d1245214f0ce476622fb23d762c/skills/mine/writing-tech-post"
+      },
+      {
+        "name": "xstate-store",
+        "path": "skills/mine/xstate-store",
+        "url": "https://github.com/pedronauck/skills/tree/9a5254eba0a80d1245214f0ce476622fb23d762c/skills/mine/xstate-store"
+      },
+      {
+        "name": "yc-apply",
+        "path": "skills/mine/yc-apply",
+        "url": "https://github.com/pedronauck/skills/tree/9a5254eba0a80d1245214f0ce476622fb23d762c/skills/mine/yc-apply"
+      },
+      {
+        "name": "yt-master",
+        "path": "skills/mine/yt-master",
+        "url": "https://github.com/pedronauck/skills/tree/9a5254eba0a80d1245214f0ce476622fb23d762c/skills/mine/yt-master"
+      }
+    ],
+    "curated": [
+      {
+        "name": "agent-browser",
+        "path": "skills/curated/agent-browser",
+        "url": "https://github.com/pedronauck/skills/tree/9a5254eba0a80d1245214f0ce476622fb23d762c/skills/curated/agent-browser"
+      },
+      {
+        "name": "ai-sdk",
+        "path": "skills/curated/ai-sdk",
+        "url": "https://github.com/pedronauck/skills/tree/9a5254eba0a80d1245214f0ce476622fb23d762c/skills/curated/ai-sdk"
+      },
+      {
+        "name": "autoresearch",
+        "path": "skills/curated/autoresearch",
+        "url": "https://github.com/pedronauck/skills/tree/9a5254eba0a80d1245214f0ce476622fb23d762c/skills/curated/autoresearch"
+      },
+      {
+        "name": "centrifugo",
+        "path": "skills/curated/centrifugo",
+        "url": "https://github.com/pedronauck/skills/tree/9a5254eba0a80d1245214f0ce476622fb23d762c/skills/curated/centrifugo"
+      },
+      {
+        "name": "context7",
+        "path": "skills/curated/context7",
+        "url": "https://github.com/pedronauck/skills/tree/9a5254eba0a80d1245214f0ce476622fb23d762c/skills/curated/context7"
+      },
+      {
+        "name": "documentation-writer",
+        "path": "skills/curated/documentation-writer",
+        "url": "https://github.com/pedronauck/skills/tree/9a5254eba0a80d1245214f0ce476622fb23d762c/skills/curated/documentation-writer"
+      },
+      {
+        "name": "effect-ts",
+        "path": "skills/curated/effect-ts",
+        "url": "https://github.com/pedronauck/skills/tree/9a5254eba0a80d1245214f0ce476622fb23d762c/skills/curated/effect-ts"
+      },
+      {
+        "name": "electron-builder",
+        "path": "skills/curated/electron-builder",
+        "url": "https://github.com/pedronauck/skills/tree/9a5254eba0a80d1245214f0ce476622fb23d762c/skills/curated/electron-builder"
+      },
+      {
+        "name": "electron-dev",
+        "path": "skills/curated/electron-dev",
+        "url": "https://github.com/pedronauck/skills/tree/9a5254eba0a80d1245214f0ce476622fb23d762c/skills/curated/electron-dev"
+      },
+      {
+        "name": "electron-release",
+        "path": "skills/curated/electron-release",
+        "url": "https://github.com/pedronauck/skills/tree/9a5254eba0a80d1245214f0ce476622fb23d762c/skills/curated/electron-release"
+      },
+      {
+        "name": "es-toolkit",
+        "path": "skills/curated/es-toolkit",
+        "url": "https://github.com/pedronauck/skills/tree/9a5254eba0a80d1245214f0ce476622fb23d762c/skills/curated/es-toolkit"
+      },
+      {
+        "name": "extreme-software-optimization",
+        "path": "skills/curated/extreme-software-optimization",
+        "url": "https://github.com/pedronauck/skills/tree/9a5254eba0a80d1245214f0ce476622fb23d762c/skills/curated/extreme-software-optimization"
+      },
+      {
+        "name": "hono",
+        "path": "skills/curated/hono",
+        "url": "https://github.com/pedronauck/skills/tree/9a5254eba0a80d1245214f0ce476622fb23d762c/skills/curated/hono"
+      },
+      {
+        "name": "inngest",
+        "path": "skills/curated/inngest",
+        "url": "https://github.com/pedronauck/skills/tree/9a5254eba0a80d1245214f0ce476622fb23d762c/skills/curated/inngest"
+      },
+      {
+        "name": "lesson-learned",
+        "path": "skills/curated/lesson-learned",
+        "url": "https://github.com/pedronauck/skills/tree/9a5254eba0a80d1245214f0ce476622fb23d762c/skills/curated/lesson-learned"
+      },
+      {
+        "name": "mermaid-diagrams",
+        "path": "skills/curated/mermaid-diagrams",
+        "url": "https://github.com/pedronauck/skills/tree/9a5254eba0a80d1245214f0ce476622fb23d762c/skills/curated/mermaid-diagrams"
+      },
+      {
+        "name": "next-best-practices",
+        "path": "skills/curated/next-best-practices",
+        "url": "https://github.com/pedronauck/skills/tree/9a5254eba0a80d1245214f0ce476622fb23d762c/skills/curated/next-best-practices"
+      },
+      {
+        "name": "obsidian-bases",
+        "path": "skills/curated/obsidian-bases",
+        "url": "https://github.com/pedronauck/skills/tree/9a5254eba0a80d1245214f0ce476622fb23d762c/skills/curated/obsidian-bases"
+      },
+      {
+        "name": "obsidian-cli",
+        "path": "skills/curated/obsidian-cli",
+        "url": "https://github.com/pedronauck/skills/tree/9a5254eba0a80d1245214f0ce476622fb23d762c/skills/curated/obsidian-cli"
+      },
+      {
+        "name": "obsidian-markdown",
+        "path": "skills/curated/obsidian-markdown",
+        "url": "https://github.com/pedronauck/skills/tree/9a5254eba0a80d1245214f0ce476622fb23d762c/skills/curated/obsidian-markdown"
+      },
+      {
+        "name": "qmd",
+        "path": "skills/curated/qmd",
+        "url": "https://github.com/pedronauck/skills/tree/9a5254eba0a80d1245214f0ce476622fb23d762c/skills/curated/qmd"
+      },
+      {
+        "name": "requirements-clarity",
+        "path": "skills/curated/requirements-clarity",
+        "url": "https://github.com/pedronauck/skills/tree/9a5254eba0a80d1245214f0ce476622fb23d762c/skills/curated/requirements-clarity"
+      },
+      {
+        "name": "sentry-cli",
+        "path": "skills/curated/sentry-cli",
+        "url": "https://github.com/pedronauck/skills/tree/9a5254eba0a80d1245214f0ce476622fb23d762c/skills/curated/sentry-cli"
+      },
+      {
+        "name": "shadcn",
+        "path": "skills/curated/shadcn",
+        "url": "https://github.com/pedronauck/skills/tree/9a5254eba0a80d1245214f0ce476622fb23d762c/skills/curated/shadcn"
+      },
+      {
+        "name": "systematic-debugging",
+        "path": "skills/curated/systematic-debugging",
+        "url": "https://github.com/pedronauck/skills/tree/9a5254eba0a80d1245214f0ce476622fb23d762c/skills/curated/systematic-debugging"
+      },
+      {
+        "name": "tauri-v2",
+        "path": "skills/curated/tauri-v2",
+        "url": "https://github.com/pedronauck/skills/tree/9a5254eba0a80d1245214f0ce476622fb23d762c/skills/curated/tauri-v2"
+      },
+      {
+        "name": "tui-design",
+        "path": "skills/curated/tui-design",
+        "url": "https://github.com/pedronauck/skills/tree/9a5254eba0a80d1245214f0ce476622fb23d762c/skills/curated/tui-design"
+      },
+      {
+        "name": "vercel-composition-patterns",
+        "path": "skills/curated/vercel-composition-patterns",
+        "url": "https://github.com/pedronauck/skills/tree/9a5254eba0a80d1245214f0ce476622fb23d762c/skills/curated/vercel-composition-patterns"
+      },
+      {
+        "name": "vercel-react-best-practices",
+        "path": "skills/curated/vercel-react-best-practices",
+        "url": "https://github.com/pedronauck/skills/tree/9a5254eba0a80d1245214f0ce476622fb23d762c/skills/curated/vercel-react-best-practices"
+      },
+      {
+        "name": "verification-before-completion",
+        "path": "skills/curated/verification-before-completion",
+        "url": "https://github.com/pedronauck/skills/tree/9a5254eba0a80d1245214f0ce476622fb23d762c/skills/curated/verification-before-completion"
+      },
+      {
+        "name": "vitest",
+        "path": "skills/curated/vitest",
+        "url": "https://github.com/pedronauck/skills/tree/9a5254eba0a80d1245214f0ce476622fb23d762c/skills/curated/vitest"
+      },
+      {
+        "name": "xstate",
+        "path": "skills/curated/xstate",
+        "url": "https://github.com/pedronauck/skills/tree/9a5254eba0a80d1245214f0ce476622fb23d762c/skills/curated/xstate"
+      },
+      {
+        "name": "zod",
+        "path": "skills/curated/zod",
+        "url": "https://github.com/pedronauck/skills/tree/9a5254eba0a80d1245214f0ce476622fb23d762c/skills/curated/zod"
+      },
+      {
+        "name": "zustand",
+        "path": "skills/curated/zustand",
+        "url": "https://github.com/pedronauck/skills/tree/9a5254eba0a80d1245214f0ce476622fb23d762c/skills/curated/zustand"
+      }
+    ],
+    "marketing": [
+      {
+        "name": "alex-hormozi-pitch",
+        "path": "skills/marketing/alex-hormozi-pitch",
+        "url": "https://github.com/pedronauck/skills/tree/9a5254eba0a80d1245214f0ce476622fb23d762c/skills/marketing/alex-hormozi-pitch"
+      },
+      {
+        "name": "brand-storytelling",
+        "path": "skills/marketing/brand-storytelling",
+        "url": "https://github.com/pedronauck/skills/tree/9a5254eba0a80d1245214f0ce476622fb23d762c/skills/marketing/brand-storytelling"
+      },
+      {
+        "name": "content-research-writer",
+        "path": "skills/marketing/content-research-writer",
+        "url": "https://github.com/pedronauck/skills/tree/9a5254eba0a80d1245214f0ce476622fb23d762c/skills/marketing/content-research-writer"
+      },
+      {
+        "name": "copywriting",
+        "path": "skills/marketing/copywriting",
+        "url": "https://github.com/pedronauck/skills/tree/9a5254eba0a80d1245214f0ce476622fb23d762c/skills/marketing/copywriting"
+      },
+      {
+        "name": "fundraising",
+        "path": "skills/marketing/fundraising",
+        "url": "https://github.com/pedronauck/skills/tree/9a5254eba0a80d1245214f0ce476622fb23d762c/skills/marketing/fundraising"
+      },
+      {
+        "name": "google-ads",
+        "path": "skills/marketing/google-ads",
+        "url": "https://github.com/pedronauck/skills/tree/9a5254eba0a80d1245214f0ce476622fb23d762c/skills/marketing/google-ads"
+      },
+      {
+        "name": "hormozi-ad-factory",
+        "path": "skills/marketing/hormozi-ad-factory",
+        "url": "https://github.com/pedronauck/skills/tree/9a5254eba0a80d1245214f0ce476622fb23d762c/skills/marketing/hormozi-ad-factory"
+      },
+      {
+        "name": "humanizer",
+        "path": "skills/marketing/humanizer",
+        "url": "https://github.com/pedronauck/skills/tree/9a5254eba0a80d1245214f0ce476622fb23d762c/skills/marketing/humanizer"
+      },
+      {
+        "name": "professional-communication",
+        "path": "skills/marketing/professional-communication",
+        "url": "https://github.com/pedronauck/skills/tree/9a5254eba0a80d1245214f0ce476622fb23d762c/skills/marketing/professional-communication"
+      },
+      {
+        "name": "promo-video",
+        "path": "skills/marketing/promo-video",
+        "url": "https://github.com/pedronauck/skills/tree/9a5254eba0a80d1245214f0ce476622fb23d762c/skills/marketing/promo-video"
+      },
+      {
+        "name": "sales-methodology-implementer",
+        "path": "skills/marketing/sales-methodology-implementer",
+        "url": "https://github.com/pedronauck/skills/tree/9a5254eba0a80d1245214f0ce476622fb23d762c/skills/marketing/sales-methodology-implementer"
+      },
+      {
+        "name": "startup-validator",
+        "path": "skills/marketing/startup-validator",
+        "url": "https://github.com/pedronauck/skills/tree/9a5254eba0a80d1245214f0ce476622fb23d762c/skills/marketing/startup-validator"
+      },
+      {
+        "name": "writing-clearly-and-concisely",
+        "path": "skills/marketing/writing-clearly-and-concisely",
+        "url": "https://github.com/pedronauck/skills/tree/9a5254eba0a80d1245214f0ce476622fb23d762c/skills/marketing/writing-clearly-and-concisely"
+      }
+    ]
+  }
+}
