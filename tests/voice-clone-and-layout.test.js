@@ -86,3 +86,13 @@ test("privacy policy and terms use the requested October 23, 2026 date in both l
     assert.doesNotMatch(html, /October 22, 2026|22 de outubro de 2026|dateModified": "2026-10-22"/);
   }
 });
+
+
+test("Hugging Face Space exposes a voice-cloning tab proxied to tonyassi/voice-clone", () => {
+  const app = read("../huggingface/app.py");
+  assert.match(app, /from gradio_client import Client, handle_file/);
+  assert.match(app, /Client\("tonyassi\/voice-clone", verbose=False\)/);
+  assert.match(app, /api_name="clone_voice"/);
+  assert.match(app, /sources=\["upload", "microphone"\]/);
+  assert.match(app, /3 \* 1024 \* 1024/);
+});
