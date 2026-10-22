@@ -133,3 +133,10 @@ The GitHub Actions workflow syncs the `huggingface/` directory to the Space when
 ### Protecting experimental Space endpoints
 
 The public Gradio Space exposes the model API schema, so Cosmos and Qwen additionally require the server-side `HF_SPACE_API_SECRET`. Set the same random secret (at least 32 characters) in the Hugging Face Space secrets and as a Vercel server-side environment variable. The server-side caller must pass it only as a hidden Gradio input; the Space validates it using constant-time comparison and fails closed when the secret is missing or invalid. Do not put it in any `NEXT_PUBLIC_*`, `VITE_*`, HTML, JavaScript bundle, or public repository file. The Space source defaults both feature flags to enabled, but each route fails closed unless the same secret is configured in the Space and Vercel. Set the corresponding flag explicitly to `false` if you need to disable a route.
+
+
+## Agent skills for development agents
+
+The project can install Pedro Nauck's 88-skill collection for the **development agent working on the codebase**. Run `bash scripts/install-agent-skills.sh` to use the upstream `skills` CLI. This installs the original skill packages and their supporting references from `https://github.com/pedronauck/skills`; the source is not copied into this repository.
+
+These are not model prompts. The FLUX, Qwythos, Cosmos, and Qwen inference paths do not load or receive development-agent skills.

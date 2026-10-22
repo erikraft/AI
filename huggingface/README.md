@@ -56,3 +56,8 @@ Cosmos checks cold-download disk capacity before evicting other models, then rel
 - Qwen uses `llama-cpp-python==0.3.36` from the project's prebuilt Linux CPU wheel index, with binary-only installation to avoid falling back to a slow/timeout-prone local C++ build.
 - `app.py` logs the actual Torch/Torchvision versions and CUDA availability on startup. If Torchvision import fails, the diagnostic is logged while the remaining model UI can still start.
 - Qwen and Cosmos remain available for real validation by default in the Space source. Neither this dependency configuration nor a successful build proves inference succeeded; validate the live endpoints and review logs.
+
+
+## Development-agent skills
+
+This Space includes a metadata catalog for Pedro Nauck's 88 upstream agent skills in `agent_skills/catalog.json`. The catalog is for development-agent tooling only. It is not injected into model prompts, is not a Gradio input, and does not change FLUX, Qwythos, Cosmos, or Qwen inference. Full upstream skill packages can be installed directly with `npx skills add https://github.com/pedronauck/skills`; see [agent_skills/README.md](agent_skills/README.md).
