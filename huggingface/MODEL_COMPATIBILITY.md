@@ -33,11 +33,11 @@ The lower Qwythos duration is intended to prevent the invalid 450-second reserva
 - Checkpoint: [DuoNeural/Cosmos3-Nano-Abliterated](https://huggingface.co/DuoNeural/Cosmos3-Nano-Abliterated)
 - Task/API: `/generate_video`; `Cosmos3OmniPipeline`; 16 frames, 256×256, 12 steps, declared GPU duration 180 seconds.
 - The implementation refuses to load on runtimes reporting less than 48 GiB total or 40 GiB free VRAM; it also asks for 36 GiB free disk for the cold cache. These thresholds reduce foreseeable OOM/disk failures but cannot guarantee a successful request. The upstream model is around 15.2B parameters and calls for roughly 48 GB VRAM; do not expect it to run reliably on arbitrary free/shared hardware.
-- `ENABLE_COSMOS_VIDEO` is off unless explicitly enabled in both Hugging Face Space and Vercel environment settings.
+- `ENABLE_COSMOS_VIDEO` defaults to enabled in the Space source unless the Space has an explicit environment override. The handler still refuses inference when CUDA/VRAM/disk checks fail.
 
 ## Qwen3.8 27B — experimental text generation
 
 - Checkpoint: [0bserverx/Qwen3.8-27B-Heretic-Abliterated-Uncensored-GGUF](https://huggingface.co/0bserverx/Qwen3.8-27B-Heretic-Abliterated-Uncensored-GGUF)
 - Task/API: `/generate_text`; `llama-cpp-python`, `RVN-IQ2_XS.gguf` (~9.1 GB) and CPU-only inference (`n_gpu_layers=0`).
 - Requires approximately 12 GiB free RAM and 11 GiB free disk space for a cold load. This low-bit quantization prioritizes memory over quality and CPU generation may be slow. It does not consume the CUDA model budget, but host RAM/disk remain bottlenecks.
-- `ENABLE_QWEN_TEXT` is off unless explicitly enabled in both the Space and Vercel. Test dependency installation before enabling; a failed build must not be mistaken for a model/GPU problem.
+- `huggingface/requirements.txt` installs `torchvision==0.28.0` (the matching torchvision line for PyTorch 2.13) for the Qwen3VLVideoProcessor required by Qwythos. It also requests the project's prebuilt Linux CPU wheel `llama-cpp-python==0.3.36` so Qwen does not depend on a local C++ compilation. `ENABLE_QWEN_TEXT` now defaults to enabled when no explicit Space environment override exists. A successful Space rebuild plus a real inference call is still required to confirm the selected wheel, memory and runtime work together.
