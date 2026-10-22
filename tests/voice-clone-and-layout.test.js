@@ -49,7 +49,7 @@ test("hero uses the supplied SVG brand mark and profile removal persists a no-ph
   const css = read("../assets/css/styles.css");
   const profile = read("../assets/js/profile.js");
   const api = read("../api/profile.js");
-  assert.match(html, /class="hero-brand-mark"/);
+  assert.match(html, /class="brand-mark hero-brand-mark"/);
   assert.match(html, /viewBox="0 0 128 128"/);
   assert.match(css, /\.hero-brand-mark[^}]*rotate\(-7deg\)/);
   assert.match(profile, /data\.photoDisabled \? ""/);
