@@ -14,7 +14,7 @@ if (!config.apiKey || !config.authDomain || !config.projectId || !config.appId) 
   .profile-trigger{width:36px;height:36px;flex:0 0 36px;padding:0;border:1px solid #4285f4;border-radius:50%;overflow:hidden;background:#111722;display:none;place-items:center;cursor:pointer;color:#dce7fb}
   .profile-trigger img{width:100%;height:100%;object-fit:cover}.profile-trigger i{font-size:15px}
   .profile-popover{position:fixed;z-index:80;top:78px;right:18px;width:min(360px,calc(100vw - 28px));padding:22px;border:1px solid #30394b;border-radius:24px;background:#141720;box-shadow:0 22px 70px #000b;color:#f0f3fa;text-align:center}
-  .profile-popover[hidden]{display:none}.profile-popover .profile-head{flex-direction:column;gap:10px;margin-bottom:18px}.profile-popover .profile-large-avatar{width:76px;height:76px}.profile-popover .profile-email{font-size:13px}.profile-popover .profile-subtitle{font-size:11px}
+  .profile-popover[hidden]{display:none}.profile-popover{position:relative}.profile-close{position:absolute;top:10px;right:10px;display:grid;place-items:center;width:34px;height:34px;padding:0;border:1px solid #354158;border-radius:10px;background:#0e1119;color:#e8edf6;cursor:pointer}.profile-close:hover{border-color:#4285f4;background:#1b2230}.profile-close:focus-visible{outline:2px solid #9dc2ff;outline-offset:3px}.profile-close svg{width:14px;height:14px;display:block}.profile-popover .profile-head{flex-direction:column;gap:10px;margin-bottom:18px}.profile-popover .profile-large-avatar{width:76px;height:76px}.profile-popover .profile-email{font-size:13px}.profile-popover .profile-subtitle{font-size:11px}
   .profile-head{display:flex;align-items:center;gap:13px;margin-bottom:16px}.profile-large-avatar{width:58px;height:58px;border-radius:50%;object-fit:cover;background:#202735;border:1px solid #3b465c;flex:0 0 auto}
   .profile-email{font-size:12px;overflow-wrap:anywhere;color:#d5deed}.profile-subtitle{font-size:10px;color:#9ba8bc;margin-top:4px}
   .profile-actions{display:flex;justify-content:center;gap:9px;flex-wrap:wrap}.profile-action svg{width:12px;height:12px;vertical-align:-2px}.profile-action{border:1px solid #354158;background:#0e1119;color:#e8edf6;border-radius:12px;padding:10px 12px;font:600 11px 'DM Sans',sans-serif;cursor:pointer}.profile-action:hover{border-color:#4285f4}.profile-action.danger{color:#ffaaaa}.profile-status{font-size:11px;color:#aab8ce;min-height:18px;margin:12px 0 0}.profile-file{display:none}
@@ -30,6 +30,7 @@ if (!config.apiKey || !config.authDomain || !config.projectId || !config.appId) 
   const popover = document.createElement("section");
   popover.className = "profile-popover"; popover.hidden = true; popover.setAttribute("aria-label", "Perfil da conta");
   popover.innerHTML = `
+    <button class="profile-close" type="button" data-profile-close aria-label="Fechar perfil" title="Fechar perfil"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512" aria-hidden="true" focusable="false"><path fill="currentColor" d="M342.6 150.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0L192 210.7 86.6 105.4c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3L146.7 256 41.4 361.4c-12.5 12.5-12.5 32.8 0 45.3s32.8 12.5 45.3 0L192 301.3l105.4 105.4c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L237.3 256l105.3-105.4z"/></svg></button>
     <div class="profile-head"><img class="profile-large-avatar" alt="Foto de perfil"><div><div class="profile-email"></div><div class="profile-subtitle">Conta conectada</div></div></div>
     <div class="profile-actions"><button class="profile-action" type="button" data-profile-upload><i class="fa-solid fa-pen" aria-hidden="true"></i> Alterar foto</button><button class="profile-action danger" type="button" data-profile-delete><i class="fa-solid fa-trash" aria-hidden="true"></i> Remover foto</button><button class="profile-action" type="button" data-profile-restore title="Restaurar foto do provedor" aria-label="Restaurar foto do provedor"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" aria-hidden="true" focusable="false"><path fill="currentColor" d="M463.5 224l8.5 0c13.3 0 24-10.7 24-24l0-128c0-9.7-5.8-18.5-14.8-22.2s-19.3-1.7-26.2 5.2L413.4 96.6c-87.6-86.5-228.7-86.2-315.8 1c-87.5 87.5-87.5 229.3 0 316.8s229.3 87.5 316.8 0c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0c-62.5 62.5-163.8 62.5-226.3 0s-62.5-163.8 0-226.3c62.2-62.2 162.7-62.5 225.3-1L327 183c-6.9 6.9-8.9 17.2-5.2 26.2s12.5 14.8 22.2 14.8l119.5 0z"/></svg> Restaurar foto</button></div>
     <input class="profile-file" type="file" accept="image/png,image/jpeg,image/webp"><p class="profile-status" role="status" aria-live="polite"></p><div class="profile-divider"></div><button class="button secondary small profile-signout" type="button"><i class="fa-solid fa-right-from-bracket" aria-hidden="true"></i> Sair</button>`;
@@ -57,13 +58,28 @@ if (!config.apiKey || !config.authDomain || !config.projectId || !config.appId) 
   async function loadPhoto() {
     const data = await request(); setPhoto(data.photo || user.photoURL || "");
   }
+  function closePopover() {
+    popover.hidden = true;
+    trigger.setAttribute("aria-expanded", "false");
+  }
   trigger.addEventListener("click", () => {
     popover.hidden = !popover.hidden;
     trigger.setAttribute("aria-expanded", String(!popover.hidden));
+    if (!popover.hidden) popover.querySelector("[data-profile-close]")?.focus();
+  });
+  popover.querySelector("[data-profile-close]").addEventListener("click", () => {
+    closePopover();
+    trigger.focus();
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && !popover.hidden) {
+      closePopover();
+      trigger.focus();
+    }
   });
   document.addEventListener("click", (event) => {
     if (!popover.hidden && !popover.contains(event.target) && !trigger.contains(event.target)) {
-      popover.hidden = true; trigger.setAttribute("aria-expanded", "false");
+      closePopover();
     }
   });
   popover.querySelector(".profile-signout").addEventListener("click", () => {
