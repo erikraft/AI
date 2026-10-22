@@ -154,6 +154,19 @@ Configure these server-side Vercel environment variables (never expose them in f
 
 MongoDB creates the database and collection when the configured history API first creates its index (for example, on the first successful history request). Restrict Atlas network access and grant the database user read/write access only to this database. MongoDB Atlas MCP access must be enabled for the Atlas organization before resources can be provisioned or inspected directly through the connector.
 
+### MongoDB Atlas setup from scratch
+
+1. In Atlas, open the project containing your cluster (or create a project and a Free cluster if eligible).
+2. Under **Database Access**, create a dedicated database user. Grant **readWrite** only on the `ErikrafTAI` database; do not use your Atlas account password as the database password.
+3. Under **Network Access**, allow only the required outbound IP addresses for your deployment when practical. Vercel Functions may use changing egress IPs unless you have a product/configuration that provides fixed egress. Avoid leaving `0.0.0.0/0` open permanently; if temporarily used for setup, remove it and implement an appropriate restricted network path before production.
+4. Click **Connect → Drivers → Node.js**, copy the SRV connection string, and replace the username/password placeholders. URL-encode special characters in the database password.
+5. In Vercel → Project → Settings → Environment Variables, add `MONGODB_URI` as a **Secret** for Production and Preview as needed. Add `MONGODB_DATABASE=ErikrafTAI` as a Config variable if you want to set the database name explicitly.
+6. Redeploy after saving the variables. The first authenticated request to `/api/history` creates the `user_history` collection and its index automatically.
+7. Sign in at `https://ai.erikraft.com/`, generate an image/text/video result, refresh the history, and delete a test entry. Verify the record appears and disappears in Atlas.
+
+**Storage boundary:** this implementation stores prompts, messages, metadata, and provider-returned media URLs. It does not upload arbitrary files to MongoDB or copy the binary bytes of images/videos into the database. URLs may expire, and the delete button removes the history document only; it cannot erase copies or logs retained by Hugging Face or other providers. For durable uploads of arbitrary files, add an object-storage service (for example, a properly configured private bucket) and store only its object key/metadata in MongoDB.
+
+
 
 ### Free-tier generation quota configuration
 
