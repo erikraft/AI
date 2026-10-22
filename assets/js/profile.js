@@ -11,25 +11,28 @@ if (!config.apiKey || !config.authDomain || !config.projectId || !config.appId) 
   let photoUrl = "";
   const style = document.createElement("style");
   style.textContent = `
-  .profile-trigger{width:36px;height:36px;padding:0;border:1px solid #4285f4;border-radius:50%;overflow:hidden;background:#111722;display:none;place-items:center;cursor:pointer;color:#dce7fb}
+  .profile-trigger{width:36px;height:36px;flex:0 0 36px;padding:0;border:1px solid #4285f4;border-radius:50%;overflow:hidden;background:#111722;display:none;place-items:center;cursor:pointer;color:#dce7fb}
   .profile-trigger img{width:100%;height:100%;object-fit:cover}.profile-trigger i{font-size:15px}
-  .profile-popover{position:fixed;z-index:80;top:78px;right:18px;width:min(330px,calc(100vw - 28px));padding:20px;border:1px solid #30394b;border-radius:16px;background:#141720;box-shadow:0 22px 70px #000b;color:#f0f3fa}
+  .profile-popover{position:fixed;z-index:80;top:78px;right:18px;width:min(360px,calc(100vw - 28px));padding:22px;border:1px solid #30394b;border-radius:24px;background:#141720;box-shadow:0 22px 70px #000b;color:#f0f3fa;text-align:center}
+  .profile-popover[hidden]{display:none}.profile-popover .profile-head{flex-direction:column;gap:10px;margin-bottom:18px}.profile-popover .profile-large-avatar{width:76px;height:76px}.profile-popover .profile-email{font-size:13px}.profile-popover .profile-subtitle{font-size:11px}
   .profile-head{display:flex;align-items:center;gap:13px;margin-bottom:16px}.profile-large-avatar{width:58px;height:58px;border-radius:50%;object-fit:cover;background:#202735;border:1px solid #3b465c;flex:0 0 auto}
   .profile-email{font-size:12px;overflow-wrap:anywhere;color:#d5deed}.profile-subtitle{font-size:10px;color:#9ba8bc;margin-top:4px}
-  .profile-actions{display:flex;gap:9px;flex-wrap:wrap}.profile-action{border:1px solid #354158;background:#0e1119;color:#e8edf6;border-radius:9px;padding:9px 11px;font:600 11px 'DM Sans',sans-serif;cursor:pointer}.profile-action:hover{border-color:#4285f4}.profile-action.danger{color:#ffaaaa}.profile-status{font-size:11px;color:#aab8ce;min-height:18px;margin:12px 0 0}.profile-file{display:none}
+  .profile-actions{display:flex;justify-content:center;gap:9px;flex-wrap:wrap}.profile-action{border:1px solid #354158;background:#0e1119;color:#e8edf6;border-radius:12px;padding:10px 12px;font:600 11px 'DM Sans',sans-serif;cursor:pointer}.profile-action:hover{border-color:#4285f4}.profile-action.danger{color:#ffaaaa}.profile-status{font-size:11px;color:#aab8ce;min-height:18px;margin:12px 0 0}.profile-file{display:none}
+  .profile-popover .profile-signout{margin-top:16px;width:100%;justify-content:center}.profile-popover .profile-divider{height:1px;background:#30394b;margin:18px 0 0}
   `;
   document.head.append(style);
   const trigger = document.createElement("button");
   trigger.className = "profile-trigger"; trigger.type = "button"; trigger.id = "profile-trigger";
   trigger.setAttribute("aria-label", "Abrir perfil"); trigger.setAttribute("aria-expanded", "false");
   trigger.innerHTML = '<i class="fa-solid fa-user" aria-hidden="true"></i>';
-  $("logout")?.before(trigger);
+  const logoutButton = $("logout");
+  if (logoutButton) logoutButton.replaceWith(trigger);
   const popover = document.createElement("section");
   popover.className = "profile-popover"; popover.hidden = true; popover.setAttribute("aria-label", "Perfil da conta");
   popover.innerHTML = `
     <div class="profile-head"><img class="profile-large-avatar" alt="Foto de perfil"><div><div class="profile-email"></div><div class="profile-subtitle">Conta conectada</div></div></div>
     <div class="profile-actions"><button class="profile-action" type="button" data-profile-upload><i class="fa-solid fa-pen" aria-hidden="true"></i> Alterar foto</button><button class="profile-action danger" type="button" data-profile-delete><i class="fa-solid fa-trash" aria-hidden="true"></i> Remover foto</button></div>
-    <input class="profile-file" type="file" accept="image/png,image/jpeg,image/webp"><p class="profile-status" role="status" aria-live="polite"></p>`;
+    <input class="profile-file" type="file" accept="image/png,image/jpeg,image/webp"><p class="profile-status" role="status" aria-live="polite"></p><div class="profile-divider"></div><button class="button secondary small profile-signout" type="button"><i class="fa-solid fa-right-from-bracket" aria-hidden="true"></i> Sair</button>`;
   document.body.append(popover);
   const avatar = popover.querySelector(".profile-large-avatar");
   const file = popover.querySelector(".profile-file");
@@ -62,6 +65,12 @@ if (!config.apiKey || !config.authDomain || !config.projectId || !config.appId) 
     if (!popover.hidden && !popover.contains(event.target) && !trigger.contains(event.target)) {
       popover.hidden = true; trigger.setAttribute("aria-expanded", "false");
     }
+  });
+  popover.querySelector(".profile-signout").addEventListener("click", () => {
+    popover.hidden = true;
+    trigger.setAttribute("aria-expanded", "false");
+    // Reuse the existing sign-out handler from app.js without duplicating auth logic.
+    if (logoutButton) logoutButton.click();
   });
   popover.querySelector("[data-profile-upload]").addEventListener("click", () => file.click());
   file.addEventListener("change", async () => {
