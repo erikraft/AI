@@ -369,3 +369,6 @@
  .voice-record-actions{align-items:stretch}
  .voice-record-actions button{flex:1 1 auto}
 }
+
+/* Hero identity mark: restrained rotation for a polished, technical feel. */
+.hero-art{display:grid;place-items:center;isolation:isolate}.hero-brand-mark{position:relative;z-index:2;width:clamp(150px,20vw,230px);height:clamp(150px,20vw,230px);border-radius:32px;box-shadow:0 24px 80px #0008,0 0 70px #4285f433;transform:rotate(-7deg);transition:transform .55s cubic-bezier(.2,.8,.2,1),box-shadow .55s ease}.hero-brand-mark svg{width:68%;height:68%;filter:drop-shadow(0 8px 18px #07132666)}.hero-art:hover .hero-brand-mark{transform:rotate(-3deg) translateY(-4px);box-shadow:0 30px 90px #0009,0 0 90px #4285f455}.hero-brand-orbit{position:absolute;inset:12%;border:1px solid #4285f455;border-radius:50%;transform:rotate(18deg) scaleX(.78);box-shadow:0 0 45px #4285f41a;z-index:1}@media(max-width:900px){.hero-art{right:3%;width:240px;height:240px;opacity:.72}}@media(max-width:650px){.hero-art{position:relative;right:auto;top:auto;transform:none;width:100%;height:180px;opacity:1;margin:24px auto 0}.hero-brand-mark{width:132px;height:132px;border-radius:24px}.hero-brand-orbit{inset:8% 28%}}
