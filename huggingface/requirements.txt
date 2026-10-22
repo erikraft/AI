@@ -1,6 +1,12 @@
 diffusers>=0.35.0,<1.0.0
 transformers>=5.2.0,<6.0.0
+torchvision==0.28.0
 accelerate>=1.10.0,<2.0.0
 safetensors
 gradio>=5.45.0,<7.0.0
 spaces>=0.39.0,<1.0.0
+
+--prefer-binary
+--only-binary=llama-cpp-python
+--extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu
+llama-cpp-python==0.3.36

@@ -7,6 +7,21 @@ import tempfile
 import gradio as gr
 import spaces
 import torch
+
+# Qwen3VLVideoProcessor (used by Qwythos' multimodal AutoProcessor) requires torchvision.
+# Do not prevent the other model tabs from booting if this optional import is broken;
+# leave a precise diagnostic in the Space logs so Qwythos failure is actionable.
+try:
+    import torchvision
+except Exception as exc:
+    print(f"[runtime-diagnostics] torchvision import failed: {type(exc).__name__}: {exc}")
+else:
+    print(
+        f"[runtime-diagnostics] torch={torch.__version__}; "
+        f"torchvision={torchvision.__version__}; "
+        f"cuda_available={torch.cuda.is_available()}"
+    )
+
 from diffusers import DiffusionPipeline
 from PIL import Image
 from transformers import AutoModelForImageTextToText, AutoProcessor
@@ -16,7 +31,7 @@ QWYTHOS_MODEL_ID = "fluffy12222/Qwythos-9B-Claude-Mythos-5-1M-heretic-abliterate
 COSMOS_MODEL_ID = "DuoNeural/Cosmos3-Nano-Abliterated"
 QWEN_MODEL_ID = "0bserverx/Qwen3.8-27B-Heretic-Abliterated-Uncensored-GGUF"
 ENABLE_COSMOS_VIDEO = os.getenv("ENABLE_COSMOS_VIDEO", "true").strip().lower() in {"1", "true", "yes"}
-ENABLE_QWEN_TEXT = os.getenv("ENABLE_QWEN_TEXT", "false").strip().lower() in {"1", "true", "yes"}
+ENABLE_QWEN_TEXT = os.getenv("ENABLE_QWEN_TEXT", "true").strip().lower() in {"1", "true", "yes"}
 QWEN_GGUF_FILE = "RVN-IQ2_XS.gguf"
 # The deployed ZeroGPU request surfaced 300 seconds as a 450-second reservation.
 # Keep Qwythos below the observed 300-second ceiling, with headroom for scheduler overhead.
