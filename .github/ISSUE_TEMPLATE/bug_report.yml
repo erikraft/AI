@@ -1,0 +1,64 @@
+name: "Bug report / Relato de bug"
+description: "Report a reproducible problem / Relate um problema reproduzível"
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve ErikrafT AI. Search existing issues first. Never include passwords, API keys, access tokens, or other secrets.
+
+        Obrigado por ajudar a melhorar o ErikrafT AI. Pesquise issues existentes antes. Nunca inclua senhas, chaves de API, tokens ou outros segredos.
+  - type: textarea
+    id: summary
+    attributes:
+      label: "Describe the bug / Descreva o bug"
+      description: "What happened? / O que aconteceu?"
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: "Steps to reproduce / Etapas para reproduzir"
+      placeholder: |
+        1. Open...
+        2. Select...
+        3. Click...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: "Expected behavior / Comportamento esperado"
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: "Actual behavior / Comportamento observado"
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: "Environment / Ambiente"
+      description: "Browser, OS, device, and page URL without private query parameters."
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: "Relevant logs or screenshots / Logs ou capturas relevantes"
+      description: "Remove personal data and secrets before sharing. / Remova dados pessoais e segredos antes de compartilhar."
+      render: text
+    validations:
+      required: false
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: "Checklist"
+      options:
+        - label: "I searched existing issues and this is not a duplicate. / Pesquisei issues existentes e este relato não é duplicado."
+          required: true
+        - label: "I removed passwords, tokens, and sensitive information. / Removi senhas, tokens e informações sensíveis."
+          required: true
