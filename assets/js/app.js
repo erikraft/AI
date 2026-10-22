@@ -418,7 +418,7 @@ function readVoiceAudio(file) {
       voiceAudioObjectUrl = URL.createObjectURL(file);
       voiceAudioPreview.src = voiceAudioObjectUrl;
       voiceAudioPreview.classList.remove("hidden");
-      $("voice-audio-status").textContent = document.documentElement.lang === "en" ? file.name + " ready." : file.name + " pronto.";
+      $("voice-audio-status").textContent = document.documentElement.lang === "en" ? "Voice sample ready." : "Amostra de voz pronta.";
       resolve();
     };
     reader.onerror = () => reject(new Error(document.documentElement.lang === "en" ? "Could not read the audio file." : "Não foi possível ler o áudio."));
