@@ -134,6 +134,9 @@ test("health and model endpoints reject unsupported methods", () => {
 test("experimental inference has a bounded server-side timeout and actionable timeout response", () => {
   const source = readFileSync(new URL("../api/generate.js", import.meta.url), "utf8");
   assert.ok(source.includes("EXPERIMENTAL_INFERENCE_TIMEOUT_MS = 235_000"));
+  assert.ok(source.includes("SPACE_CONNECT_TIMEOUT_MS = 30_000"));
+  assert.ok(source.includes("Client.connect(spaceId, clientOptions)"));
+  assert.ok(source.includes("Timed out connecting to the Hugging Face Space."));
   assert.ok(source.includes('predictWithTimeout(client, "/generate_video"'));
   assert.ok(source.includes('predictWithTimeout(client, "/generate_text"'));
   assert.ok(source.includes("InferenceTimeoutError"));
