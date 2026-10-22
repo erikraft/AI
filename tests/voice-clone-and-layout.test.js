@@ -37,3 +37,32 @@ test("result stage has responsive desktop, tablet, and mobile rules", () => {
   assert.match(css, /@media \(max-width:600px\)/);
   assert.match(css, /\.result-stage\.is-audio-result/);
 });
+
+test("voice upload status never reflects an attacker-controlled filename as markup", () => {
+  const app = read("../assets/js/app.js");
+  assert.match(app, /textContent = document\.documentElement\.lang === "en" \? "Voice sample ready\." : "Amostra de voz pronta\."/);
+  assert.doesNotMatch(app, /file\.name\s*\+\s*["'] ready/);
+});
+
+test("hero uses the supplied SVG brand mark and profile removal persists a no-photo avatar", () => {
+  const html = read("../index.html");
+  const css = read("../assets/css/styles.css");
+  const profile = read("../assets/js/profile.js");
+  const api = read("../api/profile.js");
+  assert.match(html, /class="hero-brand-mark"/);
+  assert.match(html, /viewBox="0 0 128 128"/);
+  assert.match(css, /\.hero-brand-mark[^}]*rotate\(-7deg\)/);
+  assert.match(profile, /data\.photoDisabled \? ""/);
+  assert.match(profile, /restoreProviderPhoto: true/);
+  assert.match(api, /photoDisabled: true/);
+  assert.match(api, /req\.body\?\.restoreProviderPhoto === true/);
+});
+
+test("privacy and terms explain MongoDB Atlas profile-photo storage and no-photo preference", () => {
+  const privacy = read("../privacy.html");
+  const terms = read("../terms.html");
+  assert.match(privacy, /MongoDB Atlas e foto de perfil/);
+  assert.match(privacy, /MongoDB Atlas and profile photos/);
+  assert.match(terms, /MongoDB Atlas, fotos de perfil e dados armazenados/);
+  assert.match(terms, /MongoDB Atlas, profile photos, and stored data/);
+});
