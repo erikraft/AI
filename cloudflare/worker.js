@@ -155,8 +155,9 @@ async function reserveQuota(env, user) {
   }
 }
 async function hfCall(env, apiName, data) {
-  const spaceId = String(env.HF_SPACE_ID || "ErikrafT/erikraft-ai");
-  if (spaceId.toLowerCase() !== "erikraft/erikraft-ai") throw new Error("invalid-space-id");
+  const configuredSpaceId = typeof env.HF_SPACE_ID === "string" ? env.HF_SPACE_ID.trim() : "";
+  if (!configuredSpaceId) throw new Error("hf-space-id-missing");
+  if (configuredSpaceId.toLowerCase() !== "erikraft/erikraft-ai") throw new Error("invalid-space-id");
   const host = "https://erikraft-erikraft-ai.hf.space";
   const headers = { "Content-Type": "application/json" };
   if (env.HF_TOKEN) headers.Authorization = "Bearer " + env.HF_TOKEN;
@@ -300,7 +301,25 @@ async function generate(request, env) {
     if (message.includes("unsupported-provider")) return json({ error: "Use Google, GitHub ou e-mail verificado." }, 403);
     if (message.includes("email-not-verified")) return json({ error: "Verifique seu e-mail antes de gerar imagens." }, 403);
     if (message.includes("firestore") || message.includes("firebase-")) return json({ error: "Não foi possível validar a conta ou reservar a cota. Verifique as credenciais e permissões do Firebase/Firestore." }, 503);
-    if (message.startsWith("hf-upload-") || message.startsWith("hf-start-") || message.startsWith("hf-result-") || message.startsWith("hf-empty") || message.startsWith("hf-qwythos") || message === "hf-inference-failed" || message === "hf-qwen-empty" || message === "hf-invalid-output" || message === "invalid-space-id") return json({ error: "O Hugging Face Space não concluiu a solicitação. Verifique as flags ENABLE_COSMOS_VIDEO/ENABLE_QWEN_TEXT, os logs, os recursos do runtime e a disponibilidade do provedor." }, 503);
+    if (message === "hf-space-id-missing") return json({
+      error: "A variável HF_SPACE_ID não está configurada no ambiente de execução deste Worker. Defina HF_SPACE_ID=ErikrafT/erikraft-ai em Runtime → Production e publique uma nova versão.",
+      code: "hf-space-id-missing"
+    }, 503);
+    if (message === "invalid-space-id") return json({
+      error: "A variável HF_SPACE_ID está configurada, mas não aponta para o Space esperado (ErikrafT/erikraft-ai).",
+      code: "invalid-space-id"
+    }, 503);
+    if (message.startsWith("hf-upload-") || message.startsWith("hf-start-") || message.startsWith("hf-result-") || message.startsWith("hf-empty") || message.startsWith("hf-qwythos") || message === "hf-inference-failed" || message === "hf-qwen-empty" || message === "hf-invalid-output" || message === "hf-missing-event-id") {
+      const stage = message.startsWith("hf-start-") ? "request-start" :
+        message.startsWith("hf-result-") ? "result-stream" :
+        message.startsWith("hf-upload-") ? "upload" :
+        message === "hf-inference-failed" ? "inference" : "response-parse";
+      return json({
+        error: "O Hugging Face Space falhou ao processar a solicitação. Consulte os logs do Worker e do Space para identificar a etapa.",
+        code: "huggingface-request-failed",
+        stage
+      }, 503);
+    }
     if (message.includes("invalid-reference-image")) return json({ error: "Imagem de referência inválida. Use PNG, JPEG ou WebP de até 3 MiB." }, 400);
     return json({ error: "A geração falhou na integração com o Space. Consulte os logs do Worker para identificar a causa." }, 502);
   }
@@ -320,17 +339,21 @@ export default {
         firebaseProjectMatches = serviceAccount?.project_id === "erikraft-account";
       } catch {}
       return json({
-        ok: firebaseJsonValid && firebaseProjectMatches,
+        ok: firebaseJsonValid && firebaseProjectMatches &&
+          typeof env.HF_SPACE_ID === "string" &&
+          env.HF_SPACE_ID.trim().toLowerCase() === "erikraft/erikraft-ai",
         firebaseServiceAccountConfigured: Boolean(env.FIREBASE_SERVICE_ACCOUNT_JSON),
         firebaseServiceAccountJsonValid: firebaseJsonValid,
         firebaseProjectMatches: firebaseProjectMatches,
-        hfSpaceConfigured: String(env.HF_SPACE_ID || "ErikrafT/erikraft-ai").toLowerCase() === "erikraft/erikraft-ai",
+        hfSpaceConfigured: typeof env.HF_SPACE_ID === "string" && env.HF_SPACE_ID.trim().length > 0,
+        hfSpaceIdValid: typeof env.HF_SPACE_ID === "string" && env.HF_SPACE_ID.trim().toLowerCase() === "erikraft/erikraft-ai",
         experimentalSecretConfigured: typeof env.HF_SPACE_API_SECRET === "string" && env.HF_SPACE_API_SECRET.trim().length >= 32
       });
     }
     if (url.pathname === "/api/models") {
       if (request.method !== "GET") return json({ error: "Método não permitido. Use GET." }, 405, { Allow: "GET" });
-      const configuredSpace = String(env.HF_SPACE_ID || "ErikrafT/erikraft-ai").toLowerCase() === "erikraft/erikraft-ai";
+      const configuredSpace = typeof env.HF_SPACE_ID === "string" &&
+        env.HF_SPACE_ID.trim().toLowerCase() === "erikraft/erikraft-ai";
       const configuredSecret = typeof env.HF_SPACE_API_SECRET === "string" && env.HF_SPACE_API_SECRET.trim().length >= 32;
       const experimentalConfigured = configuredSpace && configuredSecret;
       return json({
