@@ -276,3 +276,27 @@
   .qwen-chat-thread { padding: 12px; }
   .qwen-chat-message { max-width: 96%; }
 }
+
+
+/* Mobile-first footer refinement: tested against narrow 360px-class screens */
+.site-footer{position:relative;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:14px 22px;padding:clamp(22px,4vw,34px) clamp(16px,5vw,64px);border-top:1px solid var(--border);background:linear-gradient(180deg,rgba(20,18,23,.82),rgba(10,9,11,.98));font-size:11px;color:var(--muted);}
+.site-footer::before{content:"";position:absolute;left:clamp(16px,5vw,64px);right:clamp(16px,5vw,64px);top:0;height:1px;background:linear-gradient(90deg,transparent,rgba(66,133,244,.55),transparent);}
+.site-footer .site-footer-brand{flex:0 1 auto;min-width:0;gap:10px;font-size:14px;}
+.site-footer .brand-mark{width:34px;height:34px;flex:0 0 34px;border:1px solid rgba(255,255,255,.13);box-shadow:0 4px 18px rgba(66,133,244,.2);}
+.site-footer .brand-mark svg{width:23px;height:23px;}
+.site-footer-note{min-width:0;max-width:100%;line-height:1.7;color:var(--muted);}
+.site-footer-link{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:38px;padding:8px 11px;border:1px solid rgba(176,186,203,.15);border-radius:10px;background:rgba(255,255,255,.025);color:#c5cede;line-height:1.45;transition:border-color .18s ease,background .18s ease,color .18s ease;}
+.site-footer-link:hover,.site-footer-link:focus-visible{border-color:#4285f4aa;background:var(--blue-soft);color:#c5dcff;outline:none;}
+.site-footer-link:focus-visible{box-shadow:0 0 0 3px #4285f433;}
+.site-footer-github{border-color:#4285f455;color:#a9caff;}
+@media(max-width:600px){
+ .site-footer{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-items:stretch;gap:10px;padding:22px 16px calc(22px + env(safe-area-inset-bottom,0px));}
+ .site-footer .site-footer-brand{grid-column:1/-1;justify-self:start;font-size:15px;margin-bottom:2px;}
+ .site-footer-note{grid-column:1/-1;order:0;padding:0 0 12px;border-bottom:1px solid rgba(176,186,203,.12);font-size:10px;}
+ .site-footer-link{width:100%;min-width:0;min-height:42px;padding:9px 8px;text-align:center;font-size:11px;overflow-wrap:anywhere;}
+ .site-footer-github{grid-column:1/-1;}
+}
+@media(max-width:340px){
+ .site-footer{grid-template-columns:minmax(0,1fr);gap:9px;padding-left:12px;padding-right:12px;}
+ .site-footer-link,.site-footer-github{grid-column:1;}
+}
