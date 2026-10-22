@@ -140,3 +140,16 @@ The public Gradio Space exposes the model API schema, so Cosmos and Qwen additio
 The project can install Pedro Nauck's 88-skill collection for the **development agent working on the codebase**. Run `bash scripts/install-agent-skills.sh` to use the upstream `skills` CLI. This installs the original skill packages and their supporting references from `https://github.com/pedronauck/skills`; the source is not copied into this repository.
 
 These are not model prompts. The FLUX, Qwythos, Cosmos, and Qwen inference paths do not load or receive development-agent skills.
+
+
+## User history (MongoDB Atlas)
+
+The authenticated `/api/history` endpoint stores per-user generated image/video metadata and text conversations in `ErikrafTAI.user_history`. Records are scoped to the verified Firebase UID. Entries may include prompts, model/type, timestamp, text responses/messages and a provider-returned media URL. **Media bytes are not copied into MongoDB**: URLs may expire; deleting an item deletes the MongoDB record only, not provider-side files or logs.
+
+Configure these server-side Vercel environment variables (never expose them in frontend code):
+
+- `MONGODB_URI` — Secret; MongoDB Atlas connection string for a least-privilege database user.
+- `MONGODB_DATABASE` — Configuration, optional; defaults to `ErikrafTAI`.
+- Keep `FIREBASE_SERVICE_ACCOUNT_JSON` as a server-side secret to verify Firebase ID tokens.
+
+MongoDB creates the database and collection when the configured history API first creates its index (for example, on the first successful history request). Restrict Atlas network access and grant the database user read/write access only to this database. MongoDB Atlas MCP access must be enabled for the Atlas organization before resources can be provisioned or inspected directly through the connector.
