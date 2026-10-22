@@ -445,7 +445,8 @@ $("voice-record-start").addEventListener("click", async () => {
       $("voice-record-stop").disabled = true;
       try {
         if (blob.size > MAX_VOICE_AUDIO_BYTES) throw new Error(document.documentElement.lang === "en" ? "Recording exceeds 3 MiB. Record a shorter sample." : "A gravação excede 3 MiB. Grave uma amostra mais curta.");
-        const file = new File([blob], "voice-reference." + ((blob.type || "").includes("mp4") ? "m4a" : "webm"), { type: blob.type || "audio/webm" });
+        const mimeType = (blob.type || "audio/webm").split(";")[0];
+        const file = new File([blob], "voice-reference." + (mimeType.includes("mp4") ? "m4a" : "webm"), { type: mimeType });
         voiceAudioInput.value = "";
         await readVoiceAudio(file);
       } catch (error) { clearVoiceAudio(); $("voice-audio-status").textContent = error.message; }
