@@ -1189,13 +1189,25 @@ function setLanguage(language){
   function renderLocalizedText(el, key) {
     if (!Object.prototype.hasOwnProperty.call(dict, key)) return;
     if (key === "hero_title") {
+      const title = dict.hero_title;
+      const jarvis = "J.A.R.V.I.S.";
+      const jarvisIndex = title.indexOf(jarvis);
+      const titleNodes = [];
+      if (jarvisIndex === -1) {
+        titleNodes.push(document.createTextNode(title));
+      } else {
+        if (jarvisIndex > 0) titleNodes.push(document.createTextNode(title.slice(0, jarvisIndex)));
+        const jarvisWord = document.createElement("span");
+        jarvisWord.className = "hero-jarvis";
+        jarvisWord.textContent = jarvis;
+        titleNodes.push(jarvisWord);
+        if (jarvisIndex + jarvis.length < title.length) {
+          titleNodes.push(document.createTextNode(title.slice(jarvisIndex + jarvis.length)));
+        }
+      }
       const emphasis = document.createElement("span");
       emphasis.textContent = dict.hero_title_emphasis;
-      el.replaceChildren(
-        document.createTextNode(dict.hero_title),
-        document.createElement("br"),
-        emphasis
-      );
+      el.replaceChildren(...titleNodes, document.createElement("br"), emphasis);
       return;
     }
     if (key === "studio_title") {
