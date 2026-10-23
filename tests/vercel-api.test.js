@@ -197,13 +197,35 @@ test("account deletion dialog warns about profile photos and generation history 
 });
 
 
+function assertExactHttpsLink(source, expectedUrl) {
+  const expected = new URL(expectedUrl);
+  const attributeValues = [...source.matchAll(/\\b(?:href|src)\\s*=\\s*(["'])(.*?)\\1/gi)]
+    .map((match) => match[2]);
+  const found = attributeValues.some((value) => {
+    try {
+      const parsed = new URL(value);
+      return parsed.href === expected.href
+        && parsed.protocol === "https:"
+        && parsed.hostname === expected.hostname
+        && parsed.port === ""
+        && parsed.username === ""
+        && parsed.password === ""
+        && parsed.search === ""
+        && parsed.hash === "";
+    } catch {
+      return false;
+    }
+  });
+  assert.ok(found, `Expected an exact HTTPS link to ${expectedUrl}`);
+}
+
 test("account deletion and legal pages disclose Hugging Face provider-side retention in both languages", () => {
   const profile = readFileSync(new URL("../assets/js/profile.js", import.meta.url), "utf8");
   const privacy = readFileSync(new URL("../privacy.html", import.meta.url), "utf8");
   const terms = readFileSync(new URL("../terms.html", import.meta.url), "utf8");
   for (const source of [profile, privacy, terms]) {
-    assert.ok(source.includes("https://huggingface.co/privacy"));
-    assert.ok(source.includes("https://huggingface.co/terms-of-service"));
+    assertExactHttpsLink(source, "https://huggingface.co/privacy");
+    assertExactHttpsLink(source, "https://huggingface.co/terms-of-service");
   }
   assert.match(profile, /Prompts and inputs sent to Hugging Face/);
   assert.match(privacy, /does <strong>not automatically delete/);
@@ -223,11 +245,14 @@ test("localized interface text is rendered without reinterpreting translations a
 
 test("voice-cloning reference audio is confined to Gradio's resolved cache path", () => {
   const source = readFileSync(new URL("../huggingface/app.py", import.meta.url), "utf8");
-  assert.ok(source.includes("from pathlib import Path"));
-  assert.ok(source.includes("audio_path = Path(reference_audio).resolve(strict=True)"));
-  assert.ok(source.includes("audio_path.relative_to(cache_root)"));
-  assert.ok(source.includes("audio_stat = audio_path.stat()"));
+  assert.ok(source.includes("cache_root = os.path.realpath(os.fspath(cache_dir))"));
+  assert.ok(source.includes("audio_path = os.path.realpath(reference_audio)"));
+  assert.ok(source.includes("os.path.commonpath((cache_root, audio_path))"));
+  assert.ok(source.includes("audio_path.startswith(cache_prefix)"));
+  assert.ok(source.includes("os.path.isfile(audio_path)"));
+  assert.ok(source.includes("audio_size = os.path.getsize(audio_path)"));
   assert.ok(source.includes("handle_file(safe_reference_audio)"));
+  assert.equal(source.includes("Path(reference_audio).resolve"), false);
   assert.equal(source.includes("os.path.isfile(reference_audio)"), false);
   assert.equal(source.includes("os.path.getsize(reference_audio)"), false);
 });
