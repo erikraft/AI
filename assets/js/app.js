@@ -433,6 +433,10 @@ async function loadModelAvailability() {
 }
 void loadModelAvailability();
 const MAX_VOICE_AUDIO_BYTES = 3 * 1024 * 1024;
+const SUPPORTED_VOICE_AUDIO_TYPES = new Set([
+  "audio/wav", "audio/x-wav", "audio/mpeg", "audio/mp3",
+  "audio/ogg", "audio/webm", "audio/mp4", "audio/x-m4a"
+]);
 const voiceAudioInput = $("voice-audio-input");
 const voiceAudioPreview = $("voice-audio-preview");
 function clearVoiceAudio() {
@@ -445,19 +449,35 @@ function clearVoiceAudio() {
 }
 function readVoiceAudio(file) {
   if (!file) return Promise.resolve();
-  if (!file.type.startsWith("audio/")) throw new Error(document.documentElement.lang === "en" ? "Choose an audio file." : "Escolha um arquivo de áudio.");
+  const mimeType = typeof file.type === "string" ? file.type.split(";")[0].trim().toLowerCase() : "";
+  const unsupportedType = document.documentElement.lang === "en"
+    ? "Choose a supported audio file."
+    : "Escolha um formato de áudio compatível.";
+  if (!SUPPORTED_VOICE_AUDIO_TYPES.has(mimeType)) throw new Error(unsupportedType);
   if (file.size > MAX_VOICE_AUDIO_BYTES) throw new Error(document.documentElement.lang === "en" ? "Audio must be 3 MiB or smaller." : "O áudio deve ter no máximo 3 MiB.");
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => {
-      if (typeof reader.result !== "string" || !reader.result.startsWith("data:audio/")) {
+      const dataUrl = typeof reader.result === "string"
+        ? /^data:audio\/[a-z0-9.+-]+(?:;[^,]*)?;base64,([A-Za-z0-9+/]*={0,2})$/i.exec(reader.result)
+        : null;
+      if (!dataUrl) {
         reject(new Error(document.documentElement.lang === "en" ? "Could not read the audio file." : "Não foi possível ler o áudio."));
         return;
       }
-      voiceAudioDataUrl = reader.result;
+      // Normalize optional codec parameters to the explicit allowlisted MIME type
+      // expected by the server; never use the raw data URL as a DOM HTML value.
+      voiceAudioDataUrl = `data:${mimeType};base64,${dataUrl[1]}`;
       if (voiceAudioObjectUrl) URL.revokeObjectURL(voiceAudioObjectUrl);
-      voiceAudioObjectUrl = URL.createObjectURL(file);
-      voiceAudioPreview.src = voiceAudioObjectUrl;
+      const previewBlob = new Blob([file], { type: mimeType });
+      const previewUrl = URL.createObjectURL(previewBlob);
+      if (!previewUrl.startsWith("blob:")) {
+        URL.revokeObjectURL(previewUrl);
+        reject(new Error(document.documentElement.lang === "en" ? "Could not prepare the audio preview." : "Não foi possível preparar a prévia do áudio."));
+        return;
+      }
+      voiceAudioObjectUrl = previewUrl;
+      voiceAudioPreview.src = previewUrl;
       voiceAudioPreview.classList.remove("hidden");
       $("voice-audio-status").textContent = document.documentElement.lang === "en" ? "Voice sample ready." : "Amostra de voz pronta.";
       resolve();
