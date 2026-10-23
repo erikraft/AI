@@ -121,7 +121,10 @@ test("voice cloning discovers the current Whisper endpoint and enforces a ten-se
 
   assert.match(space, /_whisper_transcription_endpoint\(whisper\)/);
   assert.match(space, /view_api\(return_format="dict", print_info=False\)/);
-  assert.match(space, /min_length=10/);
+  assert.doesNotMatch(space, /min_length\s*=/);
+  assert.match(space, /_validate_reference_audio_duration\(safe_reference_audio\)/);
+  assert.match(space, /duration_seconds < 10/);
+  assert.match(space, /format="wav"/);
   assert.doesNotMatch(space, /api_name="\/file_transcribe"/);
 
   assert.match(api, /findWhisperTranscriptionEndpoint\(client\)/);
