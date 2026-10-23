@@ -49,7 +49,7 @@ async function deleteMongoUserData(db, uid) {
   // Remove user-owned records from every application collection, not just the
   // currently known history/profile collections, so future userId-backed data
   // is covered by the same account deletion path.
-  const collections = await db.listCollections({}, { nameOnly: true }).toArray();
+  const collections = await db.listCollections({}).toArray();
   for (const entry of collections) {
     const name = entry.name;
     if (!name || name.startsWith("system.") || entry.type === "view") continue;
