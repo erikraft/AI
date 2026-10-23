@@ -22,6 +22,7 @@ function canUseStudio(user) {
 
 function updateStudioAccess(user) {
   const authenticated = canUseStudio(user);
+  $("usage-notice")?.classList.toggle("hidden", authenticated);
   const generator = $("generator-form");
   const resultPanel = $("result-panel");
   const loginPanel = $("studio-login-panel");
@@ -79,7 +80,7 @@ function historyText(key) {
     deleteError:["Não foi possível excluir este registro.","Could not delete this record."],
     deleted:["Registro excluído do histórico.","History record deleted."],
     deleteLabel:["Excluir do histórico","Delete from history"],
-    image:["Imagem","Image"], video:["Vídeo","Video"], text:["Conversa","Conversation"]
+    image:["Imagem","Image"], video:["Vídeo","Video"], audio:["Áudio","Audio"], text:["Conversa","Conversation"]
   };
   return copy[key]?.[en ? 1 : 0] || key;
 }
@@ -96,13 +97,15 @@ function renderHistory(items) {
   for (const item of items) {
     const card = document.createElement("article"); card.className = "history-item";
     const preview = document.createElement("div"); preview.className = "history-preview";
-    if (item.type === "image" && item.mediaUrl) {
+    if (item.type === "audio" && item.mediaUrl) {
+      const audio = document.createElement("audio"); audio.src = item.mediaUrl; audio.controls = true; audio.preload = "metadata"; audio.className = "history-audio-preview"; preview.append(audio);
+    } else if (item.type === "image" && item.mediaUrl) {
       const img = document.createElement("img"); img.src = item.mediaUrl; img.alt = item.prompt || historyText("image"); img.loading = "lazy"; preview.append(img);
     } else if (item.type === "video" && item.mediaUrl) {
       const video = document.createElement("video"); video.src = item.mediaUrl; video.controls = true; video.playsInline = true; video.preload = "metadata"; preview.append(video);
     } else { const icon = document.createElement("i"); icon.className = "fa-solid fa-comments"; icon.setAttribute("aria-hidden","true"); preview.append(icon); }
     const details = document.createElement("div"); details.className = "history-item-details";
-    const kind = document.createElement("span"); kind.className = "history-kind"; kind.textContent = historyText(item.type === "image" ? "image" : item.type === "video" ? "video" : "text");
+    const kind = document.createElement("span"); kind.className = "history-kind"; kind.textContent = historyText(item.type === "image" ? "image" : item.type === "video" ? "video" : item.type === "audio" ? "audio" : "text");
     const prompt = document.createElement("textarea"); prompt.className = "history-prompt"; prompt.value = item.prompt || ""; prompt.readOnly = true; prompt.rows = 4; prompt.spellcheck = false; prompt.setAttribute("aria-label", document.documentElement.lang === "en" ? "Generation prompt (read-only; selectable and copyable)" : "Prompt da geração (somente leitura; selecione e copie)");
     const meta = document.createElement("small"); meta.textContent = [item.model || "", item.createdAt ? formatHistoryDate(item.createdAt) : ""].filter(Boolean).join(" · ");
     details.append(kind,prompt,meta);
@@ -137,6 +140,7 @@ function collectQwenMessages() {
     .slice(-30).map((message)=>({role:message.dataset.role==="assistant"?"assistant":"user",text:message.querySelector(".qwen-message-content")?.textContent||""}));
 }
 $("history-refresh")?.addEventListener("click",()=>void loadHistory());
+$("voice-audio-remove")?.addEventListener("click", () => { clearVoiceAudio(); });
 
 if (configured) {
   const app = initializeApp(firebaseConfig);
@@ -446,6 +450,8 @@ function clearVoiceAudio() {
   voiceAudioObjectUrl = "";
   voiceAudioPreview.removeAttribute("src");
   voiceAudioPreview.classList.add("hidden");
+  $("voice-audio-remove").classList.add("hidden");
+  voiceAudioInput.value = "";
   $("voice-audio-status").textContent = document.documentElement.lang === "en" ? "No voice sample selected." : "Nenhuma amostra de voz selecionada.";
 }
 async function getVoiceAudioDuration(file) {
@@ -502,6 +508,7 @@ async function readVoiceAudio(file, knownDuration = null) {
       voiceAudioPreview.src = previewUrl;
       voiceAudioPreview.classList.remove("hidden");
       $("voice-audio-status").textContent = document.documentElement.lang === "en" ? "Voice sample ready." : "Amostra de voz pronta.";
+      $("voice-audio-remove").classList.remove("hidden");
       resolve();
     };
     reader.onerror = () => reject(new Error(document.documentElement.lang === "en" ? "Could not read the audio file." : "Não foi possível ler o áudio."));
@@ -514,6 +521,29 @@ voiceAudioInput.addEventListener("change", async () => {
   try { await readVoiceAudio(file); }
   catch (error) { clearVoiceAudio(); $("voice-audio-status").textContent = error.message; }
 });
+const MIN_VOICE_RECORDING_SECONDS = 10;
+const MAX_VOICE_RECORDING_SECONDS = 60;
+const voiceRecordTimer = $("voice-record-timer");
+let voiceRecordingInterval = null;
+let voiceRecordingTimeout = null;
+function formatVoiceRecordingTime(seconds) {
+  const safeSeconds = Math.max(0, Math.min(MAX_VOICE_RECORDING_SECONDS, Math.floor(seconds)));
+  return String(Math.floor(safeSeconds / 60)).padStart(2, "0") + ":" + String(safeSeconds % 60).padStart(2, "0");
+}
+function updateVoiceRecordingTimer() {
+  const elapsed = voiceRecordingStartedAt ? (Date.now() - voiceRecordingStartedAt) / 1000 : 0;
+  voiceRecordTimer.textContent = formatVoiceRecordingTime(elapsed) + " / " + formatVoiceRecordingTime(MAX_VOICE_RECORDING_SECONDS);
+  $("voice-record-stop").disabled = elapsed < MIN_VOICE_RECORDING_SECONDS;
+  if (elapsed >= MAX_VOICE_RECORDING_SECONDS && voiceRecorder?.state === "recording") voiceRecorder.stop();
+}
+function stopVoiceRecordingTimer() {
+  if (voiceRecordingInterval !== null) window.clearInterval(voiceRecordingInterval);
+  if (voiceRecordingTimeout !== null) window.clearTimeout(voiceRecordingTimeout);
+  voiceRecordingInterval = null;
+  voiceRecordingTimeout = null;
+  voiceRecordingStartedAt = 0;
+  voiceRecordTimer.textContent = "00:00 / " + formatVoiceRecordingTime(MAX_VOICE_RECORDING_SECONDS);
+}
 $("voice-record-start").addEventListener("click", async () => {
   if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
     $("voice-audio-status").textContent = document.documentElement.lang === "en" ? "Recording is not supported here; choose an audio file instead." : "A gravação não é compatível com este navegador; escolha um arquivo de áudio.";
@@ -525,16 +555,17 @@ $("voice-record-start").addEventListener("click", async () => {
     voiceRecorder = new MediaRecorder(voiceRecorderStream);
     voiceRecorder.addEventListener("dataavailable", (event) => { if (event.data?.size) voiceRecorderChunks.push(event.data); });
     voiceRecorder.addEventListener("stop", async () => {
-      const recordedDuration = Math.max(0, (Date.now() - voiceRecordingStartedAt) / 1000);
-      voiceRecordingStartedAt = 0;
-      const blob = new Blob(voiceRecorderChunks, { type: voiceRecorder.mimeType || "audio/webm" });
+      const recordedDuration = Math.min(MAX_VOICE_RECORDING_SECONDS, Math.max(0, (Date.now() - voiceRecordingStartedAt) / 1000));
+      stopVoiceRecordingTimer();
+      const recorder = voiceRecorder;
+      const blob = new Blob(voiceRecorderChunks, { type: recorder?.mimeType || "audio/webm" });
       voiceRecorderStream?.getTracks().forEach((track) => track.stop());
       voiceRecorderStream = null;
       voiceRecorder = null;
       $("voice-record-start").disabled = false;
       $("voice-record-stop").disabled = true;
       try {
-        if (recordedDuration < 10) throw new Error(document.documentElement.lang === "en" ? "Recording must be at least 10 seconds. Record again for longer." : "A gravação deve ter pelo menos 10 segundos. Grave novamente por mais tempo.");
+        if (recordedDuration < MIN_VOICE_RECORDING_SECONDS) throw new Error(document.documentElement.lang === "en" ? "Recording must be at least 10 seconds. Record again for longer." : "A gravação deve ter pelo menos 10 segundos. Grave novamente por mais tempo.");
         if (blob.size > MAX_VOICE_AUDIO_BYTES) throw new Error(document.documentElement.lang === "en" ? "Recording exceeds 3 MiB. Record a shorter sample." : "A gravação excede 3 MiB. Grave uma amostra mais curta.");
         const mimeType = (blob.type || "audio/webm").split(";")[0];
         const file = new File([blob], "voice-reference." + (mimeType.includes("mp4") ? "m4a" : "webm"), { type: mimeType });
@@ -544,14 +575,25 @@ $("voice-record-start").addEventListener("click", async () => {
     }, { once: true });
     voiceRecordingStartedAt = Date.now();
     voiceRecorder.start();
+    updateVoiceRecordingTimer();
+    voiceRecordingInterval = window.setInterval(updateVoiceRecordingTimer, 100);
+    voiceRecordingTimeout = window.setTimeout(() => { if (voiceRecorder?.state === "recording") voiceRecorder.stop(); }, MAX_VOICE_RECORDING_SECONDS * 1000);
     $("voice-record-start").disabled = true;
-    $("voice-record-stop").disabled = false;
-    $("voice-audio-status").textContent = document.documentElement.lang === "en" ? "Recording… click Stop recording when finished." : "Gravando… clique em Parar gravação ao terminar.";
+    $("voice-record-stop").disabled = true;
+    $("voice-audio-status").textContent = document.documentElement.lang === "en" ? "Recording… stop is available after 10 seconds; maximum 60 seconds." : "Gravando… parar fica disponível após 10 segundos; máximo de 60 segundos.";
   } catch {
+    stopVoiceRecordingTimer();
+    voiceRecorderStream?.getTracks().forEach((track) => track.stop());
+    voiceRecorderStream = null;
+    $("voice-record-start").disabled = false;
+    $("voice-record-stop").disabled = true;
     $("voice-audio-status").textContent = document.documentElement.lang === "en" ? "Microphone access was denied or unavailable." : "O microfone não está disponível ou o acesso foi negado.";
   }
 });
-$("voice-record-stop").addEventListener("click", () => { if (voiceRecorder?.state === "recording") voiceRecorder.stop(); });
+$("voice-record-stop").addEventListener("click", () => {
+  const elapsed = voiceRecordingStartedAt ? (Date.now() - voiceRecordingStartedAt) / 1000 : 0;
+  if (voiceRecorder?.state === "recording" && elapsed >= MIN_VOICE_RECORDING_SECONDS) voiceRecorder.stop();
+});
 const MAX_REFERENCE_FILE_BYTES = 12 * 1024 * 1024;
 const MAX_REFERENCE_DATA_BYTES = 3 * 1024 * 1024;
 const referenceImageInput = $("reference-image");
@@ -873,6 +915,7 @@ $("generator-form").addEventListener("submit", async (event) => {
         audio.classList.remove("hidden"); $("download").disabled = false; $("download").classList.remove("hidden");
         $("result-status").textContent = document.documentElement.lang === "en" ? "Voice audio ready." : "Áudio de voz pronto.";
         $("result-status").className = "result-status status-success";
+        void saveHistoryEntry("audio", prompt, modelSelect.value, { mediaUrl: audioUrl });
       };
       audio.onerror = () => {
         $("loading-result").classList.add("hidden"); $("empty-result").classList.remove("hidden");
