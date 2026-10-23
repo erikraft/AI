@@ -146,7 +146,8 @@ if (configured) {
     }
   });
 } else {
-  $("account-label").textContent = languageText("account_visitor");
+  // The translation dictionary is initialized below; setLanguage() will localize this fallback.
+  $("account-label").textContent = "Visitante";
   $("login-open").classList.remove("hidden");
 }
 
