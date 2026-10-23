@@ -13,8 +13,8 @@ if (!config.apiKey || !config.authDomain || !config.projectId || !config.appId) 
   style.textContent = `
   .profile-trigger{width:36px;height:36px;flex:0 0 36px;padding:0;border:1px solid #4285f4;border-radius:50%;overflow:hidden;background:#111722;display:none;place-items:center;cursor:pointer;color:#dce7fb}
   .profile-trigger img{width:100%;height:100%;object-fit:cover}.profile-trigger i{font-size:15px}
-  .profile-popover{position:fixed;z-index:80;top:78px;right:18px;width:min(360px,calc(100vw - 28px));padding:22px;border:1px solid #30394b;border-radius:24px;background:#141720;box-shadow:0 22px 70px #000b;color:#f0f3fa;text-align:center}
-  .profile-popover[hidden]{display:none}.profile-popover{position:relative}.profile-close{position:absolute;top:10px;right:10px;display:grid;place-items:center;width:34px;height:34px;padding:0;border:1px solid #354158;border-radius:10px;background:#0e1119;color:#e8edf6;cursor:pointer}.profile-close:hover{border-color:#4285f4;background:#1b2230}.profile-close:focus-visible{outline:2px solid #9dc2ff;outline-offset:3px}.profile-close svg{width:14px;height:14px;display:block}.profile-popover .profile-head{flex-direction:column;gap:10px;margin-bottom:18px}.profile-popover .profile-large-avatar{width:76px;height:76px}.profile-popover .profile-email{font-size:13px}.profile-popover .profile-subtitle{font-size:11px}
+  .profile-popover{position:fixed;z-index:1000;top:78px;right:18px;width:min(360px,calc(100vw - 28px));max-height:calc(100dvh - 96px);overflow:auto;padding:22px;border:1px solid #30394b;border-radius:24px;background:#141720;box-shadow:0 22px 70px #000b;color:#f0f3fa;text-align:center}
+  .profile-popover[hidden]{display:none}.profile-close{position:absolute;top:10px;right:10px;display:grid;place-items:center;width:34px;height:34px;padding:0;border:1px solid #354158;border-radius:10px;background:#0e1119;color:#e8edf6;cursor:pointer}.profile-close:hover{border-color:#4285f4;background:#1b2230}.profile-close:focus-visible{outline:2px solid #9dc2ff;outline-offset:3px}.profile-close svg{width:14px;height:14px;display:block}.profile-popover .profile-head{flex-direction:column;gap:10px;margin-bottom:18px}.profile-popover .profile-large-avatar{width:76px;height:76px}.profile-popover .profile-email{font-size:13px}.profile-popover .profile-subtitle{font-size:11px}
   .profile-head{display:flex;align-items:center;gap:13px;margin-bottom:16px}.profile-large-avatar{width:58px;height:58px;border-radius:50%;object-fit:cover;background:#202735;border:1px solid #3b465c;flex:0 0 auto}
   .profile-email{font-size:12px;overflow-wrap:anywhere;color:#d5deed}.profile-subtitle{font-size:10px;color:#9ba8bc;margin-top:4px}
   .profile-actions{display:flex;justify-content:center;gap:9px;flex-wrap:wrap}.profile-action svg{width:12px;height:12px;vertical-align:-2px}.profile-action{border:1px solid #354158;background:#0e1119;color:#e8edf6;border-radius:12px;padding:10px 12px;font:600 11px 'DM Sans',sans-serif;cursor:pointer}.profile-action:hover{border-color:#4285f4}.profile-action.danger{color:#ffaaaa}.profile-status{font-size:11px;color:#aab8ce;min-height:18px;margin:12px 0 0}.profile-file{display:none}
@@ -56,7 +56,7 @@ if (!config.apiKey || !config.authDomain || !config.projectId || !config.appId) 
     return data;
   }
   async function loadPhoto() {
-    const data = await request(); setPhoto(data.photo || user.photoURL || "");
+    const data = await request(); setPhoto(data.photoDisabled ? "" : (data.photo || user.photoURL || ""));
   }
   function closePopover() {
     popover.hidden = true;
@@ -100,13 +100,17 @@ if (!config.apiKey || !config.authDomain || !config.projectId || !config.appId) 
       const result = await request("PUT", { photo }); setPhoto(result.photo); status.textContent = "Foto de perfil atualizada.";
     } catch (error) { status.textContent = error.message || "Falha ao salvar a foto."; }
   });
-  popover.querySelector("[data-profile-restore]").addEventListener("click", () => {
-    setPhoto(user?.photoURL || "");
-    status.textContent = user?.photoURL ? "Foto do provedor restaurada neste site." : "O provedor não disponibilizou uma foto de perfil.";
+  popover.querySelector("[data-profile-restore]").addEventListener("click", async () => {
+    status.textContent = "Restaurando foto do provedor…";
+    try {
+      const result = await request("PUT", { restoreProviderPhoto: true });
+      setPhoto(result.photo || user?.photoURL || "");
+      status.textContent = user?.photoURL ? "Foto do provedor restaurada neste site." : "O provedor não disponibilizou uma foto de perfil.";
+    } catch (error) { status.textContent = error.message || "Falha ao restaurar a foto."; }
   });
   popover.querySelector("[data-profile-delete]").addEventListener("click", async () => {
     status.textContent = "Removendo foto…";
-    try { await request("DELETE"); setPhoto(""); status.textContent = "Foto removida do perfil e do MongoDB Atlas."; }
+    try { await request("DELETE"); setPhoto(""); status.textContent = "Foto removida. O avatar ficará sem foto até você restaurá-la."; }
     catch (error) { status.textContent = error.message || "Falha ao remover a foto."; }
   });
   onAuthStateChanged(auth, async (nextUser) => {

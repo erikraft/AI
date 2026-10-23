@@ -37,6 +37,9 @@ function updateStudioAccess(user) {
     $("generated-image").classList.add("hidden");
     $("generated-video").classList.add("hidden");
     $("generated-video").removeAttribute("src");
+    $("generated-audio").classList.add("hidden");
+    $("generated-audio").pause();
+    $("generated-audio").removeAttribute("src");
     $("generated-text").classList.add("hidden");
     $("generated-text").textContent = "";
     videoUrl = "";
@@ -93,7 +96,7 @@ function renderHistory(items) {
     } else { const icon = document.createElement("i"); icon.className = "fa-solid fa-comments"; icon.setAttribute("aria-hidden","true"); preview.append(icon); }
     const details = document.createElement("div"); details.className = "history-item-details";
     const kind = document.createElement("span"); kind.className = "history-kind"; kind.textContent = historyText(item.type === "image" ? "image" : item.type === "video" ? "video" : "text");
-    const prompt = document.createElement("p"); prompt.className = "history-prompt"; prompt.textContent = item.prompt || "";
+    const prompt = document.createElement("textarea"); prompt.className = "history-prompt"; prompt.value = item.prompt || ""; prompt.readOnly = true; prompt.rows = 4; prompt.spellcheck = false; prompt.setAttribute("aria-label", document.documentElement.lang === "en" ? "Generation prompt (read-only; selectable and copyable)" : "Prompt da geração (somente leitura; selecione e copie)");
     const meta = document.createElement("small"); meta.textContent = [item.model || "", item.createdAt ? new Date(item.createdAt).toLocaleString(document.documentElement.lang === "en" ? "en-US" : "pt-BR") : ""].filter(Boolean).join(" · ");
     details.append(kind,prompt,meta);
     if (item.outputText) { const output = document.createElement("p"); output.className = "history-output"; output.textContent = item.outputText; details.append(output); }
@@ -255,8 +258,15 @@ $("studio-github-login").addEventListener("click", () => login(new GithubAuthPro
 const promptInput = $("prompt");
 const modelSelect = $("model-select");
 const QWYTHOS_MODEL = "fluffy12222/Qwythos-9B-Claude-Mythos-5-1M-heretic-abliterated";
+const VOICE_CLONE_MODEL = "tonyassi/voice-clone";
+let voiceAudioDataUrl = "";
+let voiceAudioObjectUrl = "";
+let voiceRecorder = null;
+let voiceRecorderStream = null;
+let voiceRecorderChunks = [];
 
 function selectedTask(model = modelSelect.value) {
+  if (model === VOICE_CLONE_MODEL) return "voice";
   if (model === QWYTHOS_MODEL) return "image-edit";
   if (model === COSMOS_MODEL) return "video";
   if (model === QWEN_MODEL) return "text";
@@ -266,6 +276,7 @@ function selectedTask(model = modelSelect.value) {
 function modelButtonLabel(model = modelSelect.value) {
   const english = document.documentElement.lang === "en";
   const task = selectedTask(model);
+  if (task === "voice") return english ? "Clone voice and generate audio" : "Clonar voz e gerar áudio";
   if (task === "image-edit") return languageText("qwythos_image_button");
   if (task === "video") return english ? "Generate short video" : "Gerar vídeo curto";
   if (task === "text") return english ? "Ask Qwen" : "Perguntar ao Qwen";
@@ -279,34 +290,46 @@ function updateModelSelection() {
   const isQwythos = task === "image-edit";
   const isCosmos = task === "video";
   const isQwen = task === "text";
+  const isVoice = task === "voice";
   const studioGrid = $("studio-grid");
   studioGrid.classList.toggle("is-chatbot", isQwen);
   const resultStage = $("result-stage");
   resultStage.classList.toggle("is-video-result", isCosmos);
   resultStage.classList.toggle("is-chat-result", isQwen);
-  $("empty-title").textContent = isCosmos ? languageText("video_empty_title") : isQwen ? languageText("qwen_empty_title") : languageText("empty_title");
-  $("empty-desc").textContent = isCosmos ? languageText("video_empty_desc") : isQwen ? languageText("qwen_empty_desc") : languageText("empty_desc");
-  $("empty-result").classList.toggle("task-empty-no-image", isCosmos || isQwen);
+  resultStage.classList.toggle("is-audio-result", isVoice);
+  $("empty-title").textContent = isVoice ? (english ? "Your cloned voice audio starts here" : "O áudio da voz clonada aparecerá aqui") : isCosmos ? languageText("video_empty_title") : isQwen ? languageText("qwen_empty_title") : languageText("empty_title");
+  $("empty-desc").textContent = isVoice ? (english ? "Upload or record a voice sample, write the text, and generate speech." : "Envie ou grave uma amostra de voz, escreva o texto e gere a fala.") : isCosmos ? languageText("video_empty_desc") : isQwen ? languageText("qwen_empty_desc") : languageText("empty_desc");
+  $("empty-result").classList.toggle("task-empty-no-image", isCosmos || isQwen || isVoice);
   $("selected-model-label").textContent = model;
   const labels = {
     [FLUX_MODEL]: english ? FLUX_MODEL + " — text-to-image" : FLUX_MODEL + " — texto → imagem",
     [QWYTHOS_MODEL]: english ? QWYTHOS_MODEL + " — image → text → image" : QWYTHOS_MODEL + " — imagem → texto → imagem",
     [COSMOS_MODEL]: english ? COSMOS_MODEL + " — text-to-video (experimental)" : COSMOS_MODEL + " — texto → vídeo (experimental)",
-    [QWEN_MODEL]: english ? QWEN_MODEL + " — text assistant (experimental)" : QWEN_MODEL + " — assistente de texto (experimental)"
+    [QWEN_MODEL]: english ? QWEN_MODEL + " — text assistant (experimental)" : QWEN_MODEL + " — assistente de texto (experimental)",
+    [VOICE_CLONE_MODEL]: english ? "XTTS-v2 — voice cloning" : "XTTS-v2 — clonagem de voz"
   };
   for (const option of modelSelect.options) if (labels[option.value]) option.textContent = labels[option.value];
-  $("image-options-row").classList.toggle("hidden", isCosmos || isQwen);
+  $("image-options-row").classList.toggle("hidden", isCosmos || isQwen || isVoice);
+  $("prompt").previousElementSibling.textContent = isVoice ? (english ? "Text to speak" : "Texto para falar") : languageText("prompt_label");
+  $("prompt").placeholder = isVoice ? (english ? "Write the text for the cloned voice to speak..." : "Escreva o texto que a voz clonada deverá falar...") : languageText("prompt_placeholder");
+  $("prompt").setAttribute("aria-label", isVoice ? (english ? "Text to speak" : "Texto para falar") : languageText("prompt_label"));
   
   const qwythosInputPanel = $("qwythos-image-input");
   qwythosInputPanel.classList.toggle("hidden", !isQwythos);
   qwythosInputPanel.hidden = !isQwythos;
   qwythosInputPanel.setAttribute("aria-hidden", String(!isQwythos));
+  const voiceInputPanel = $("voice-clone-input");
+  voiceInputPanel.classList.toggle("hidden", !isVoice);
+  voiceInputPanel.hidden = !isVoice;
+  voiceInputPanel.setAttribute("aria-hidden", String(!isVoice));
   $("generate").querySelector("span").textContent = modelButtonLabel(model);
   const taskBadges = english
-    ? { image: "TEXT → IMAGE", "image-edit": "IMAGE → TEXT → IMAGE", video: "TEXT → VIDEO", text: "TEXT → TEXT" }
-    : { image: "TEXTO → IMAGEM", "image-edit": "IMAGEM → TEXTO → IMAGEM", video: "TEXTO → VÍDEO", text: "TEXTO → TEXTO" };
+    ? { image: "TEXT → IMAGE", "image-edit": "IMAGE → TEXT → IMAGE", video: "TEXT → VIDEO", text: "TEXT → TEXT", voice: "VOICE CLONING → AUDIO" }
+    : { image: "TEXTO → IMAGEM", "image-edit": "IMAGEM → TEXTO → IMAGEM", video: "TEXTO → VÍDEO", text: "TEXTO → TEXTO", voice: "CLONAGEM DE VOZ → ÁUDIO" };
   $("model-task-badge").textContent = taskBadges[task];
-  $("model-help").textContent = isQwythos
+  $("model-help").textContent = isVoice
+    ? (english ? "XTTS-v2 clones a voice from a short reference audio sample and synthesizes the text above. Upload a file or record a sample in your browser; the upstream Space currently generates English speech." : "O XTTS-v2 clona uma voz a partir de uma amostra de áudio e sintetiza o texto acima. Envie um arquivo ou grave uma amostra no navegador; o Space de referência gera fala em inglês.")
+    : isQwythos
     ? languageText("qwythos_help")
     : isCosmos
       ? (english ? "Cosmos3 Nano generates a short video from text. The Space limits the first attempt to 16 frames at 256×256 and checks VRAM/disk before loading." : "Cosmos3 Nano cria um vídeo curto a partir do texto. O Space limita a tentativa a 16 quadros em 256×256 e verifica VRAM/disco antes de carregar.")
@@ -314,12 +337,16 @@ function updateModelSelection() {
         ? (english ? "Qwen3.8 is a third-party 27B text model. It uses a low-memory GGUF quantization on CPU only to avoid GPU OOM; responses can be slow and quality is reduced." : "Qwen3.8 é um modelo de texto de terceiros com 27B parâmetros. Usa uma quantização GGUF de menor memória somente na CPU para evitar falta de VRAM; respostas podem ser lentas e a qualidade é reduzida.")
         : languageText("model_help");
   const enabled = isCosmos ? MODEL_AVAILABILITY.cosmosVideo : isQwen ? MODEL_AVAILABILITY.qwenText : true;
-  $("model-runtime-pill").textContent = isCosmos
+  $("model-runtime-pill").textContent = isVoice
+    ? "Hugging Face Space · XTTS-v2"
+    : isCosmos
     ? (enabled ? (english ? "Configured · runtime checks apply" : "Configurado · sujeito às verificações do runtime") : (english ? "Unavailable · backend secret required" : "Indisponível · requer segredo do backend"))
     : isQwen
       ? (enabled ? (english ? "Configured · runtime checks apply" : "Configurado · sujeito às verificações do runtime") : (english ? "Unavailable · backend secret required" : "Indisponível · requer segredo do backend"))
       : (english ? "Available · provider limits apply" : "Disponível · sujeito aos limites do provedor");
-  $("model-runtime-notice").textContent = isCosmos
+  $("model-runtime-notice").textContent = isVoice
+    ? (english ? "Uses the public tonyassi/voice-clone Space and its XTTS-v2 endpoint. Availability and queue time depend on Hugging Face; only clone voices you have permission to use." : "Usa o Space público tonyassi/voice-clone e seu endpoint XTTS-v2. A disponibilidade e a fila dependem do Hugging Face; clone apenas vozes que você tem autorização para usar.")
+    : isCosmos
     ? (english
         ? (enabled ? "The backend is configured to call Cosmos. The Space still checks its feature flag, available VRAM and disk at runtime; successful inference is not guaranteed." : "Unavailable until the backend API secret is configured. The Space also requires its Cosmos feature flag, suitable VRAM and enough disk space.")
         : (enabled ? "O backend está configurado para chamar o Cosmos. O Space ainda verifica a flag do modelo, a VRAM e o disco disponíveis; a inferência não é garantida." : "Indisponível até configurar o segredo da API no backend. O Space também exige a flag do Cosmos, VRAM compatível e espaço em disco suficiente."))
@@ -331,12 +358,15 @@ function updateModelSelection() {
       : isQwythos
       ? languageText("qwythos_runtime_notice")
       : languageText("model_runtime_notice");
-  $("result-title").textContent = isCosmos ? languageText("video_result_title") : isQwen ? languageText("qwen_chat_title") : languageText("result_title");
+  $("result-title").textContent = isVoice ? (english ? "Generated voice audio" : "Áudio de voz gerado") : isCosmos ? languageText("video_result_title") : isQwen ? languageText("qwen_chat_title") : languageText("result_title");
   $("download").classList.toggle("hidden", isQwen);
+  $("download").setAttribute("aria-label", isVoice ? (english ? "Download audio" : "Baixar áudio") : isCosmos ? (english ? "Download video" : "Baixar vídeo") : (english ? "Download image" : "Baixar imagem"));
+  $("download").title = $("download").getAttribute("aria-label");
   $("download").disabled = true;
   $("generated-image").classList.add("hidden");
   
   $("generated-video").classList.add("hidden");
+  $("generated-audio").classList.add("hidden");
   $("generated-text").classList.add("hidden");
   $("generated-text").textContent = "";
   $("qwythos-result-text").classList.add("hidden");
@@ -365,6 +395,80 @@ async function loadModelAvailability() {
   updateModelSelection();
 }
 void loadModelAvailability();
+const MAX_VOICE_AUDIO_BYTES = 3 * 1024 * 1024;
+const voiceAudioInput = $("voice-audio-input");
+const voiceAudioPreview = $("voice-audio-preview");
+function clearVoiceAudio() {
+  voiceAudioDataUrl = "";
+  if (voiceAudioObjectUrl) URL.revokeObjectURL(voiceAudioObjectUrl);
+  voiceAudioObjectUrl = "";
+  voiceAudioPreview.removeAttribute("src");
+  voiceAudioPreview.classList.add("hidden");
+  $("voice-audio-status").textContent = document.documentElement.lang === "en" ? "No voice sample selected." : "Nenhuma amostra de voz selecionada.";
+}
+function readVoiceAudio(file) {
+  if (!file) return Promise.resolve();
+  if (!file.type.startsWith("audio/")) throw new Error(document.documentElement.lang === "en" ? "Choose an audio file." : "Escolha um arquivo de áudio.");
+  if (file.size > MAX_VOICE_AUDIO_BYTES) throw new Error(document.documentElement.lang === "en" ? "Audio must be 3 MiB or smaller." : "O áudio deve ter no máximo 3 MiB.");
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result !== "string" || !reader.result.startsWith("data:audio/")) {
+        reject(new Error(document.documentElement.lang === "en" ? "Could not read the audio file." : "Não foi possível ler o áudio."));
+        return;
+      }
+      voiceAudioDataUrl = reader.result;
+      if (voiceAudioObjectUrl) URL.revokeObjectURL(voiceAudioObjectUrl);
+      voiceAudioObjectUrl = URL.createObjectURL(file);
+      voiceAudioPreview.src = voiceAudioObjectUrl;
+      voiceAudioPreview.classList.remove("hidden");
+      $("voice-audio-status").textContent = document.documentElement.lang === "en" ? "Voice sample ready." : "Amostra de voz pronta.";
+      resolve();
+    };
+    reader.onerror = () => reject(new Error(document.documentElement.lang === "en" ? "Could not read the audio file." : "Não foi possível ler o áudio."));
+    reader.readAsDataURL(file);
+  });
+}
+voiceAudioInput.addEventListener("change", async () => {
+  const file = voiceAudioInput.files?.[0];
+  if (!file) return;
+  try { await readVoiceAudio(file); }
+  catch (error) { clearVoiceAudio(); $("voice-audio-status").textContent = error.message; }
+});
+$("voice-record-start").addEventListener("click", async () => {
+  if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
+    $("voice-audio-status").textContent = document.documentElement.lang === "en" ? "Recording is not supported here; choose an audio file instead." : "A gravação não é compatível com este navegador; escolha um arquivo de áudio.";
+    return;
+  }
+  try {
+    voiceRecorderStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    voiceRecorderChunks = [];
+    voiceRecorder = new MediaRecorder(voiceRecorderStream);
+    voiceRecorder.addEventListener("dataavailable", (event) => { if (event.data?.size) voiceRecorderChunks.push(event.data); });
+    voiceRecorder.addEventListener("stop", async () => {
+      const blob = new Blob(voiceRecorderChunks, { type: voiceRecorder.mimeType || "audio/webm" });
+      voiceRecorderStream?.getTracks().forEach((track) => track.stop());
+      voiceRecorderStream = null;
+      voiceRecorder = null;
+      $("voice-record-start").disabled = false;
+      $("voice-record-stop").disabled = true;
+      try {
+        if (blob.size > MAX_VOICE_AUDIO_BYTES) throw new Error(document.documentElement.lang === "en" ? "Recording exceeds 3 MiB. Record a shorter sample." : "A gravação excede 3 MiB. Grave uma amostra mais curta.");
+        const mimeType = (blob.type || "audio/webm").split(";")[0];
+        const file = new File([blob], "voice-reference." + (mimeType.includes("mp4") ? "m4a" : "webm"), { type: mimeType });
+        voiceAudioInput.value = "";
+        await readVoiceAudio(file);
+      } catch (error) { clearVoiceAudio(); $("voice-audio-status").textContent = error.message; }
+    }, { once: true });
+    voiceRecorder.start();
+    $("voice-record-start").disabled = true;
+    $("voice-record-stop").disabled = false;
+    $("voice-audio-status").textContent = document.documentElement.lang === "en" ? "Recording… click Stop recording when finished." : "Gravando… clique em Parar gravação ao terminar.";
+  } catch {
+    $("voice-audio-status").textContent = document.documentElement.lang === "en" ? "Microphone access was denied or unavailable." : "O microfone não está disponível ou o acesso foi negado.";
+  }
+});
+$("voice-record-stop").addEventListener("click", () => { if (voiceRecorder?.state === "recording") voiceRecorder.stop(); });
 const MAX_REFERENCE_FILE_BYTES = 12 * 1024 * 1024;
 const MAX_REFERENCE_DATA_BYTES = 3 * 1024 * 1024;
 const referenceImageInput = $("reference-image");
@@ -585,6 +689,8 @@ $("generator-form").addEventListener("submit", async (event) => {
   const dimensions = { square: [768,768], landscape: [1024,768], portrait: [768,1024] }[$("aspect").value];
   const button = $("generate");
   const isQwenRequest = modelSelect.value === QWEN_MODEL;
+  const isVoiceRequest = modelSelect.value === VOICE_CLONE_MODEL;
+  if (isVoiceRequest && !voiceAudioDataUrl) { $("voice-audio-status").textContent = document.documentElement.lang === "en" ? "Upload or record a voice sample first." : "Envie ou grave uma amostra de voz antes de gerar."; return; }
   const qwenThread = $("qwen-chat-thread");
   const qwenHistory = isQwenRequest
     ? [...qwenThread.querySelectorAll(".qwen-chat-message")]
@@ -606,6 +712,7 @@ $("generator-form").addEventListener("submit", async (event) => {
   $("empty-result").classList.add("hidden");
   $("generated-image").classList.add("hidden");
   $("generated-video").classList.add("hidden");
+  $("generated-audio").classList.add("hidden");
   $("generated-text").classList.add("hidden");
   if (isQwenRequest) {
     qwenThread.classList.remove("hidden");
@@ -639,12 +746,13 @@ $("generator-form").addEventListener("submit", async (event) => {
     const headers = { "Content-Type": "application/json", Authorization: "Bearer " + await currentUser.getIdToken() };
     const isQwythos = modelSelect.value === QWYTHOS_MODEL;
     const referenceImage = isQwythos ? referenceImageDataUrl : null;
+    const voiceAudio = isVoiceRequest ? voiceAudioDataUrl : null;
     if (isQwythos && !referenceImage) throw new Error(languageText("reference_image_required"));
     $("loading-message").textContent = isQwythos ? languageText("reference_image_uploading") : languageText("loading_desc");
     const response = await fetch("/api/generate", {
       method: "POST",
       headers,
-      body: JSON.stringify({ prompt: requestPrompt, model: modelSelect.value, width: dimensions[0], height: dimensions[1], steps: Number($("quality").value), language: document.documentElement.lang, ...(referenceImage ? { referenceImage } : {}) }),
+      body: JSON.stringify({ prompt: requestPrompt, model: modelSelect.value, width: dimensions[0], height: dimensions[1], steps: Number($("quality").value), language: document.documentElement.lang, ...(referenceImage ? { referenceImage } : {}), ...(voiceAudio ? { voiceAudio } : {}) }),
       signal: requestController.signal
     });
     const data = await response.json().catch(() => ({}));
@@ -670,6 +778,25 @@ $("generator-form").addEventListener("submit", async (event) => {
       $("result-status").textContent = document.documentElement.lang === "en" ? "Qwen response ready." : "Resposta do Qwen pronta.";
       $("result-status").className = "result-status status-success";
       void saveHistoryEntry("text", prompt, modelSelect.value, { outputText: answer, messages: collectQwenMessages() });
+      return;
+    }
+    if (data.type === "audio") {
+      const audioUrl = typeof data.audioUrl === "string" ? data.audioUrl : "";
+      if (!audioUrl) throw new Error(document.documentElement.lang === "en" ? "The Space did not return generated audio." : "O Space não retornou o áudio gerado.");
+      resultType = "audio"; imageUrl = ""; videoUrl = "";
+      const audio = $("generated-audio");
+      audio.onloadedmetadata = () => {
+        $("loading-result").classList.add("hidden"); $("empty-result").classList.add("hidden");
+        audio.classList.remove("hidden"); $("download").disabled = false; $("download").classList.remove("hidden");
+        $("result-status").textContent = document.documentElement.lang === "en" ? "Voice audio ready." : "Áudio de voz pronto.";
+        $("result-status").className = "result-status status-success";
+      };
+      audio.onerror = () => {
+        $("loading-result").classList.add("hidden"); $("empty-result").classList.remove("hidden");
+        $("result-status").textContent = document.documentElement.lang === "en" ? "Could not load the temporary audio file." : "Não foi possível carregar o áudio temporário.";
+        $("result-status").className = "result-status status-error";
+      };
+      audio.src = audioUrl; audio.load();
       return;
     }
     if (data.type === "video") {
@@ -723,7 +850,7 @@ $("generator-form").addEventListener("submit", async (event) => {
   }
 });
 $("download").addEventListener("click", async () => {
-  const mediaUrl = resultType === "video" ? videoUrl : imageUrl;
+  const mediaUrl = resultType === "video" ? videoUrl : resultType === "audio" ? $("generated-audio").src : imageUrl;
   if (!mediaUrl || resultType === "text") return;
   try {
     const response = await fetch(mediaUrl);
@@ -732,7 +859,7 @@ $("download").addEventListener("click", async () => {
     const objectUrl = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = objectUrl;
-    link.download = resultType === "video" ? "erikraft-ai-video.mp4" : "erikraft-ai-image.png";
+    link.download = resultType === "video" ? "erikraft-ai-video.mp4" : resultType === "audio" ? "erikraft-ai-voice.wav" : "erikraft-ai-image.png";
     link.click();
     setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
   } catch (error) {
