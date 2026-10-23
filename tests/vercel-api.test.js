@@ -191,8 +191,8 @@ test("account deletion dialog warns about profile photos and generation history 
   const profile = readFileSync(new URL("../assets/js/profile.js", import.meta.url), "utf8");
   assert.match(profile, /Fotos de perfil personalizadas/);
   assert.match(profile, /Custom profile photos/);
-  assert.match(profile, /Histórico de conversas e de gerações de imagens, vídeos e áudios/);
-  assert.match(profile, /Conversation history and image, video, and audio generation history/);
+  assert.match(profile, /Conversas com a IA, prompts, respostas e histórico de geração de imagens, vídeos e áudios/);
+  assert.match(profile, /AI conversations, prompts, responses, and image, video, and audio generation history/);
   assert.match(profile, /viewBox="0 0 576 512"/);
 });
 
