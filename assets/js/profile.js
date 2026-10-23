@@ -19,7 +19,7 @@ if (!config.apiKey || !config.authDomain || !config.projectId || !config.appId) 
       restorePhotoFailed:"Falha ao restaurar a foto.", removingPhoto:"Removendo foto…",
       photoRemoved:"Foto removida. O avatar ficará sem foto até você restaurá-la.", removePhotoFailed:"Falha ao remover a foto.",
       profileUpdateFailed:"Não foi possível atualizar o perfil.",
-      deleteAccount:"Excluir conta",deleteAccountTitle:"Excluir sua conta permanentemente?",deleteAccountWarning:"Esta ação é permanente. Sua conta de autenticação também será excluída.",deleteAccountPhoto:"Fotos de perfil personalizadas",deleteAccountHistory:"Histórico de conversas e de gerações de imagens, vídeos e áudios",deleteAccountData:"Todos os registros associados à sua conta no MongoDB Atlas",deleteAccountConfirmLabel:"Digite DELETE para confirmar",deleteAccountConfirmPlaceholder:"Digite DELETE",deleteAccountCancel:"Cancelar",deleteAccountAction:"Excluir minha conta",deletingAccount:"Excluindo conta e dados…",deleteAccountFailed:"Não foi possível excluir a conta. Tente novamente.",deleteAccountRecentLogin:"Por segurança, saia e entre novamente na conta antes de excluí-la.",deleteAccountConfirmRequired:"Digite DELETE exatamente como mostrado para confirmar."
+      deleteAccount:"Excluir conta",deleteAccountWarningIcon:"Alerta de exclusão de conta",deleteAccountTitle:"Excluir sua conta permanentemente?",deleteAccountWarning:"Esta ação é permanente. Sua conta de autenticação também será excluída.",deleteAccountPhoto:"Fotos de perfil personalizadas",deleteAccountHistory:"Histórico de conversas e de gerações de imagens, vídeos e áudios",deleteAccountData:"Todos os registros associados à sua conta no MongoDB Atlas",deleteAccountConfirmLabel:"Digite DELETE para confirmar",deleteAccountConfirmPlaceholder:"Digite DELETE",deleteAccountCancel:"Cancelar",deleteAccountAction:"Excluir minha conta",deletingAccount:"Excluindo conta e dados…",deleteAccountFailed:"Não foi possível excluir a conta. Tente novamente.",deleteAccountRecentLogin:"Por segurança, saia e entre novamente na conta antes de excluí-la.",deleteAccountConfirmRequired:"Digite DELETE exatamente como mostrado para confirmar."
     },
     en: {
       openProfile:"Open profile", accountProfile:"Account profile", closeProfile:"Close profile",
@@ -32,7 +32,7 @@ if (!config.apiKey || !config.authDomain || !config.projectId || !config.appId) 
       restorePhotoFailed:"Could not restore the photo.", removingPhoto:"Removing photo…",
       photoRemoved:"Photo removed. Your avatar will stay blank until you restore a photo.", removePhotoFailed:"Could not remove the photo.",
       profileUpdateFailed:"Could not update the profile.",
-      deleteAccount:"Delete account",deleteAccountTitle:"Permanently delete your account?",deleteAccountWarning:"This action is permanent. Your authentication account will also be deleted.",deleteAccountPhoto:"Custom profile photos",deleteAccountHistory:"Conversation history and image, video, and audio generation history",deleteAccountData:"All records associated with your account in MongoDB Atlas",deleteAccountConfirmLabel:"Type DELETE to confirm",deleteAccountConfirmPlaceholder:"Type DELETE",deleteAccountCancel:"Cancel",deleteAccountAction:"Delete my account",deletingAccount:"Deleting account and data…",deleteAccountFailed:"Could not delete the account. Please try again.",deleteAccountRecentLogin:"For security, sign out and sign in again before deleting your account.",deleteAccountConfirmRequired:"Type DELETE exactly as shown to confirm."
+      deleteAccount:"Delete account",deleteAccountWarningIcon:"Account deletion warning",deleteAccountTitle:"Permanently delete your account?",deleteAccountWarning:"This action is permanent. Your authentication account will also be deleted.",deleteAccountPhoto:"Custom profile photos",deleteAccountHistory:"Conversation history and image, video, and audio generation history",deleteAccountData:"All records associated with your account in MongoDB Atlas",deleteAccountConfirmLabel:"Type DELETE to confirm",deleteAccountConfirmPlaceholder:"Type DELETE",deleteAccountCancel:"Cancel",deleteAccountAction:"Delete my account",deletingAccount:"Deleting account and data…",deleteAccountFailed:"Could not delete the account. Please try again.",deleteAccountRecentLogin:"For security, sign out and sign in again before deleting your account.",deleteAccountConfirmRequired:"Type DELETE exactly as shown to confirm."
     }
   };
   const profileText = (key) => profileTranslations[document.documentElement.lang === "en" ? "en" : "pt-BR"][key] || key;
@@ -89,10 +89,10 @@ if (!config.apiKey || !config.authDomain || !config.projectId || !config.appId) 
   deleteModal.className = "profile-delete-modal";
   deleteModal.hidden = true;
   deleteModal.innerHTML = `
-    <button class="profile-delete-backdrop" type="button" data-delete-cancel aria-label="Close confirmation"></button>
+    <div class="profile-delete-backdrop" data-delete-cancel aria-hidden="true"></div>
     <section class="profile-delete-card" role="alertdialog" aria-modal="true" aria-labelledby="profile-delete-title" aria-describedby="profile-delete-warning">
       <svg class="profile-delete-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512" role="img" aria-label="Warning"><path fill="currentColor" d="M569.5 440.3L327.4 35.7c-18.4-30.7-60.4-30.7-78.8 0L6.5 440.3C-12 471.1 9.2 512 46.8 512h482.4c37.6 0 58.8-40.9 40.3-71.7zM288 176c17.7 0 32 14.3 32 32l-5.4 112c-.8 16.7-14.6 30-31.3 30s-30.5-13.3-31.3-30L256 208c0-17.7 14.3-32 32-32zm0 224a32 32 0 1 1 0 64 32 32 0 1 1 0-64z"/></svg>
-      <button class="profile-close" type="button" data-delete-cancel data-profile-i18n="closeProfile" aria-label="Fechar" title="Fechar"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512" aria-hidden="true" focusable="false"><path fill="currentColor" d="M342.6 150.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0L192 210.7 86.6 105.4c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3L146.7 256 41.4 361.4c-12.5 12.5-12.5 32.8 0 45.3s32.8 12.5 45.3 0L192 301.3l105.4 105.4c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L237.3 256l105.3-105.4z"/></svg></button>
+      <button class="profile-close" type="button" data-delete-cancel aria-label="Fechar" title="Fechar"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512" aria-hidden="true" focusable="false"><path fill="currentColor" d="M342.6 150.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0L192 210.7 86.6 105.4c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3L146.7 256 41.4 361.4c-12.5 12.5-12.5 32.8 0 45.3s32.8 12.5 45.3 0L192 301.3l105.4 105.4c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L237.3 256l105.3-105.4z"/></svg></button>
       <h2 id="profile-delete-title" data-profile-i18n="deleteAccountTitle">Excluir sua conta permanentemente?</h2>
       <p id="profile-delete-warning" data-profile-i18n="deleteAccountWarning">Esta ação é permanente. Sua conta de autenticação também será excluída.</p>
       <ul><li data-profile-i18n="deleteAccountPhoto">Fotos de perfil personalizadas</li><li data-profile-i18n="deleteAccountHistory">Histórico de conversas e de gerações de imagens, vídeos e áudios</li><li data-profile-i18n="deleteAccountData">Todos os registros associados à sua conta no MongoDB Atlas</li></ul>
@@ -121,7 +121,10 @@ if (!config.apiKey || !config.authDomain || !config.projectId || !config.appId) 
     deleteModal.querySelectorAll("[data-profile-placeholder]").forEach((element) => {
       element.setAttribute("placeholder", profileText(element.dataset.profilePlaceholder));
     });
-    deleteModal.querySelector("svg[role='img']")?.setAttribute("aria-label", profileText("deleteAccountTitle"));
+    deleteModal.querySelector("svg[role='img']")?.setAttribute("aria-label", profileText("deleteAccountWarningIcon"));
+    const modalClose = deleteModal.querySelector(".profile-delete-card .profile-close");
+    modalClose.setAttribute("aria-label", profileText("closeProfile"));
+    modalClose.title = profileText("closeProfile");
     popover.querySelector(".profile-subtitle").textContent = user?.displayName || profileText("connectedAccount");
     if (status.dataset.profileMessage) status.textContent = profileText(status.dataset.profileMessage);
   }
