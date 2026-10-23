@@ -226,7 +226,7 @@ test("history supports owner-scoped bulk deletion and hides private history from
   const css = readFileSync(new URL("../assets/css/styles.css", import.meta.url), "utf8");
   assert.match(api, /deleteMany\(\{ userId: user\.uid \}\)/);
   assert.match(api, /const deleteAll = String\(req\.query\?\.all \|\| req\.body\?\.all/);
-  assert.match(api, /messages: cleanMessages\(body\.messages\)/);
+  assert.match(api, /const messages = cleanMessages\(body\.messages\)/);
   assert.match(html, /id="history-panel" class="panel history-panel hidden"[^>]*inert/);
   assert.match(html, /id="history-delete-all-modal"/);
   assert.match(html, /viewBox="0 0 576 512"/);
