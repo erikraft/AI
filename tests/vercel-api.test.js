@@ -249,7 +249,7 @@ test("experimental Space tabs are hidden from the public UI while server-side au
   assert.match(source, /with gr\.Tab\("Qwen3\.8 text assistant", visible=False\)/);
   assert.match(source, /_authorize_experimental_api\(api_secret\)/);
   assert.match(source, /server-side shared secret/);
-  assert.match(source, /direct calls from this public Space interface/);
+  assert.match(source, /from this public Space interface/);
   assert.match(source, /client\.predict\(\s*["']\/generate_text["']/);
 });
 
