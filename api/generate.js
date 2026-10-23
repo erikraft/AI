@@ -138,7 +138,7 @@ async function detectVoiceReferenceLanguage(audioFile, clientOptions) {
 
 
 async function voiceAudioToGradioFile(dataUrl) {
-  const match = /^data:(audio\\x2f(?:wav|x-wav|mpeg|mp3|ogg|webm|mp4|x-m4a));base64,([A-Za-z0-9+/]+={0,2})$/i.exec(dataUrl);
+  const match = /^data:(audio\x2f(?:wav|x-wav|mpeg|mp3|ogg|webm|mp4|x-m4a));base64,([A-Za-z0-9+/]+={0,2})$/i.exec(dataUrl);
   if (!match) throw new Error("Invalid voice reference audio data URL.");
   const mimeType = match[1].toLowerCase();
   const bytes = Buffer.from(match[2], "base64");
