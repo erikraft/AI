@@ -13,6 +13,7 @@
   "dependencies": {
     "@gradio/client": "^1.15.0",
     "firebase-admin": "^13.4.0",
-    "mongodb": "^6.17.0"
+    "mongodb": "^6.17.0",
+    "franc-min": "^6.2.0"
   }
 }
