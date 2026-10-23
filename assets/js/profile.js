@@ -7,6 +7,33 @@ if (!config.apiKey || !config.authDomain || !config.projectId || !config.appId) 
 } else {
   const auth = getAuth(getApps().length ? getApp() : initializeApp(config));
   const $ = (id) => document.getElementById(id);
+  const profileTranslations = {
+    "pt-BR": {
+      openProfile:"Abrir perfil", accountProfile:"Perfil da conta", closeProfile:"Fechar perfil",
+      profilePhotoAlt:"Foto de perfil", connectedAccount:"Conta conectada", emailUnavailable:"E-mail indisponível",
+      changePhoto:"Alterar foto", removePhoto:"Remover foto", restoreProviderPhoto:"Restaurar foto do provedor", signOut:"Sair",
+      invalidImageType:"Use uma imagem PNG, JPEG ou WebP.", imageTooLarge:"A imagem deve ter no máximo 1 MiB.",
+      savingPhoto:"Salvando foto…", photoUpdated:"Foto de perfil atualizada.", readImageFailed:"Não foi possível ler a imagem.",
+      savePhotoFailed:"Falha ao salvar a foto.", restoringProviderPhoto:"Restaurando foto do provedor…",
+      providerPhotoRestored:"Foto do provedor restaurada neste site.", providerPhotoMissing:"O provedor não disponibilizou uma foto de perfil.",
+      restorePhotoFailed:"Falha ao restaurar a foto.", removingPhoto:"Removendo foto…",
+      photoRemoved:"Foto removida. O avatar ficará sem foto até você restaurá-la.", removePhotoFailed:"Falha ao remover a foto.",
+      profileUpdateFailed:"Não foi possível atualizar o perfil."
+    },
+    en: {
+      openProfile:"Open profile", accountProfile:"Account profile", closeProfile:"Close profile",
+      profilePhotoAlt:"Profile photo", connectedAccount:"Connected account", emailUnavailable:"Email unavailable",
+      changePhoto:"Change photo", removePhoto:"Remove photo", restoreProviderPhoto:"Restore provider photo", signOut:"Sign out",
+      invalidImageType:"Choose a PNG, JPEG, or WebP image.", imageTooLarge:"The image must be 1 MiB or smaller.",
+      savingPhoto:"Saving photo…", photoUpdated:"Profile photo updated.", readImageFailed:"Could not read the image.",
+      savePhotoFailed:"Could not save the photo.", restoringProviderPhoto:"Restoring provider photo…",
+      providerPhotoRestored:"Provider photo restored on this site.", providerPhotoMissing:"The provider did not supply a profile photo.",
+      restorePhotoFailed:"Could not restore the photo.", removingPhoto:"Removing photo…",
+      photoRemoved:"Photo removed. Your avatar will stay blank until you restore a photo.", removePhotoFailed:"Could not remove the photo.",
+      profileUpdateFailed:"Could not update the profile."
+    }
+  };
+  const profileText = (key) => profileTranslations[document.documentElement.lang === "en" ? "en" : "pt-BR"][key] || key;
   let user = null;
   let photoUrl = "";
   const style = document.createElement("style");
@@ -23,21 +50,43 @@ if (!config.apiKey || !config.authDomain || !config.projectId || !config.appId) 
   document.head.append(style);
   const trigger = document.createElement("button");
   trigger.className = "profile-trigger"; trigger.type = "button"; trigger.id = "profile-trigger";
-  trigger.setAttribute("aria-label", "Abrir perfil"); trigger.setAttribute("aria-expanded", "false");
+  trigger.setAttribute("aria-label", profileText("openProfile")); trigger.setAttribute("aria-expanded", "false");
   trigger.innerHTML = '<i class="fa-solid fa-user" aria-hidden="true"></i>';
   const logoutButton = $("logout");
   if (logoutButton) { logoutButton.before(trigger); logoutButton.style.display = "none"; }
   const popover = document.createElement("section");
-  popover.className = "profile-popover"; popover.hidden = true; popover.setAttribute("aria-label", "Perfil da conta");
+  popover.className = "profile-popover"; popover.hidden = true; popover.setAttribute("aria-label", profileText("accountProfile"));
   popover.innerHTML = `
     <button class="profile-close" type="button" data-profile-close aria-label="Fechar perfil" title="Fechar perfil"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512" aria-hidden="true" focusable="false"><path fill="currentColor" d="M342.6 150.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0L192 210.7 86.6 105.4c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3L146.7 256 41.4 361.4c-12.5 12.5-12.5 32.8 0 45.3s32.8 12.5 45.3 0L192 301.3l105.4 105.4c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L237.3 256l105.3-105.4z"/></svg></button>
     <div class="profile-head"><img class="profile-large-avatar" alt="Foto de perfil"><div><div class="profile-email"></div><div class="profile-subtitle">Conta conectada</div></div></div>
-    <div class="profile-actions"><button class="profile-action" type="button" data-profile-upload><i class="fa-solid fa-pen" aria-hidden="true"></i> Alterar foto</button><button class="profile-action danger" type="button" data-profile-delete><i class="fa-solid fa-trash" aria-hidden="true"></i> Remover foto</button><button class="profile-action" type="button" data-profile-restore title="Restaurar foto do provedor" aria-label="Restaurar foto do provedor"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" aria-hidden="true" focusable="false"><path fill="currentColor" d="M463.5 224l8.5 0c13.3 0 24-10.7 24-24l0-128c0-9.7-5.8-18.5-14.8-22.2s-19.3-1.7-26.2 5.2L413.4 96.6c-87.6-86.5-228.7-86.2-315.8 1c-87.5 87.5-87.5 229.3 0 316.8s229.3 87.5 316.8 0c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0c-62.5 62.5-163.8 62.5-226.3 0s-62.5-163.8 0-226.3c62.2-62.2 162.7-62.5 225.3-1L327 183c-6.9 6.9-8.9 17.2-5.2 26.2s12.5 14.8 22.2 14.8l119.5 0z"/></svg> Restaurar foto</button></div>
-    <input class="profile-file" type="file" accept="image/png,image/jpeg,image/webp"><p class="profile-status" role="status" aria-live="polite"></p><div class="profile-divider"></div><button class="button secondary small profile-signout" type="button"><i class="fa-solid fa-right-from-bracket" aria-hidden="true"></i> Sair</button>`;
+    <div class="profile-actions"><button class="profile-action" type="button" data-profile-upload><i class="fa-solid fa-pen" aria-hidden="true"></i> <span data-profile-i18n="changePhoto">Alterar foto</span></button><button class="profile-action danger" type="button" data-profile-delete><i class="fa-solid fa-trash" aria-hidden="true"></i> <span data-profile-i18n="removePhoto">Remover foto</span></button><button class="profile-action" type="button" data-profile-restore title="Restaurar foto do provedor" aria-label="Restaurar foto do provedor"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" aria-hidden="true" focusable="false"><path fill="currentColor" d="M463.5 224l8.5 0c13.3 0 24-10.7 24-24l0-128c0-9.7-5.8-18.5-14.8-22.2s-19.3-1.7-26.2 5.2L413.4 96.6c-87.6-86.5-228.7-86.2-315.8 1c-87.5 87.5-87.5 229.3 0 316.8s229.3 87.5 316.8 0c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0c-62.5 62.5-163.8 62.5-226.3 0s-62.5-163.8 0-226.3c62.2-62.2 162.7-62.5 225.3-1L327 183c-6.9 6.9-8.9 17.2-5.2 26.2s12.5 14.8 22.2 14.8l119.5 0z"/></svg> <span data-profile-i18n="restoreProviderPhoto">Restaurar foto</span></button></div>
+    <input class="profile-file" type="file" accept="image/png,image/jpeg,image/webp"><p class="profile-status" role="status" aria-live="polite"></p><div class="profile-divider"></div><button class="button secondary small profile-signout" type="button"><i class="fa-solid fa-right-from-bracket" aria-hidden="true"></i> <span data-profile-i18n="signOut">Sair</span></button>`;
   document.body.append(popover);
   const avatar = popover.querySelector(".profile-large-avatar");
   const file = popover.querySelector(".profile-file");
   const status = popover.querySelector(".profile-status");
+  function updateProfileLanguage() {
+    trigger.setAttribute("aria-label", profileText("openProfile"));
+    popover.setAttribute("aria-label", profileText("accountProfile"));
+    avatar.alt = profileText("profilePhotoAlt");
+    const close = popover.querySelector("[data-profile-close]");
+    close.setAttribute("aria-label", profileText("closeProfile"));
+    close.title = profileText("closeProfile");
+    const restore = popover.querySelector("[data-profile-restore]");
+    restore.setAttribute("aria-label", profileText("restoreProviderPhoto"));
+    restore.title = profileText("restoreProviderPhoto");
+    popover.querySelectorAll("[data-profile-i18n]").forEach((element) => {
+      element.textContent = profileText(element.dataset.profileI18n);
+    });
+    popover.querySelector(".profile-subtitle").textContent = user?.displayName || profileText("connectedAccount");
+    if (status.dataset.profileMessage) status.textContent = profileText(status.dataset.profileMessage);
+  }
+  document.addEventListener("erikraft-language-change", updateProfileLanguage);
+  updateProfileLanguage();
+  function setProfileStatus(key) {
+    status.dataset.profileMessage = key;
+    status.textContent = profileText(key);
+  }
   function setPhoto(url) {
     photoUrl = url || "";
     trigger.innerHTML = photoUrl ? "" : '<i class="fa-solid fa-user" aria-hidden="true"></i>';
@@ -52,7 +101,7 @@ if (!config.apiKey || !config.authDomain || !config.projectId || !config.appId) 
     const token = await user.getIdToken();
     const response = await fetch("/api/profile", { method, headers: { Authorization: "Bearer " + token, ...(body ? { "Content-Type": "application/json" } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}), cache: "no-store" });
     const data = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(data.error || "Não foi possível atualizar o perfil.");
+    if (!response.ok) throw new Error(data.error || profileText("profileUpdateFailed"));
     return data;
   }
   async function loadPhoto() {
@@ -92,35 +141,35 @@ if (!config.apiKey || !config.authDomain || !config.projectId || !config.appId) 
   file.addEventListener("change", async () => {
     const selected = file.files?.[0]; file.value = "";
     if (!selected) return;
-    if (!["image/png","image/jpeg","image/webp"].includes(selected.type)) { status.textContent = "Use uma imagem PNG, JPEG ou WebP."; return; }
-    if (selected.size > 1024 * 1024) { status.textContent = "A imagem deve ter no máximo 1 MiB."; return; }
-    status.textContent = "Salvando foto…";
+    if (!["image/png","image/jpeg","image/webp"].includes(selected.type)) { setProfileStatus("invalidImageType"); return; }
+    if (selected.size > 1024 * 1024) { setProfileStatus("imageTooLarge"); return; }
+    setProfileStatus("savingPhoto");
     try {
-      const photo = await new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(reader.result); reader.onerror = () => reject(new Error("Não foi possível ler a imagem.")); reader.readAsDataURL(selected); });
-      const result = await request("PUT", { photo }); setPhoto(result.photo); status.textContent = "Foto de perfil atualizada.";
-    } catch (error) { status.textContent = error.message || "Falha ao salvar a foto."; }
+      const photo = await new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(reader.result); reader.onerror = () => reject(new Error(profileText("readImageFailed"))); reader.readAsDataURL(selected); });
+      const result = await request("PUT", { photo }); setPhoto(result.photo); setProfileStatus("photoUpdated");
+    } catch (error) { delete status.dataset.profileMessage; status.textContent = error.message || profileText("savePhotoFailed"); }
   });
   popover.querySelector("[data-profile-restore]").addEventListener("click", async () => {
-    status.textContent = "Restaurando foto do provedor…";
+    setProfileStatus("restoringProviderPhoto");
     try {
       const result = await request("PUT", { restoreProviderPhoto: true });
       setPhoto(result.photo || user?.photoURL || "");
-      status.textContent = user?.photoURL ? "Foto do provedor restaurada neste site." : "O provedor não disponibilizou uma foto de perfil.";
-    } catch (error) { status.textContent = error.message || "Falha ao restaurar a foto."; }
+      setProfileStatus(user?.photoURL ? "providerPhotoRestored" : "providerPhotoMissing");
+    } catch (error) { delete status.dataset.profileMessage; status.textContent = error.message || profileText("restorePhotoFailed"); }
   });
   popover.querySelector("[data-profile-delete]").addEventListener("click", async () => {
-    status.textContent = "Removendo foto…";
-    try { await request("DELETE"); setPhoto(""); status.textContent = "Foto removida. O avatar ficará sem foto até você restaurá-la."; }
-    catch (error) { status.textContent = error.message || "Falha ao remover a foto."; }
+    setProfileStatus("removingPhoto");
+    try { await request("DELETE"); setPhoto(""); setProfileStatus("photoRemoved"); }
+    catch (error) { delete status.dataset.profileMessage; status.textContent = error.message || profileText("removePhotoFailed"); }
   });
   onAuthStateChanged(auth, async (nextUser) => {
     user = nextUser;
     const active = Boolean(user && (!user.providerData?.some((p) => p.providerId === "password") || user.emailVerified));
     trigger.style.display = active ? "grid" : "none";
     if (!active) { popover.hidden = true; setPhoto(""); return; }
-    popover.querySelector(".profile-email").textContent = user.email || "E-mail indisponível";
-    popover.querySelector(".profile-subtitle").textContent = user.displayName || "Conta conectada";
-    status.textContent = "";
+    popover.querySelector(".profile-email").textContent = user.email || profileText("emailUnavailable");
+    popover.querySelector(".profile-subtitle").textContent = user.displayName || profileText("connectedAccount");
+    status.textContent = ""; delete status.dataset.profileMessage;
     try { await loadPhoto(); } catch (error) { setPhoto(user.photoURL || ""); status.textContent = error.message; }
   });
 }
