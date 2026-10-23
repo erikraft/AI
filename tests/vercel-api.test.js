@@ -169,7 +169,8 @@ test("account deletion removes user-owned MongoDB records and deletes Firebase A
   const source = readFileSync(new URL("../api/account.js", import.meta.url), "utf8");
   assert.match(source, /listCollections\(\{\}\)/);
   assert.match(source, /deleteMany\(\{ userId: uid \}\)/);
-  assert.match(source, /deleteMongoUserData\(db, user\.uid\);[\s\S]*deleteUser\(user\.uid\)/);
+  assert.match(source, /getFirestore\(adminApp\(\)\)\.collection\("generation_limits"\)\.doc\(user\.uid\)\.delete\(\)/);
+  assert.match(source, /deleteMongoUserData\(db, user\.uid\);[\s\S]*generation_limits[\s\S]*deleteUser\(user\.uid\)/);
   assert.match(source, /RECENT_AUTH_SECONDS = 5 \* 60/);
   assert.match(source, /verifyIdToken\(match\[1\], true\)/);
 });
@@ -190,7 +191,79 @@ test("account deletion dialog warns about profile photos and generation history 
   const profile = readFileSync(new URL("../assets/js/profile.js", import.meta.url), "utf8");
   assert.match(profile, /Fotos de perfil personalizadas/);
   assert.match(profile, /Custom profile photos/);
-  assert.match(profile, /Histórico de conversas e de gerações de imagens, vídeos e áudios/);
-  assert.match(profile, /Conversation history and image, video, and audio generation history/);
+  assert.match(profile, /Conversas com a IA, prompts, respostas e histórico de geração de imagens, vídeos e áudios/);
+  assert.match(profile, /AI conversations, prompts, responses, and image, video, and audio generation history/);
   assert.match(profile, /viewBox="0 0 576 512"/);
+});
+
+
+function assertExactHttpsLink(source, expectedUrl) {
+  const expected = new URL(expectedUrl);
+  const attributeValues = [...source.matchAll(/\b(?:href|src)\s*=\s*(["'])(.*?)\1/gi)]
+    .map((match) => match[2]);
+  const found = attributeValues.some((value) => {
+    try {
+      const parsed = new URL(value);
+      return parsed.href === expected.href
+        && parsed.protocol === "https:"
+        && parsed.hostname === expected.hostname
+        && parsed.port === ""
+        && parsed.username === ""
+        && parsed.password === ""
+        && parsed.search === ""
+        && parsed.hash === "";
+    } catch {
+      return false;
+    }
+  });
+  assert.ok(found, `Expected an exact HTTPS link to ${expectedUrl}`);
+}
+
+test("account deletion and legal pages disclose Hugging Face provider-side retention in both languages", () => {
+  const profile = readFileSync(new URL("../assets/js/profile.js", import.meta.url), "utf8");
+  const privacy = readFileSync(new URL("../privacy.html", import.meta.url), "utf8");
+  const terms = readFileSync(new URL("../terms.html", import.meta.url), "utf8");
+  for (const source of [profile, privacy, terms]) {
+    assertExactHttpsLink(source, "https://huggingface.co/privacy");
+    assertExactHttpsLink(source, "https://huggingface.co/terms-of-service");
+  }
+  assert.match(profile, /Prompts and inputs sent to Hugging Face/);
+  assert.match(privacy, /does <strong>not automatically delete/);
+  assert.match(privacy, /não apaga automaticamente/);
+  assert.match(privacy, /23 de outubro de 2026/);
+  assert.match(privacy, /October 23, 2026/);
+});
+
+test("localized interface text is rendered without reinterpreting translations as HTML", () => {
+  const app = readFileSync(new URL("../assets/js/app.js", import.meta.url), "utf8");
+  assert.equal(app.includes("innerHTML"), false);
+  assert.ok(app.includes("Object.prototype.hasOwnProperty.call(dict, key)"));
+  assert.ok(app.includes("el.textContent = dict[key]"));
+  assert.ok(app.includes("hero_title_emphasis"));
+  assert.ok(app.includes("studio_title_accent"));
+});
+
+test("voice-cloning reference audio is confined to Gradio's resolved cache path", () => {
+  const source = readFileSync(new URL("../huggingface/app.py", import.meta.url), "utf8");
+  assert.ok(source.includes("cache_root = os.path.realpath(os.fspath(cache_dir))"));
+  assert.ok(source.includes("audio_path = os.path.realpath(reference_audio)"));
+  assert.ok(source.includes("os.path.commonpath((cache_root, audio_path))"));
+  assert.ok(source.includes("audio_path.startswith(cache_prefix)"));
+  assert.ok(source.includes("os.path.isfile(audio_path)"));
+  assert.ok(source.includes("audio_size = os.path.getsize(audio_path)"));
+  assert.ok(source.includes("handle_file(safe_reference_audio)"));
+  assert.equal(source.includes("Path(reference_audio).resolve"), false);
+  assert.equal(source.includes("os.path.isfile(reference_audio)"), false);
+  assert.equal(source.includes("os.path.getsize(reference_audio)"), false);
+});
+
+test("voice preview only accepts supported audio MIME types and uses a normalized Blob URL", () => {
+  const app = readFileSync(new URL("../assets/js/app.js", import.meta.url), "utf8");
+  const api = readFileSync(new URL("../api/generate.js", import.meta.url), "utf8");
+  assert.ok(app.includes("const SUPPORTED_VOICE_AUDIO_TYPES = new Set(["));
+  assert.ok(app.includes("if (!SUPPORTED_VOICE_AUDIO_TYPES.has(mimeType))"));
+  assert.ok(app.includes("new Blob([file], { type: mimeType })"));
+  assert.ok(app.includes('if (!previewUrl.startsWith("blob:"))'));
+  assert.ok(app.includes("`data:${mimeType};base64,${dataUrl[1]}`"));
+  assert.ok(api.includes("(?:wav|x-wav|mpeg|mp3|ogg|webm|mp4|x-m4a)"));
 });

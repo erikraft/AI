@@ -411,18 +411,55 @@ def generate_text(prompt: str, language: str = "pt-BR", api_secret: str = ""):
         raise gr.Error("Qwen text generation failed: " + str(exc)[:280]) from exc
 
 
+def _validated_reference_audio_path(reference_audio: str) -> str:
+    """Canonicalize an uploaded path and confine it to Gradio's trusted upload cache."""
+    error_message = (
+        "Upload or record a reference audio sample managed by this Space. "
+        "/ Envie ou grave uma amostra de áudio gerenciada por este Space."
+    )
+    if not isinstance(reference_audio, str) or not reference_audio.strip():
+        raise gr.Error(error_message)
+
+    cache_dir = getattr(demo, "GRADIO_CACHE", None)
+    if not isinstance(cache_dir, (str, os.PathLike)) or not cache_dir:
+        raise gr.Error(error_message)
+
+    try:
+        # realpath resolves traversal segments and symlinks before any file access.
+        cache_root = os.path.realpath(os.fspath(cache_dir))
+        audio_path = os.path.realpath(reference_audio)
+        cache_prefix = os.path.join(cache_root, "")
+        common_root = os.path.commonpath((cache_root, audio_path))
+    except (OSError, TypeError, ValueError):
+        raise gr.Error(error_message) from None
+
+    # Require a child of the cache root (not a similarly prefixed sibling).
+    # Keep both commonpath and the separator-terminated prefix check explicit.
+    if common_root != cache_root or not audio_path.startswith(cache_prefix):
+        raise gr.Error(error_message)
+    if not os.path.isfile(audio_path):
+        raise gr.Error(error_message)
+
+    audio_size = os.path.getsize(audio_path)
+    if audio_size <= 0:
+        raise gr.Error(error_message)
+    if audio_size > 3 * 1024 * 1024:
+        raise gr.Error(
+            "Reference audio must be at most 3 MiB. / "
+            "O áudio de referência deve ter no máximo 3 MiB."
+        )
+    return audio_path
+
+
 def clone_voice(prompt: str, reference_audio: str):
     """Proxy voice cloning to the public tonyassi/voice-clone Space."""
     prompt = (prompt or "").strip()
     if not prompt or len(prompt) > 1500:
         raise gr.Error("Enter text between 1 and 1500 characters. / Digite um texto de 1 a 1500 caracteres.")
-    if not reference_audio or not os.path.isfile(reference_audio):
-        raise gr.Error("Upload or record a reference audio sample. / Envie ou grave um áudio de referência.")
-    if os.path.getsize(reference_audio) > 3 * 1024 * 1024:
-        raise gr.Error("Reference audio must be at most 3 MiB. / O áudio de referência deve ter no máximo 3 MiB.")
+    safe_reference_audio = _validated_reference_audio_path(reference_audio)
     try:
         client = Client("tonyassi/voice-clone", verbose=False)
-        result = client.predict(prompt, handle_file(reference_audio), api_name="/clone")
+        result = client.predict(prompt, handle_file(safe_reference_audio), api_name="/clone")
         first = result[0] if isinstance(result, (list, tuple)) and result else result
         if isinstance(first, dict):
             first = first.get("path") or first.get("url")

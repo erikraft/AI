@@ -1,5 +1,6 @@
 import { initializeApp, cert, getApps } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
+import { getFirestore } from "firebase-admin/firestore";
 import { MongoClient } from "mongodb";
 
 const DATABASE_NAME = process.env.MONGODB_DATABASE || "ErikrafTAI";
@@ -81,6 +82,9 @@ export default async function handler(req, res) {
   try {
     const db = await database();
     await deleteMongoUserData(db, user.uid);
+    // Remove the account-specific hourly generation quota before deleting Auth.
+    // If this fails, the endpoint reports failure and the user can retry.
+    await getFirestore(adminApp()).collection("generation_limits").doc(user.uid).delete();
     // Delete Firebase Auth last. If database cleanup fails, the user can still
     // sign in and retry; if Auth deletion fails, retrying safely repeats cleanup.
     await getAuth(adminApp()).deleteUser(user.uid);
