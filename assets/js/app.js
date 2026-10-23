@@ -26,6 +26,10 @@ function updateStudioAccess(user) {
   const generator = $("generator-form");
   const resultPanel = $("result-panel");
   const loginPanel = $("studio-login-panel");
+  const historyPanel = $("history-panel");
+  historyPanel?.classList.toggle("hidden", !authenticated);
+  historyPanel?.setAttribute("aria-hidden", String(!authenticated));
+  if (historyPanel) historyPanel.inert = !authenticated;
   generator.classList.toggle("hidden", !authenticated);
   generator.setAttribute("aria-hidden", String(!authenticated));
   generator.inert = !authenticated;
@@ -81,7 +85,17 @@ function historyText(key) {
     deleteError:["Não foi possível excluir este registro.","Could not delete this record."],
     deleted:["Registro excluído do histórico.","History record deleted."],
     deleteLabel:["Excluir do histórico","Delete from history"],
-    image:["Imagem","Image"], video:["Vídeo","Video"], audio:["Áudio","Audio"], text:["Conversa","Conversation"]
+    deleteAll:["Apagar todo histórico","Delete all history"],
+    deleteAllEyebrow:["AÇÃO IRREVERSÍVEL","IRREVERSIBLE ACTION"],
+    deleteAllTitle:["Apagar todo o histórico?","Delete all history?"],
+    deleteAllDesc:["Isso excluirá todas as suas criações e conversas salvas nesta conta. Outros usuários não serão afetados. Esta ação não pode ser desfeita.","This will delete all creations and conversations saved to your account. Other users will not be affected. This action cannot be undone."],
+    deleteAllConfirm:["Apagar tudo","Delete everything"],
+    deleteAllSuccess:["Todo o seu histórico foi excluído.","All your history has been deleted."],
+    deleteAllError:["Não foi possível apagar todo o histórico.","Could not delete all history."],
+    cancel:["Cancelar","Cancel"],
+    user:["Você","You"], assistant:["IA","AI"],
+    image:["Imagem","Image"], video:["Vídeo","Video"], audio:["Áudio","Audio"], text:["Conversa","Conversation"],
+    generatedDate:["Gerado em","Generated on"], conversationDate:["Conversa em","Conversation on"]
   };
   return copy[key]?.[en ? 1 : 0] || key;
 }
@@ -181,13 +195,24 @@ function renderHistory(items) {
     const details = document.createElement("div"); details.className = "history-item-details";
     const kind = document.createElement("span"); kind.className = "history-kind"; kind.textContent = historyText(item.type === "image" ? "image" : item.type === "video" ? "video" : item.type === "audio" ? "audio" : "text");
     const prompt = document.createElement("textarea"); prompt.className = "history-prompt"; prompt.value = item.prompt || ""; prompt.readOnly = true; prompt.rows = 4; prompt.spellcheck = false; prompt.setAttribute("aria-label", document.documentElement.lang === "en" ? "Generation prompt (read-only; selectable and copyable)" : "Prompt da geração (somente leitura; selecione e copie)");
-    const meta = document.createElement("small"); meta.textContent = [item.model || "", item.createdAt ? formatHistoryDate(item.createdAt) : ""].filter(Boolean).join(" · ");
+    const dateLabel = historyText(item.type === "text" ? "conversationDate" : "generatedDate");
+    const timestamp = item.createdAt ? `${dateLabel}: ${formatHistoryDate(item.createdAt)}` : "";
+    const meta = document.createElement("small"); meta.className = "history-item-meta"; meta.textContent = [item.model || "", timestamp].filter(Boolean).join(" · ");
     details.append(kind,prompt,meta);
     if (historyAudio) {
       details.append(historyAudio);
       enhanceAudioPlayer(historyAudio);
     }
-    if (item.outputText) { const output = document.createElement("p"); output.className = "history-output"; output.textContent = item.outputText; details.append(output); }
+    if (item.type === "text" && Array.isArray(item.messages) && item.messages.length) {
+      const transcript = document.createElement("div"); transcript.className = "history-transcript";
+      for (const message of item.messages) {
+        const bubble = document.createElement("div"); bubble.className = "history-chat-message history-chat-" + (message.role === "assistant" ? "assistant" : "user");
+        const speaker = document.createElement("span"); speaker.className = "history-chat-speaker"; speaker.textContent = historyText(message.role === "assistant" ? "assistant" : "user");
+        const messageText = document.createElement("p"); messageText.className = "history-output"; messageText.textContent = message.text || "";
+        bubble.append(speaker, messageText); transcript.append(bubble);
+      }
+      details.append(transcript);
+    } else if (item.outputText) { const output = document.createElement("p"); output.className = "history-output"; output.textContent = item.outputText; details.append(output); }
     if (item.mediaUrl) { const open = document.createElement("a"); open.href = item.mediaUrl; open.target="_blank"; open.rel="noopener noreferrer"; open.className="history-open-link"; open.textContent=document.documentElement.lang==="en"?"Open media ↗":"Abrir mídia ↗"; details.append(open); }
     const remove = document.createElement("button");
     remove.type = "button";
@@ -218,6 +243,43 @@ function collectQwenMessages() {
     .slice(-30).map((message)=>({role:message.dataset.role==="assistant"?"assistant":"user",text:message.querySelector(".qwen-message-content")?.textContent||""}));
 }
 $("history-refresh")?.addEventListener("click",()=>void loadHistory());
+const historyDeleteAllModal = $("history-delete-all-modal");
+const historyDeleteAllButton = $("history-delete-all");
+const historyDeleteAllConfirm = $("history-delete-all-confirm");
+const historyDeleteAllStatus = $("history-delete-all-status");
+function closeHistoryDeleteAllDialog() {
+  historyDeleteAllModal?.classList.add("hidden");
+  historyDeleteAllStatus.textContent = "";
+  if (historyDeleteAllButton && currentUser) historyDeleteAllButton.focus();
+}
+historyDeleteAllButton?.addEventListener("click", () => {
+  if (!currentUser) return;
+  historyDeleteAllStatus.textContent = "";
+  historyDeleteAllConfirm.disabled = false;
+  historyDeleteAllModal.classList.remove("hidden");
+  historyDeleteAllConfirm.focus();
+});
+document.querySelectorAll("[data-history-delete-cancel], #history-delete-all-cancel").forEach((button) => button.addEventListener("click", closeHistoryDeleteAllDialog));
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && historyDeleteAllModal && !historyDeleteAllModal.classList.contains("hidden")) closeHistoryDeleteAllDialog();
+});
+historyDeleteAllConfirm?.addEventListener("click", async () => {
+  if (!currentUser || historyDeleteAllConfirm.disabled) return;
+  historyDeleteAllConfirm.disabled = true;
+  historyDeleteAllButton.disabled = true;
+  historyDeleteAllStatus.textContent = historyText("loading");
+  try {
+    await historyRequest("DELETE", { all: true });
+    await loadHistory();
+    historyDeleteAllStatus.textContent = historyText("deleteAllSuccess");
+    window.setTimeout(closeHistoryDeleteAllDialog, 900);
+  } catch {
+    historyDeleteAllStatus.textContent = historyText("deleteAllError");
+    historyDeleteAllConfirm.disabled = false;
+  } finally {
+    historyDeleteAllButton.disabled = false;
+  }
+});
 $("voice-audio-remove")?.addEventListener("click", () => { clearVoiceAudio(); });
 
 if (configured) {

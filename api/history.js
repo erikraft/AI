@@ -98,11 +98,16 @@ export default async function handler(req, res) {
     }
 
     if (req.method === "DELETE") {
+      const deleteAll = String(req.query?.all || req.body?.all || "").toLowerCase() === "true";
+      if (deleteAll) {
+        const result = await collection.deleteMany({ userId: user.uid });
+        return res.status(200).json({ deleted: true, deletedCount: result.deletedCount });
+      }
       const id = cleanText(req.query?.id || req.body?.id, 64);
       if (!ObjectId.isValid(id)) return res.status(400).json({ error: "Invalid history item ID." });
       const result = await collection.deleteOne({ _id: new ObjectId(id), userId: user.uid });
       if (!result.deletedCount) return res.status(404).json({ error: "History item not found." });
-      return res.status(200).json({ deleted: true });
+      return res.status(200).json({ deleted: true, deletedCount: result.deletedCount });
     }
 
     res.setHeader("Allow", "GET, POST, DELETE");
