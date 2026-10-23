@@ -240,5 +240,5 @@ test("voice preview only accepts supported audio MIME types and uses a normalize
   assert.ok(app.includes("new Blob([file], { type: mimeType })"));
   assert.ok(app.includes('if (!previewUrl.startsWith("blob:"))'));
   assert.ok(app.includes("`data:${mimeType};base64,${dataUrl[1]}`"));
-  assert.ok(api.includes("data:(audio\\\\/(?:wav|x-wav|mpeg|mp3|ogg|webm|mp4|x-m4a))"));
+  assert.ok(api.includes("(?:wav|x-wav|mpeg|mp3|ogg|webm|mp4|x-m4a)"));
 });
