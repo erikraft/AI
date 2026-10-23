@@ -193,10 +193,12 @@ if (!config.apiKey || !config.authDomain || !config.projectId || !config.appId) 
     deleteConfirmButton.disabled = true;
     deleteError.textContent = "";
     popover.hidden = false;
+    trigger.setAttribute("aria-expanded", "true");
     deleteAccountButton.focus();
   }
   function openDeleteModal() {
     popover.hidden = true;
+    trigger.setAttribute("aria-expanded", "false");
     deleteModal.hidden = false;
     deleteConfirmInput.value = "";
     deleteConfirmButton.disabled = true;
@@ -268,7 +270,7 @@ if (!config.apiKey || !config.authDomain || !config.projectId || !config.appId) 
     user = nextUser;
     const active = Boolean(user && (!user.providerData?.some((p) => p.providerId === "password") || user.emailVerified));
     trigger.style.display = active ? "grid" : "none";
-    if (!active) { popover.hidden = true; setPhoto(""); return; }
+    if (!active) { popover.hidden = true; deleteModal.hidden = true; trigger.setAttribute("aria-expanded", "false"); setPhoto(""); return; }
     popover.querySelector(".profile-email").textContent = user.email || profileText("emailUnavailable");
     popover.querySelector(".profile-subtitle").textContent = user.displayName || profileText("connectedAccount");
     status.textContent = ""; delete status.dataset.profileMessage;
