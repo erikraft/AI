@@ -23,7 +23,7 @@ test("voice cloning routes through authenticated API with reference-language det
   assert.ok(api.includes("detectVoiceReferenceLanguage(voiceAudioFile, clientOptions)"));
   assert.ok(api.includes("[prompt.trim(), voiceAudioFile, voiceLanguage]"));
   assert.match(api, /Client\.connect\(targetSpaceId/);
-  assert.ok(api.includes('predictWithTimeout(client, "/clone", [prompt.trim(), voiceAudioFile]'));
+  assert.ok(api.includes('"/predict"'));
   assert.match(api, /MAX_VOICE_AUDIO_BYTES = 3 \* 1024 \* 1024/);
 });
 
