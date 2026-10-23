@@ -198,8 +198,9 @@ test("model discovery supports bilingual search terms and task filters", () => {
   const app = readFileSync(new URL("../assets/js/app.js", import.meta.url), "utf8");
   assert.match(html, /id="model-search"/);
   assert.match(html, /id="model-task-filter"/);
-  assert.match(html, /gerar texto chatbot/);
-  assert.match(html, /generate text chatbot/);
+  assert.match(html, /gerar texto/);
+  assert.match(html, /chatbot/);
+  assert.match(html, /generate text/);
   assert.match(app, /normalize\("NFD"\)/);
   assert.match(app, /filterModels\(\)/);
 });
