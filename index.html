@@ -176,18 +176,18 @@
     <input id="voice-audio-input" type="file" accept="audio/wav,audio/x-wav,audio/mpeg,audio/mp3,audio/ogg,audio/webm,audio/mp4,audio/x-m4a">
   </div>
   <div class="voice-record-actions">
-    <button id="voice-record-start" class="voice-record-button" type="button" aria-label="Iniciar gravação" title="Iniciar gravação">
+    <button id="voice-record-start" class="voice-record-button" type="button" data-i18n-aria-label="voice_record_start" data-i18n-title="voice_record_start" aria-label="Iniciar gravação" title="Iniciar gravação">
       <svg viewBox="0 0 512 512" aria-hidden="true" focusable="false"><path fill="currentColor" d="M480 192h-48a16 16 0 0 0-16 16v16a160 160 0 0 1-320 0v-16a16 16 0 0 0-16-16H32a16 16 0 0 0-16 16v16a224 224 0 0 0 192 221.4V480H128a32 32 0 0 0-32 32 32 32 0 0 0 32 32h256a32 32 0 0 0 32-32 32 32 0 0 0-32-32h-80v-34.6A224 224 0 0 0 496 224v-16a16 16 0 0 0-16-16zM256 384a128 128 0 0 0 128-128V128a128 128 0 0 0-256 0v128a128 128 0 0 0 128 128z"/></svg>
     </button>
-    <button id="voice-record-stop" class="voice-record-button voice-record-stop" type="button" aria-label="Parar gravação" title="Parar gravação" disabled>
+    <button id="voice-record-stop" class="voice-record-button voice-record-stop" type="button" data-i18n-aria-label="voice_record_stop" data-i18n-title="voice_record_stop" aria-label="Parar gravação" title="Parar gravação" disabled>
       <svg viewBox="0 0 512 512" aria-hidden="true" focusable="false"><path fill="currentColor" d="M80 80h352v352H80z"/></svg>
     </button>
-    <span id="voice-record-timer" class="voice-record-timer" role="timer" aria-label="Duração da gravação">00:00 / 01:00</span>
+    <span id="voice-record-timer" class="voice-record-timer" role="timer" data-i18n-aria-label="voice_record_timer_label" aria-label="Duração da gravação">00:00 / 01:00</span>
     <span id="voice-audio-status" class="small-note" role="status" aria-live="polite" data-i18n="voice_initial_status">Envie um arquivo ou grave uma amostra de voz.</span>
   </div>
   <div class="voice-audio-preview-wrap">
     <audio id="voice-audio-preview" class="voice-audio-preview hidden" preload="metadata"></audio>
-    <button id="voice-audio-remove" class="voice-audio-remove hidden" type="button" aria-label="Remover áudio enviado" title="Remover áudio enviado">
+    <button id="voice-audio-remove" class="voice-audio-remove hidden" type="button" data-i18n-aria-label="voice_audio_remove" data-i18n-title="voice_audio_remove" aria-label="Remover áudio enviado" title="Remover áudio enviado">
       <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M9 3h6l1 2h5v2H3V5h5l1-2zm-4 6h14l-1 12H6L5 9zm4 2v8h2v-8H9zm4 0v8h2v-8h-2z"/></svg>
     </button>
   </div>
