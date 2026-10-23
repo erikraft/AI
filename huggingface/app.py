@@ -3,7 +3,6 @@ import hmac
 import os
 import shutil
 import tempfile
-from pathlib import Path
 
 import gradio as gr
 from gradio_client import Client, handle_file
@@ -413,7 +412,7 @@ def generate_text(prompt: str, language: str = "pt-BR", api_secret: str = ""):
 
 
 def _validated_reference_audio_path(reference_audio: str) -> str:
-    """Resolve an uploaded audio path and restrict access to Gradio's upload cache."""
+    """Canonicalize an uploaded path and confine it to Gradio's trusted upload cache."""
     error_message = (
         "Upload or record a reference audio sample managed by this Space. "
         "/ Envie ou grave uma amostra de áudio gerenciada por este Space."
@@ -426,22 +425,30 @@ def _validated_reference_audio_path(reference_audio: str) -> str:
         raise gr.Error(error_message)
 
     try:
-        cache_root = Path(cache_dir).resolve(strict=True)
-        audio_path = Path(reference_audio).resolve(strict=True)
-        # Resolve symlinks and traversal segments before checking the trusted root.
-        audio_path.relative_to(cache_root)
-        audio_stat = audio_path.stat()
-    except (OSError, RuntimeError, ValueError):
+        # realpath resolves traversal segments and symlinks before any file access.
+        cache_root = os.path.realpath(os.fspath(cache_dir))
+        audio_path = os.path.realpath(reference_audio)
+        cache_prefix = os.path.join(cache_root, "")
+        common_root = os.path.commonpath((cache_root, audio_path))
+    except (OSError, TypeError, ValueError):
         raise gr.Error(error_message) from None
 
-    if not audio_path.is_file() or audio_stat.st_size <= 0:
+    # Require a child of the cache root (not a similarly prefixed sibling).
+    # Keep both commonpath and the separator-terminated prefix check explicit.
+    if common_root != cache_root or not audio_path.startswith(cache_prefix):
         raise gr.Error(error_message)
-    if audio_stat.st_size > 3 * 1024 * 1024:
+    if not os.path.isfile(audio_path):
+        raise gr.Error(error_message)
+
+    audio_size = os.path.getsize(audio_path)
+    if audio_size <= 0:
+        raise gr.Error(error_message)
+    if audio_size > 3 * 1024 * 1024:
         raise gr.Error(
             "Reference audio must be at most 3 MiB. / "
             "O áudio de referência deve ter no máximo 3 MiB."
         )
-    return str(audio_path)
+    return audio_path
 
 
 def clone_voice(prompt: str, reference_audio: str):
