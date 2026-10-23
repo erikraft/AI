@@ -22,7 +22,7 @@
   ],
   "icons": [
     {
-      "src": "/assets/icons/erikraft-ai.svg",
+      "src": "/assets/icons/erikraft-ai-pwa.svg",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any"
