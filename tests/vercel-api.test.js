@@ -154,3 +154,43 @@ test("Vercel deployment excludes repository-only backend source and test files",
   assert.ok(pkg.dependencies["@gradio/client"]);
   assert.ok(pkg.dependencies["firebase-admin"]);
 });
+
+
+test("account deletion endpoint only accepts DELETE and requires a verified token", () => {
+  const source = readFileSync(new URL("../api/account.js", import.meta.url), "utf8");
+  assert.match(source, /req\.method !== "DELETE"/);
+  assert.match(source, /res\.setHeader\("Allow", "DELETE"\)/);
+  assert.match(source, /verifyIdToken\(match\[1\], true\)/);
+  assert.match(source, /if \(!user\) return res\.status\(401\)/);
+  assert.match(source, /setHeader\("Cache-Control", "no-store"\)/);
+});
+
+test("account deletion removes user-owned MongoDB records and deletes Firebase Auth last", () => {
+  const source = readFileSync(new URL("../api/account.js", import.meta.url), "utf8");
+  assert.match(source, /listCollections\(\{\}\)/);
+  assert.match(source, /deleteMany\(\{ userId: uid \}\)/);
+  assert.match(source, /deleteMongoUserData\(db, user\.uid\);[\s\S]*deleteUser\(user\.uid\)/);
+  assert.match(source, /RECENT_AUTH_SECONDS = 5 \* 60/);
+  assert.match(source, /verifyIdToken\(match\[1\], true\)/);
+});
+
+test("model discovery supports bilingual search terms and task filters", () => {
+  const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
+  const app = readFileSync(new URL("../assets/js/app.js", import.meta.url), "utf8");
+  assert.match(html, /id="model-search"/);
+  assert.match(html, /id="model-task-filter"/);
+  assert.match(html, /gerar texto/);
+  assert.match(html, /chatbot/);
+  assert.match(html, /generate text/);
+  assert.match(app, /normalize\("NFD"\)/);
+  assert.match(app, /filterModels\(\)/);
+});
+
+test("account deletion dialog warns about profile photos and generation history in both locales", () => {
+  const profile = readFileSync(new URL("../assets/js/profile.js", import.meta.url), "utf8");
+  assert.match(profile, /Fotos de perfil personalizadas/);
+  assert.match(profile, /Custom profile photos/);
+  assert.match(profile, /Histórico de conversas e de gerações de imagens, vídeos e áudios/);
+  assert.match(profile, /Conversation history and image, video, and audio generation history/);
+  assert.match(profile, /viewBox="0 0 576 512"/);
+});

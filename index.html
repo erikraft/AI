@@ -115,13 +115,27 @@
 <div class="field-footer"><span data-i18n="prompt_help">Descreva o assunto, o ambiente, a luz e o estilo.</span><span id="char-count">0 / 1500</span></div>
 <div class="field model-selector-field">
   <div class="model-selector-heading"><label for="model-select" data-i18n="model_label">Modelo / função</label><span class="model-selector-kicker" data-i18n="model_selector_kicker">ROTEADOR DE MODELOS</span></div>
-  <div class="model-select-shell"><select id="model-select" aria-describedby="model-help model-runtime-notice">
-    <option value="aoxo/flux.1dev-abliterated">FLUX.1-dev — texto → imagem</option>
-    <option value="fluffy12222/Qwythos-9B-Claude-Mythos-5-1M-heretic-abliterated">Qwythos — imagem → texto → imagem</option>
-    <option value="DuoNeural/Cosmos3-Nano-Abliterated">Cosmos3 Nano — texto → vídeo (experimental)</option>
-    <option value="0bserverx/Qwen3.8-27B-Heretic-Abliterated-Uncensored-GGUF">Qwen3.8 27B — assistente de texto (experimental)</option>
-    <option value="tonyassi/voice-clone">XTTS-v2 — clonagem de voz (áudio → áudio)</option>
+  <div class="model-discovery">
+    <label class="sr-only" for="model-search" data-i18n="model_search_label">Pesquisar modelos e tarefas</label>
+    <input id="model-search" type="search" autocomplete="off" data-i18n-placeholder="model_search_placeholder" placeholder="Pesquisar: gerar texto, chatbot, imagem, vídeo, áudio…">
+    <label class="sr-only" for="model-task-filter" data-i18n="model_filter_label">Filtrar por tarefa</label>
+    <select id="model-task-filter" data-i18n-aria-label="model_filter_label" aria-label="Filtrar por tarefa">
+      <option value="all" data-i18n="filter_all">Todas as tarefas</option>
+      <option value="image" data-i18n="filter_image">Gerar imagens</option>
+      <option value="video" data-i18n="filter_video">Gerar vídeos</option>
+      <option value="text" data-i18n="filter_text">Gerar texto</option>
+      <option value="chatbot" data-i18n="filter_chatbot">Chatbot / conversa</option>
+      <option value="audio" data-i18n="filter_audio">Áudio / voz</option>
+    </select>
+  </div>
+  <div class="model-select-shell"><select id="model-select" aria-describedby="model-help model-runtime-notice model-filter-status">
+    <option value="aoxo/flux.1dev-abliterated" data-task="image" data-search="aoxo flux flux.1-dev imagem image generate image gerar imagens text to image texto para imagem image generation geração de imagem">FLUX.1-dev — texto → imagem</option>
+    <option value="fluffy12222/Qwythos-9B-Claude-Mythos-5-1M-heretic-abliterated" data-task="image" data-search="fluffy12222 qwythos image edit image reference imagem editar imagem referência image to text to image imagem texto imagem edição de imagem">Qwythos — imagem → texto → imagem</option>
+    <option value="DuoNeural/Cosmos3-Nano-Abliterated" data-task="video" data-search="duoneural cosmos3 nano video vídeo generate video gerar vídeo text to video texto para vídeo">Cosmos3 Nano — texto → vídeo (experimental)</option>
+    <option value="0bserverx/Qwen3.8-27B-Heretic-Abliterated-Uncensored-GGUF" data-task="chatbot" data-search="0bserverx qwen3.8 qwen chatbot chat bot assistant assistente texto text generate text gerar texto conversa conversation ask questions perguntas">Qwen3.8 27B — assistente de texto (experimental)</option>
+    <option value="tonyassi/voice-clone" data-task="audio" data-search="tonyassi xtts voice clone clonagem de voz áudio audio speech fala text to speech texto para fala">XTTS-v2 — clonagem de voz (áudio → áudio)</option>
   </select><svg class="model-select-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></div>
+  <p id="model-filter-status" class="model-filter-status small-note" role="status" aria-live="polite"></p>
   <div class="model-selector-meta"><span id="model-task-badge" class="model-task-badge">TEXTO → IMAGEM</span><span id="model-runtime-pill" class="model-runtime-pill">Disponibilidade conforme a configuração do backend</span></div>
   <p id="model-help" class="small-note" data-i18n="model_help">O FLUX transforma texto em imagem. Se quiser usar uma imagem de referência, selecione Qwythos; os campos se adaptam ao modelo escolhido.</p>
   <p id="model-runtime-notice" class="model-runtime-notice" role="status" aria-live="polite">Modo de texto para imagem. Filas e limites do provedor podem variar.</p>
