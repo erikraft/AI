@@ -184,8 +184,8 @@ function renderHistory(items) {
     const meta = document.createElement("small"); meta.textContent = [item.model || "", item.createdAt ? formatHistoryDate(item.createdAt) : ""].filter(Boolean).join(" · ");
     details.append(kind,prompt,meta);
     if (historyAudio) {
-      const audioPlayer = enhanceAudioPlayer(historyAudio);
-      if (audioPlayer) details.append(audioPlayer);
+      details.append(historyAudio);
+      enhanceAudioPlayer(historyAudio);
     }
     if (item.outputText) { const output = document.createElement("p"); output.className = "history-output"; output.textContent = item.outputText; details.append(output); }
     if (item.mediaUrl) { const open = document.createElement("a"); open.href = item.mediaUrl; open.target="_blank"; open.rel="noopener noreferrer"; open.className="history-open-link"; open.textContent=document.documentElement.lang==="en"?"Open media ↗":"Abrir mídia ↗"; details.append(open); }
