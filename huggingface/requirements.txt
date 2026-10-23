@@ -10,3 +10,4 @@ spaces>=0.39.0,<1.0.0
 --only-binary=llama-cpp-python
 --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu
 llama-cpp-python==0.3.36
+langid>=1.1.6,<2.0.0
