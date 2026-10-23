@@ -96,7 +96,7 @@ function renderHistory(items) {
     } else { const icon = document.createElement("i"); icon.className = "fa-solid fa-comments"; icon.setAttribute("aria-hidden","true"); preview.append(icon); }
     const details = document.createElement("div"); details.className = "history-item-details";
     const kind = document.createElement("span"); kind.className = "history-kind"; kind.textContent = historyText(item.type === "image" ? "image" : item.type === "video" ? "video" : "text");
-    const prompt = document.createElement("p"); prompt.className = "history-prompt"; prompt.textContent = item.prompt || "";
+    const prompt = document.createElement("textarea"); prompt.className = "history-prompt"; prompt.value = item.prompt || ""; prompt.readOnly = true; prompt.rows = 4; prompt.spellcheck = false; prompt.setAttribute("aria-label", document.documentElement.lang === "en" ? "Generation prompt (read-only; selectable and copyable)" : "Prompt da geração (somente leitura; selecione e copie)");
     const meta = document.createElement("small"); meta.textContent = [item.model || "", item.createdAt ? new Date(item.createdAt).toLocaleString(document.documentElement.lang === "en" ? "en-US" : "pt-BR") : ""].filter(Boolean).join(" · ");
     details.append(kind,prompt,meta);
     if (item.outputText) { const output = document.createElement("p"); output.className = "history-output"; output.textContent = item.outputText; details.append(output); }

@@ -56,7 +56,7 @@ if (!config.apiKey || !config.authDomain || !config.projectId || !config.appId) 
     return data;
   }
   async function loadPhoto() {
-    const data = await request(); setPhoto(data.photo || user.photoURL || "");
+    const data = await request(); setPhoto(data.photoDisabled ? "" : (data.photo || user.photoURL || ""));
   }
   function closePopover() {
     popover.hidden = true;
@@ -100,13 +100,17 @@ if (!config.apiKey || !config.authDomain || !config.projectId || !config.appId) 
       const result = await request("PUT", { photo }); setPhoto(result.photo); status.textContent = "Foto de perfil atualizada.";
     } catch (error) { status.textContent = error.message || "Falha ao salvar a foto."; }
   });
-  popover.querySelector("[data-profile-restore]").addEventListener("click", () => {
-    setPhoto(user?.photoURL || "");
-    status.textContent = user?.photoURL ? "Foto do provedor restaurada neste site." : "O provedor não disponibilizou uma foto de perfil.";
+  popover.querySelector("[data-profile-restore]").addEventListener("click", async () => {
+    status.textContent = "Restaurando foto do provedor…";
+    try {
+      const result = await request("PUT", { restoreProviderPhoto: true });
+      setPhoto(result.photo || user?.photoURL || "");
+      status.textContent = user?.photoURL ? "Foto do provedor restaurada neste site." : "O provedor não disponibilizou uma foto de perfil.";
+    } catch (error) { status.textContent = error.message || "Falha ao restaurar a foto."; }
   });
   popover.querySelector("[data-profile-delete]").addEventListener("click", async () => {
     status.textContent = "Removendo foto…";
-    try { await request("DELETE"); setPhoto(""); status.textContent = "Foto removida do perfil e do MongoDB Atlas."; }
+    try { await request("DELETE"); setPhoto(""); status.textContent = "Foto removida. O avatar ficará sem foto até você restaurá-la."; }
     catch (error) { status.textContent = error.message || "Falha ao remover a foto."; }
   });
   onAuthStateChanged(auth, async (nextUser) => {
