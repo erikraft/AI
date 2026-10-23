@@ -15,7 +15,7 @@ function adminApp() {
 }
 
 async function authenticatedUser(req) {
-  const match = String(req.headers.authorization || "").match(/^Bearer\\s+(.+)$/i);
+  const match = String(req.headers.authorization || "").match(/^Bearer\s+(.+)$/i);
   if (!match) return null;
   try {
     const decoded = await getAuth(adminApp()).verifyIdToken(match[1], true);
