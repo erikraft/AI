@@ -243,6 +243,25 @@ test("localized interface text is rendered without reinterpreting translations a
   assert.ok(app.includes("studio_title_accent"));
 });
 
+test("experimental Space tabs are hidden from the public UI while server-side authorization remains required", () => {
+  const source = readFileSync(new URL("../huggingface/app.py", import.meta.url), "utf8");
+  assert.match(source, /with gr\.Tab\("Cosmos3 Nano text-to-video", visible=False\)/);
+  assert.match(source, /with gr\.Tab\("Qwen3\.8 text assistant", visible=False\)/);
+  assert.match(source, /_authorize_experimental_api\(api_secret\)/);
+  assert.match(source, /server-side shared secret/);
+  assert.match(source, /direct calls from this public Space interface/);
+  assert.match(source, /client\.predict\(\s*["']\/generate_text["']/);
+});
+
+test("voice cloning remains available and confines reference audio to Gradio's cache", () => {
+  const source = readFileSync(new URL("../huggingface/app.py", import.meta.url), "utf8");
+  assert.match(source, /with gr\.Tab\("Voice cloning \/ Clonagem de voz"\)/);
+  assert.match(source, /cache_root = os\.path\.realpath\(os\.fspath\(cache_dir\)\)/);
+  assert.match(source, /audio_path = os\.path\.realpath\(reference_audio\)/);
+  assert.match(source, /os\.path\.commonpath\(\(cache_root, audio_path\)\)/);
+  assert.match(source, /client\.predict\(prompt, handle_file\(safe_reference_audio\), api_name=["']\/clone["']\)/);
+});
+
 test("voice-cloning reference audio is confined to Gradio's resolved cache path", () => {
   const source = readFileSync(new URL("../huggingface/app.py", import.meta.url), "utf8");
   assert.ok(source.includes("cache_root = os.path.realpath(os.fspath(cache_dir))"));
