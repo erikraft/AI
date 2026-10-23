@@ -211,3 +211,22 @@ test("account deletion and legal pages disclose Hugging Face provider-side reten
   assert.match(privacy, /23 de outubro de 2026/);
   assert.match(privacy, /October 23, 2026/);
 });
+
+test("localized interface text is rendered without reinterpreting translations as HTML", () => {
+  const app = readFileSync(new URL("../assets/js/app.js", import.meta.url), "utf8");
+  assert.doesNotMatch(app, /\\.innerHTML\\s*=/);
+  assert.match(app, /Object\\.prototype\\.hasOwnProperty\\.call\\(dict, key\\)/);
+  assert.match(app, /el\\.textContent = dict\\[key\\]/);
+  assert.match(app, /hero_title_emphasis/);
+  assert.match(app, /studio_title_accent/);
+});
+
+test("voice-cloning reference audio is confined to Gradio's resolved cache path", () => {
+  const source = readFileSync(new URL("../huggingface/app.py", import.meta.url), "utf8");
+  assert.match(source, /from pathlib import Path/);
+  assert.match(source, /audio_path = Path\\(reference_audio\\)\\.resolve\\(strict=True\\)/);
+  assert.match(source, /audio_path\\.relative_to\\(cache_root\\)/);
+  assert.match(source, /audio_stat = audio_path\\.stat\\(\\)/);
+  assert.match(source, /handle_file\\(safe_reference_audio\\)/);
+  assert.doesNotMatch(source, /os\\.path\\.isfile\\(reference_audio\\)|os\\.path\\.getsize\\(reference_audio\\)/);
+});
