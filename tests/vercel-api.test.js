@@ -199,7 +199,7 @@ test("account deletion dialog warns about profile photos and generation history 
 
 function assertExactHttpsLink(source, expectedUrl) {
   const expected = new URL(expectedUrl);
-  const attributeValues = [...source.matchAll(/\\b(?:href|src)\\s*=\\s*(["'])(.*?)\\1/gi)]
+  const attributeValues = [...source.matchAll(/\b(?:href|src)\s*=\s*(["'])(.*?)\1/gi)]
     .map((match) => match[2]);
   const found = attributeValues.some((value) => {
     try {
