@@ -233,6 +233,10 @@ test("history supports owner-scoped bulk deletion and hides private history from
   assert.match(app, /historyRequest\("DELETE", \{ all: true \}\)/);
   assert.match(app, /historyPanel\?\.classList\.toggle\("hidden", !authenticated\)/);
   assert.match(app, /history-chat-message/);
+  assert.match(app, /generatedDate:\["Gerado em","Generated on"\]/);
+  assert.match(app, /conversationDate:\["Conversa em","Conversation on"\]/);
+  assert.match(app, /item\.type === "text" \? "conversationDate" : "generatedDate"/);
+  assert.match(app, /new Intl\.DateTimeFormat\(locale, \{ dateStyle: "medium", timeStyle: "short" \}\)/);
   assert.match(css, /\.prompt-panel:not\(\.hidden\) #image-options-row/);
   assert.match(css, /\.prompt-panel:not\(\.hidden\) #generate/);
 });
