@@ -3,6 +3,7 @@ import hmac
 import os
 import shutil
 import tempfile
+import wave
 
 import gradio as gr
 from gradio_client import Client, handle_file
@@ -451,6 +452,23 @@ def _validated_reference_audio_path(reference_audio: str) -> str:
     return audio_path
 
 
+def _validate_reference_audio_duration(audio_path: str) -> None:
+    """Reject audio shorter than 10 seconds; Gradio Audio has no min_length argument."""
+    try:
+        with wave.open(audio_path, "rb") as audio_file:
+            duration_seconds = audio_file.getnframes() / float(audio_file.getframerate())
+    except (OSError, EOFError, wave.Error, ZeroDivisionError) as exc:
+        raise gr.Error(
+            "Could not read the reference audio duration. Upload a valid audio sample. / "
+            "Não foi possível ler a duração do áudio. Envie uma amostra válida."
+        ) from exc
+    if duration_seconds < 10:
+        raise gr.Error(
+            "Reference audio must be at least 10 seconds long. / "
+            "O áudio de referência deve ter pelo menos 10 segundos."
+        )
+
+
 VOICE_LANGUAGE_CODES = {
     "en": "en", "pt": "pt", "es": "es", "fr": "fr", "de": "de",
     "it": "it", "pl": "pl", "tr": "tr", "ru": "ru", "nl": "nl",
@@ -507,6 +525,7 @@ def clone_voice(prompt: str, reference_audio: str):
     if not prompt or len(prompt) > 1500:
         raise gr.Error("Enter text between 1 and 1500 characters. / Digite um texto de 1 a 1500 caracteres.")
     safe_reference_audio = _validated_reference_audio_path(reference_audio)
+    _validate_reference_audio_duration(safe_reference_audio)
     try:
         language = _detect_reference_language(safe_reference_audio)
         client = Client("Nymbo/Voice-Clone-Multilingual", verbose=False)
@@ -529,8 +548,8 @@ def clone_voice(prompt: str, reference_audio: str):
     except Exception as exc:
         print(f"[voice-clone-proxy] {type(exc).__name__}: {exc}", flush=True)
         raise gr.Error(
-            "Voice cloning or reference-language detection is temporarily unavailable. Try a clearer 5–10 second sample later. "
-            "/ A clonagem ou detecção do idioma está temporariamente indisponível. Tente depois com uma amostra nítida de 5–10 segundos."
+            "Voice cloning or reference-language detection is temporarily unavailable. Try a clearer sample with at least 10 seconds of speech. "
+            "/ A clonagem ou detecção do idioma está temporariamente indisponível. Tente depois com uma amostra nítida de pelo menos 10 segundos."
         ) from exc
 
 
@@ -619,7 +638,7 @@ with gr.Blocks(title="ErikrafT AI — FLUX + Qwythos", delete_cache=(3600, 86400
         voice_reference = gr.Audio(
             sources=["upload", "microphone"],
             type="filepath",
-            min_length=10,
+            format="wav",
             label="Reference audio / Áudio de referência (minimum 10 seconds / mínimo de 10 segundos)",
         )
         voice_button = gr.Button("Clone voice / Clonar voz")
