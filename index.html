@@ -170,17 +170,31 @@
 </div></div>
 <div id="voice-clone-input" class="field voice-clone-input hidden" hidden aria-hidden="true">
   <label for="voice-audio-input" data-i18n="voice_audio_label">Áudio de referência da voz</label>
-  <input id="voice-audio-input" type="file" accept="audio/wav,audio/x-wav,audio/mpeg,audio/mp3,audio/ogg,audio/webm,audio/mp4,audio/x-m4a">
+  <div class="voice-audio-upload">
+    <svg viewBox="0 0 512 512" aria-hidden="true" focusable="false"><path fill="currentColor" d="M288 109.3V352c0 17.7-14.3 32-32 32s-32-14.3-32-32V109.3l-73.4 73.4c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3l128-128c12.5-12.5 32.8-12.5 45.3 0l128 128c12.5 12.5 12.5 32.8 0 45.3s-32.8 12.5-45.3 0L288 109.3zM64 352h96v32c0 35.3 28.7 64 64 64h64c35.3 0 64-28.7 64-64v-32h96c35.3 0 64 28.7 64 64v32c0 35.3-28.7 64-64 64H64c-35.3 0-64-28.7-64-64v-32c0-35.3 28.7-64 64-64z"/></svg>
+    <span data-i18n="voice_upload_label">Enviar áudio</span>
+    <input id="voice-audio-input" type="file" accept="audio/wav,audio/x-wav,audio/mpeg,audio/mp3,audio/ogg,audio/webm,audio/mp4,audio/x-m4a">
+  </div>
   <div class="voice-record-actions">
-    <button id="voice-record-start" class="button secondary small" type="button" data-i18n="voice_record_start">Gravar áudio</button>
-    <button id="voice-record-stop" class="button secondary small" type="button" data-i18n="voice_record_stop" disabled>Parar gravação</button>
+    <button id="voice-record-start" class="voice-record-button" type="button" aria-label="Iniciar gravação" title="Iniciar gravação">
+      <svg viewBox="0 0 512 512" aria-hidden="true" focusable="false"><path fill="currentColor" d="M480 192h-48a16 16 0 0 0-16 16v16a160 160 0 0 1-320 0v-16a16 16 0 0 0-16-16H32a16 16 0 0 0-16 16v16a224 224 0 0 0 192 221.4V480H128a32 32 0 0 0-32 32 32 32 0 0 0 32 32h256a32 32 0 0 0 32-32 32 32 0 0 0-32-32h-80v-34.6A224 224 0 0 0 496 224v-16a16 16 0 0 0-16-16zM256 384a128 128 0 0 0 128-128V128a128 128 0 0 0-256 0v128a128 128 0 0 0 128 128z"/></svg>
+    </button>
+    <button id="voice-record-stop" class="voice-record-button voice-record-stop" type="button" aria-label="Parar gravação" title="Parar gravação" disabled>
+      <svg viewBox="0 0 512 512" aria-hidden="true" focusable="false"><path fill="currentColor" d="M80 80h352v352H80z"/></svg>
+    </button>
+    <span id="voice-record-timer" class="voice-record-timer" role="timer" aria-label="Duração da gravação">00:00 / 01:00</span>
     <span id="voice-audio-status" class="small-note" role="status" aria-live="polite" data-i18n="voice_initial_status">Envie um arquivo ou grave uma amostra de voz.</span>
   </div>
-  <audio id="voice-audio-preview" class="voice-audio-preview hidden" controls preload="metadata"></audio>
+  <div class="voice-audio-preview-wrap">
+    <audio id="voice-audio-preview" class="voice-audio-preview hidden" preload="metadata"></audio>
+    <button id="voice-audio-remove" class="voice-audio-remove hidden" type="button" aria-label="Remover áudio enviado" title="Remover áudio enviado">
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M9 3h6l1 2h5v2H3V5h5l1-2zm-4 6h14l-1 12H6L5 9zm4 2v8h2v-8H9zm4 0v8h2v-8h-2z"/></svg>
+    </button>
+  </div>
   <p class="small-note" data-i18n="voice_sample_note">Use uma amostra nítida, curta e sem ruído. Clone somente a sua voz ou uma voz cujo uso você tenha autorização. O Space de referência gera fala em inglês.</p>
 </div>
 <div id="image-options-row" class="options-row"><div class="field"><label for="aspect" data-i18n="aspect_label">Proporção</label><select id="aspect"><option value="square" data-i18n="aspect_square">Quadrada · 1:1</option><option value="landscape" data-i18n="aspect_landscape">Paisagem · 4:3</option><option value="portrait" data-i18n="aspect_portrait">Retrato · 3:4</option></select></div><div class="field"><label for="quality" data-i18n="quality_label">Etapas de geração</label><select id="quality"><option value="20" data-i18n="quality_standard">Padrão · 20 passos</option><option value="28" data-i18n="quality_detailed">Detalhada · 28 passos</option></select></div></div>
-<div class="notice"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5m0-8h.01"/></svg><p data-i18n="notice_limits">Sem conta: até 2 imagens por hora por IP. Com conta: até 5 por hora. Limites sujeitos à disponibilidade do provedor. Não envie informações pessoais no prompt.</p></div>
+<div id="usage-notice" class="notice"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5m0-8h.01"/></svg><p data-i18n="notice_limits">Sem conta: até 2 imagens por hora por IP. Com conta: até 5 por hora. Limites sujeitos à disponibilidade do provedor. Não envie informações pessoais no prompt.</p></div>
 <button id="generate" class="button primary generate-button" type="submit"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 1.9 5.8L20 11l-6.1 2.2L12 19l-2-5.8L4 11l6-2.2z"/><path d="m19 15 .9 2.1L22 18l-2.1.9L19 21l-.9-2.1L16 18l2.1-.9z"/></svg><span data-i18n="generate_button">Gerar imagem</span></button>
 <p class="small-note" data-i18n="responsible_note">Ao gerar, você concorda em usar o serviço de forma responsável.</p>
 </form>
