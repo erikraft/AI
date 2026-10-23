@@ -169,7 +169,8 @@ test("account deletion removes user-owned MongoDB records and deletes Firebase A
   const source = readFileSync(new URL("../api/account.js", import.meta.url), "utf8");
   assert.match(source, /listCollections\(\{\}\)/);
   assert.match(source, /deleteMany\(\{ userId: uid \}\)/);
-  assert.match(source, /deleteMongoUserData\(db, user\.uid\);[\s\S]*deleteUser\(user\.uid\)/);
+  assert.match(source, /getFirestore\(adminApp\(\)\)\.collection\("generation_limits"\)\.doc\(user\.uid\)\.delete\(\)/);
+  assert.match(source, /deleteMongoUserData\(db, user\.uid\);[\s\S]*generation_limits[\s\S]*deleteUser\(user\.uid\)/);
   assert.match(source, /RECENT_AUTH_SECONDS = 5 \* 60/);
   assert.match(source, /verifyIdToken\(match\[1\], true\)/);
 });
@@ -193,4 +194,20 @@ test("account deletion dialog warns about profile photos and generation history 
   assert.match(profile, /Histórico de conversas e de gerações de imagens, vídeos e áudios/);
   assert.match(profile, /Conversation history and image, video, and audio generation history/);
   assert.match(profile, /viewBox="0 0 576 512"/);
+});
+
+
+test("account deletion and legal pages disclose Hugging Face provider-side retention in both languages", () => {
+  const profile = readFileSync(new URL("../assets/js/profile.js", import.meta.url), "utf8");
+  const privacy = readFileSync(new URL("../privacy.html", import.meta.url), "utf8");
+  const terms = readFileSync(new URL("../terms.html", import.meta.url), "utf8");
+  for (const source of [profile, privacy, terms]) {
+    assert.ok(source.includes("https://huggingface.co/privacy"));
+    assert.ok(source.includes("https://huggingface.co/terms-of-service"));
+  }
+  assert.match(profile, /Prompts and inputs sent to Hugging Face/);
+  assert.match(privacy, /does <strong>not automatically delete/);
+  assert.match(privacy, /não apaga automaticamente/);
+  assert.match(privacy, /23 de outubro de 2026/);
+  assert.match(privacy, /October 23, 2026/);
 });
