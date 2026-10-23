@@ -8,6 +8,7 @@ test("voice cloning is exposed in the selector and has upload, recording, and au
   const html = read("../index.html");
   const app = read("../assets/js/app.js");
   assert.match(html, /option value="tonyassi\/voice-clone"/);
+  assert.doesNotMatch(html, /data-search="[^"]*tonyassi/);
   assert.match(html, /id="voice-audio-input"/);
   assert.match(html, /id="voice-record-start"/);
   assert.match(html, /id="voice-record-stop"/);
@@ -93,8 +94,17 @@ test("privacy policy and terms use the requested October 23, 2026 date in both l
 
 test("Hugging Face Space exposes a voice-cloning tab with reference-language detection", () => {
   const app = read("../huggingface/app.py");
+  const frontend = read("../assets/js/app.js");
+  const readme = read("../README.md");
   assert.match(app, /from gradio_client import Client, handle_file/);
   assert.match(app, /Client\("hf-audio\/whisper-large-v3", verbose=False\)/);
+  assert.match(app, /Whisper transcribes the reference sample to detect its spoken language/);
+  assert.match(app, /multilingual XTTS-v2/);
+  assert.doesNotMatch(app, /tonyassi\/voice-clone/);
+  assert.match(frontend, /detect the spoken language in your reference audio/);
+  assert.match(frontend, /não no idioma do site/);
+  assert.doesNotMatch(readme, /tonyassi\/voice-clone/);
+  assert.match(readme, /Nymbo\/Voice-Clone-Multilingual/);
   assert.match(app, /Client\("Nymbo\/Voice-Clone-Multilingual", verbose=False\)/);
   assert.match(app, /_detect_reference_language\(safe_reference_audio\)/);
   assert.match(app, /api_name="clone_voice"/);
