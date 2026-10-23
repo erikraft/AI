@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import modelsHandler from "../api/models.js";
 import healthHandler from "../api/health.js";
+import accountHandler from "../api/account.js";
 
 const MODEL_COSMOS = "DuoNeural/Cosmos3-Nano-Abliterated";
 const MODEL_QWEN = "0bserverx/Qwen3.8-27B-Heretic-Abliterated-Uncensored-GGUF";
@@ -153,4 +154,61 @@ test("Vercel deployment excludes repository-only backend source and test files",
   assert.equal(pkg.engines.node, "24.x");
   assert.ok(pkg.dependencies["@gradio/client"]);
   assert.ok(pkg.dependencies["firebase-admin"]);
+});
+
+
+test("account deletion endpoint only accepts DELETE and requires authentication", async () => {
+  const response = {
+    headers: {},
+    statusCode: 200,
+    body: null,
+    setHeader(name, value) { this.headers[name.toLowerCase()] = value; },
+    status(code) { this.statusCode = code; return this; },
+    json(body) { this.body = body; return this; }
+  };
+  await accountHandler({ method: "POST", headers: {} }, response);
+  assert.equal(response.statusCode, 405);
+  assert.equal(response.headers.allow, "DELETE");
+
+  const unauthenticated = {
+    headers: {},
+    statusCode: 200,
+    body: null,
+    setHeader(name, value) { this.headers[name.toLowerCase()] = value; },
+    status(code) { this.statusCode = code; return this; },
+    json(body) { this.body = body; return this; }
+  };
+  await accountHandler({ method: "DELETE", headers: {} }, unauthenticated);
+  assert.equal(unauthenticated.statusCode, 401);
+  assert.equal(unauthenticated.body.error, "Authentication required.");
+  assert.equal(unauthenticated.headers["cache-control"], "no-store");
+});
+
+test("account deletion removes user-owned MongoDB records and deletes Firebase Auth last", () => {
+  const source = readFileSync(new URL("../api/account.js", import.meta.url), "utf8");
+  assert.match(source, /listCollections\(\{\}, \{ nameOnly: true \}\)/);
+  assert.match(source, /deleteMany\(\{ userId: uid \}\)/);
+  assert.match(source, /deleteMongoUserData\(db, user\.uid\);[\s\S]*deleteUser\(user\.uid\)/);
+  assert.match(source, /RECENT_AUTH_SECONDS = 5 \* 60/);
+  assert.match(source, /verifyIdToken\(match\[1\], true\)/);
+});
+
+test("model discovery supports bilingual search terms and task filters", () => {
+  const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
+  const app = readFileSync(new URL("../assets/js/app.js", import.meta.url), "utf8");
+  assert.match(html, /id="model-search"/);
+  assert.match(html, /id="model-task-filter"/);
+  assert.match(html, /gerar texto chatbot/);
+  assert.match(html, /generate text chatbot/);
+  assert.match(app, /normalize\("NFD"\)/);
+  assert.match(app, /filterModels\(\)/);
+});
+
+test("account deletion dialog warns about profile photos and generation history in both locales", () => {
+  const profile = readFileSync(new URL("../assets/js/profile.js", import.meta.url), "utf8");
+  assert.match(profile, /Fotos de perfil personalizadas/);
+  assert.match(profile, /Custom profile photos/);
+  assert.match(profile, /Histórico de conversas e de gerações de imagens, vídeos e áudios/);
+  assert.match(profile, /Conversation history and image, video, and audio generation history/);
+  assert.match(profile, /viewBox="0 0 576 512"/);
 });
