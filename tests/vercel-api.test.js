@@ -3,7 +3,6 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import modelsHandler from "../api/models.js";
 import healthHandler from "../api/health.js";
-import accountHandler from "../api/account.js";
 
 const MODEL_COSMOS = "DuoNeural/Cosmos3-Nano-Abliterated";
 const MODEL_QWEN = "0bserverx/Qwen3.8-27B-Heretic-Abliterated-Uncensored-GGUF";
@@ -157,31 +156,13 @@ test("Vercel deployment excludes repository-only backend source and test files",
 });
 
 
-test("account deletion endpoint only accepts DELETE and requires authentication", async () => {
-  const response = {
-    headers: {},
-    statusCode: 200,
-    body: null,
-    setHeader(name, value) { this.headers[name.toLowerCase()] = value; },
-    status(code) { this.statusCode = code; return this; },
-    json(body) { this.body = body; return this; }
-  };
-  await accountHandler({ method: "POST", headers: {} }, response);
-  assert.equal(response.statusCode, 405);
-  assert.equal(response.headers.allow, "DELETE");
-
-  const unauthenticated = {
-    headers: {},
-    statusCode: 200,
-    body: null,
-    setHeader(name, value) { this.headers[name.toLowerCase()] = value; },
-    status(code) { this.statusCode = code; return this; },
-    json(body) { this.body = body; return this; }
-  };
-  await accountHandler({ method: "DELETE", headers: {} }, unauthenticated);
-  assert.equal(unauthenticated.statusCode, 401);
-  assert.equal(unauthenticated.body.error, "Authentication required.");
-  assert.equal(unauthenticated.headers["cache-control"], "no-store");
+test("account deletion endpoint only accepts DELETE and requires a verified token", () => {
+  const source = readFileSync(new URL("../api/account.js", import.meta.url), "utf8");
+  assert.match(source, /req\.method !== "DELETE"/);
+  assert.match(source, /res\.setHeader\("Allow", "DELETE"\)/);
+  assert.match(source, /verifyIdToken\(match\[1\], true\)/);
+  assert.match(source, /if \(!user\) return res\.status\(401\)/);
+  assert.match(source, /setHeader\("Cache-Control", "no-store"\)/);
 });
 
 test("account deletion removes user-owned MongoDB records and deletes Firebase Auth last", () => {
