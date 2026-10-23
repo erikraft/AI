@@ -186,7 +186,7 @@ test("account deletion endpoint only accepts DELETE and requires authentication"
 
 test("account deletion removes user-owned MongoDB records and deletes Firebase Auth last", () => {
   const source = readFileSync(new URL("../api/account.js", import.meta.url), "utf8");
-  assert.match(source, /listCollections\(\{\}, \{ nameOnly: true \}\)/);
+  assert.match(source, /listCollections\\(\\{\\}\\)/);
   assert.match(source, /deleteMany\(\{ userId: uid \}\)/);
   assert.match(source, /deleteMongoUserData\(db, user\.uid\);[\s\S]*deleteUser\(user\.uid\)/);
   assert.match(source, /RECENT_AUTH_SECONDS = 5 \* 60/);
