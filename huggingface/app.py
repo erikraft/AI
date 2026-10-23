@@ -487,7 +487,7 @@ def _detect_reference_language(reference_audio: str) -> str:
     transcript = result[0] if isinstance(result, (list, tuple)) and result else result
     if not isinstance(transcript, str) or len(transcript.strip()) < 12:
         raise gr.Error(
-            "Could not detect the language from this audio. Upload a clearer sample with at least 5–10 seconds of speech. "
+            "Could not detect the language from this audio. Upload a clearer sample with at least 10 seconds of speech. "
             "/ Não foi possível detectar o idioma. Envie uma amostra mais nítida com pelo menos 10 segundos de fala."
         )
     from langid import classify
@@ -606,7 +606,7 @@ with gr.Blocks(title="ErikrafT AI — FLUX + Qwythos", delete_cache=(3600, 86400
             "Hungarian. Use only audio you own or are authorized to use. / "
             "O Whisper transcreve a amostra de referência para detectar o idioma falado; depois, o XTTS-v2 multilíngue "
             "sintetiza o texto nesse idioma — não no idioma do site. Para melhores resultados, use uma gravação nítida "
-            "com pelo menos 5–10 segundos de fala. Os idiomas compatíveis incluem inglês, português, espanhol, francês, "
+            "com pelo menos 10 segundos de fala. Os idiomas compatíveis incluem inglês, português, espanhol, francês, "
             "alemão, italiano, polonês, turco, russo, neerlandês, tcheco, árabe, chinês, japonês, coreano e húngaro. "
             "Use somente áudios próprios ou para os quais você tenha autorização."
         )
