@@ -219,6 +219,28 @@ function assertExactHttpsLink(source, expectedUrl) {
   assert.ok(found, `Expected an exact HTTPS link to ${expectedUrl}`);
 }
 
+test("history supports owner-scoped bulk deletion and hides private history from signed-out visitors", () => {
+  const api = readFileSync(new URL("../api/history.js", import.meta.url), "utf8");
+  const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
+  const app = readFileSync(new URL("../assets/js/app.js", import.meta.url), "utf8");
+  const css = readFileSync(new URL("../assets/css/styles.css", import.meta.url), "utf8");
+  assert.match(api, /deleteMany\(\{ userId: user\.uid \}\)/);
+  assert.match(api, /const deleteAll = String\(req\.query\?\.all \|\| req\.body\?\.all/);
+  assert.match(api, /const messages = cleanMessages\(body\.messages\)/);
+  assert.match(html, /id="history-panel" class="panel history-panel hidden"[^>]*inert/);
+  assert.match(html, /id="history-delete-all-modal"/);
+  assert.match(html, /viewBox="0 0 576 512"/);
+  assert.match(app, /historyRequest\("DELETE", \{ all: true \}\)/);
+  assert.match(app, /historyPanel\?\.classList\.toggle\("hidden", !authenticated\)/);
+  assert.match(app, /history-chat-message/);
+  assert.match(app, /generatedDate:\["Gerado em","Generated on"\]/);
+  assert.match(app, /conversationDate:\["Conversa em","Conversation on"\]/);
+  assert.match(app, /item\.type === "text" \? "conversationDate" : "generatedDate"/);
+  assert.match(app, /new Intl\.DateTimeFormat\(locale, \{ dateStyle: "medium", timeStyle: "short" \}\)/);
+  assert.match(css, /\.prompt-panel:not\(\.hidden\) #image-options-row/);
+  assert.match(css, /\.prompt-panel:not\(\.hidden\) #generate/);
+});
+
 test("account deletion and legal pages disclose Hugging Face provider-side retention in both languages", () => {
   const profile = readFileSync(new URL("../assets/js/profile.js", import.meta.url), "utf8");
   const privacy = readFileSync(new URL("../privacy.html", import.meta.url), "utf8");
