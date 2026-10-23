@@ -1090,6 +1090,15 @@ function setLanguage(language){
   const selected=translations[language]?language:"pt-BR";
   const dict=translations[selected];
   document.documentElement.lang=selected;
+  document.querySelectorAll(".custom-audio-player").forEach((player) => {
+    const audio = player.querySelector("audio");
+    const toggle = player.querySelector(".custom-audio-toggle");
+    const progress = player.querySelector(".custom-audio-progress");
+    if (toggle) toggle.setAttribute("aria-label", audio && !audio.paused && !audio.ended
+      ? (selected === "en" ? "Pause audio" : "Pausar áudio")
+      : (selected === "en" ? "Play audio" : "Reproduzir áudio"));
+    if (progress) progress.setAttribute("aria-label", selected === "en" ? "Audio progress" : "Progresso do áudio");
+  });
   const seo = selected === "en"
     ? { title: "ErikrafT AI™ — AI Model Hub", description: "Explore an open-source AI hub for image, video, and text workflows using multiple models.", ogTitle: "ErikrafT AI™ — AI Model Hub", ogDescription: "Open-source AI hub for FLUX image generation, Qwythos image-guided workflows, Cosmos video, and Qwen text when available." }
     : { title: "ErikrafT AI™ — Hub de modelos de IA", description: "Explore um hub de IA de código aberto para fluxos de imagem, vídeo e texto com vários modelos.", ogTitle: "ErikrafT AI™ — Hub de modelos de IA", ogDescription: "Hub de IA de código aberto para imagens com FLUX, fluxos com imagem de referência via Qwythos, vídeos com Cosmos e texto com Qwen quando disponíveis." };
