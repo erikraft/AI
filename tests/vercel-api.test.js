@@ -214,19 +214,20 @@ test("account deletion and legal pages disclose Hugging Face provider-side reten
 
 test("localized interface text is rendered without reinterpreting translations as HTML", () => {
   const app = readFileSync(new URL("../assets/js/app.js", import.meta.url), "utf8");
-  assert.doesNotMatch(app, /\\.innerHTML\\s*=/);
-  assert.match(app, /Object\\.prototype\\.hasOwnProperty\\.call\\(dict, key\\)/);
-  assert.match(app, /el\\.textContent = dict\\[key\\]/);
-  assert.match(app, /hero_title_emphasis/);
-  assert.match(app, /studio_title_accent/);
+  assert.equal(app.includes("innerHTML"), false);
+  assert.ok(app.includes("Object.prototype.hasOwnProperty.call(dict, key)"));
+  assert.ok(app.includes("el.textContent = dict[key]"));
+  assert.ok(app.includes("hero_title_emphasis"));
+  assert.ok(app.includes("studio_title_accent"));
 });
 
 test("voice-cloning reference audio is confined to Gradio's resolved cache path", () => {
   const source = readFileSync(new URL("../huggingface/app.py", import.meta.url), "utf8");
-  assert.match(source, /from pathlib import Path/);
-  assert.match(source, /audio_path = Path\\(reference_audio\\)\\.resolve\\(strict=True\\)/);
-  assert.match(source, /audio_path\\.relative_to\\(cache_root\\)/);
-  assert.match(source, /audio_stat = audio_path\\.stat\\(\\)/);
-  assert.match(source, /handle_file\\(safe_reference_audio\\)/);
-  assert.doesNotMatch(source, /os\\.path\\.isfile\\(reference_audio\\)|os\\.path\\.getsize\\(reference_audio\\)/);
+  assert.ok(source.includes("from pathlib import Path"));
+  assert.ok(source.includes("audio_path = Path(reference_audio).resolve(strict=True)"));
+  assert.ok(source.includes("audio_path.relative_to(cache_root)"));
+  assert.ok(source.includes("audio_stat = audio_path.stat()"));
+  assert.ok(source.includes("handle_file(safe_reference_audio)"));
+  assert.equal(source.includes("os.path.isfile(reference_audio)"), false);
+  assert.equal(source.includes("os.path.getsize(reference_audio)"), false);
 });
