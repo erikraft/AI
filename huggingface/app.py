@@ -582,11 +582,15 @@ with gr.Blocks(title="ErikrafT AI — FLUX + Qwythos", delete_cache=(3600, 86400
 
     with gr.Tab("Voice cloning / Clonagem de voz"):
         gr.Markdown(
-            "Clone a voice from a reference recording and synthesize text using the public "
-            "[tonyassi/voice-clone](https://huggingface.co/spaces/tonyassi/voice-clone) Space. "
-            "Use only audio you own or are authorized to use. / "
-            "Clone uma voz a partir de uma gravação de referência e sintetize texto usando o Space público "
-            "[tonyassi/voice-clone](https://huggingface.co/spaces/tonyassi/voice-clone). "
+            "Whisper transcribes the reference sample to detect its spoken language, then multilingual XTTS-v2 "
+            "synthesizes your text in that detected language—not the website locale. For best results, use a clear "
+            "recording with at least 5–10 seconds of speech. Supported languages include English, Portuguese, Spanish, "
+            "French, German, Italian, Polish, Turkish, Russian, Dutch, Czech, Arabic, Chinese, Japanese, Korean, and "
+            "Hungarian. Use only audio you own or are authorized to use. / "
+            "O Whisper transcreve a amostra de referência para detectar o idioma falado; depois, o XTTS-v2 multilíngue "
+            "sintetiza o texto nesse idioma — não no idioma do site. Para melhores resultados, use uma gravação nítida "
+            "com pelo menos 5–10 segundos de fala. Os idiomas compatíveis incluem inglês, português, espanhol, francês, "
+            "alemão, italiano, polonês, turco, russo, neerlandês, tcheco, árabe, chinês, japonês, coreano e húngaro. "
             "Use somente áudios próprios ou para os quais você tenha autorização."
         )
         voice_prompt = gr.Textbox(

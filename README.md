@@ -4,7 +4,7 @@ ErikrafT AI is an open-source AI model hub with a responsive dark interface and 
 
 - **Frontend:** static HTML/CSS/JavaScript hosted on Vercel.
 - **Authentication:** Firebase Authentication with Google, GitHub, and email/password; email/password accounts must verify their address before generating images.
-- **Generation:** Hugging Face Gradio Spaces route image, video, text, and voice-cloning requests. The voice-cloning mode calls `tonyassi/voice-clone` directly and does not require deploying XTTS-v2 into ErikrafT’s own Space.
+- **Generation:** Hugging Face Gradio Spaces route image, video, text, and voice-cloning requests. Voice cloning transcribes the reference audio with Whisper, detects the spoken language, and sends the prompt, reference audio, and explicit language to the multilingual `Nymbo/Voice-Clone-Multilingual` XTTS-v2 Space.
 - **Abuse prevention:** Firebase ID-token verification, verified-email enforcement for password accounts, and a configurable Firestore-backed limit of 10 generations per account per rolling hour by default (operator-configurable from 1 to 20).
 - **Cost goal:** use free tiers where possible. Provider quotas, availability, model compatibility, and GPU access are not guaranteed.
 
@@ -120,7 +120,7 @@ The UI accepts image files the browser can decode (original file up to 12 MB), c
 
 ## Voice cloning (XTTS-v2)
 
-The voice-cloning option accepts a reference audio file or a browser recording (up to 3 MiB) and text to synthesize. Requests pass through `/api/generate`, retaining Firebase authentication and the per-account hourly quota, then call the public `tonyassi/voice-clone` Space endpoint `/clone`. The upstream app currently hard-codes English for synthesis, so Portuguese interface text does not mean Portuguese speech support. The upstream Space documents the Coqui Public Model License as non-commercial; review its [model license](https://huggingface.co/coqui/XTTS-v2/blob/main/LICENSE.txt) and upstream Space terms before use. Outputs are temporary provider files and may expire.
+The voice-cloning option accepts a reference audio file or a browser recording (up to 3 MiB) and text to synthesize. Requests pass through `/api/generate`, retaining Firebase authentication and the per-account hourly quota. Whisper transcribes the reference sample and `franc-min` identifies its language; the backend then calls `Nymbo/Voice-Clone-Multilingual`, passing the detected language explicitly to multilingual XTTS-v2. The language comes from the reference audio, not the website locale, so Portuguese reference speech is synthesized as Portuguese even when the site's UI is English. Clear samples with at least 5–10 seconds of speech are recommended. Reference audio is sent to both Hugging Face Spaces for inference. Review the [Coqui XTTS-v2 license](https://huggingface.co/coqui/XTTS-v2/blob/main/LICENSE.txt) and the provider's terms before use. Outputs are temporary provider files and may expire.
 
 ## Experimental video and text models
 

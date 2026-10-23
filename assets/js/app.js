@@ -363,7 +363,7 @@ function updateModelSelection() {
       ? (enabled ? (english ? "Configured · runtime checks apply" : "Configurado · sujeito às verificações do runtime") : (english ? "Unavailable · backend secret required" : "Indisponível · requer segredo do backend"))
       : (english ? "Available · provider limits apply" : "Disponível · sujeito aos limites do provedor");
   $("model-runtime-notice").textContent = isVoice
-    ? (english ? "Uses the public tonyassi/voice-clone Space and its XTTS-v2 endpoint. Availability and queue time depend on Hugging Face; only clone voices you have permission to use." : "Usa o Space público tonyassi/voice-clone e seu endpoint XTTS-v2. A disponibilidade e a fila dependem do Hugging Face; clone apenas vozes que você tem autorização para usar.")
+    ? (english ? "Uses Whisper to detect the spoken language in your reference audio, then multilingual XTTS-v2 to synthesize in that language—not the website language. Availability and queue time depend on Hugging Face; only clone voices you have permission to use." : "Usa o Whisper para detectar o idioma falado no áudio de referência e o XTTS-v2 multilíngue para sintetizar nesse idioma — não no idioma do site. A fila e a disponibilidade dependem do Hugging Face; clone apenas vozes que você tem autorização para usar.")
     : isCosmos
     ? (english
         ? (enabled ? "The backend is configured to call Cosmos. The Space still checks its feature flag, available VRAM and disk at runtime; successful inference is not guaranteed." : "Unavailable until the backend API secret is configured. The Space also requires its Cosmos feature flag, suitable VRAM and enough disk space.")
