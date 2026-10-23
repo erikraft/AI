@@ -527,3 +527,9 @@
   .history-delete-all-actions{flex-direction:column-reverse}
   .history-delete-all-actions .button{width:100%}
 }
+
+
+/* Slow, continuously moving purple gradient for the J.A.R.V.I.S. hero title. */
+.hero-jarvis{display:inline-block;color:#c4a1ff;background:linear-gradient(110deg,#a78bfa 0%,#e9d5ff 18%,#8b5cf6 36%,#d8b4fe 52%,#7c3aed 70%,#c4b5fd 86%,#a78bfa 100%);background-size:300% 100%;background-clip:text;-webkit-background-clip:text;-webkit-text-fill-color:transparent;animation:jarvis-purple-gradient 18s ease-in-out infinite}
+@keyframes jarvis-purple-gradient{0%,100%{background-position:0% 50%}50%{background-position:100% 50%}}
+@media(prefers-reduced-motion:reduce){.hero-jarvis{animation:none;background-position:50% 50%}}
