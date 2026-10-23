@@ -84,6 +84,68 @@ function historyText(key) {
   };
   return copy[key]?.[en ? 1 : 0] || key;
 }
+function formatAudioClock(seconds) {
+  if (!Number.isFinite(seconds) || seconds < 0) return "00:00";
+  const value = Math.floor(seconds);
+  return String(Math.floor(value / 60)).padStart(2, "0") + ":" + String(value % 60).padStart(2, "0");
+}
+function enhanceAudioPlayer(audio, variant = "") {
+  if (!audio || audio.dataset.customAudioPlayer === "true") return audio?.closest(".custom-audio-player") || null;
+  audio.dataset.customAudioPlayer = "true";
+  const player = document.createElement("div");
+  player.className = "custom-audio-player" + (variant ? " custom-audio-player-" + variant : "");
+  player.hidden = audio.classList.contains("hidden");
+  const toggle = document.createElement("button");
+  toggle.type = "button";
+  toggle.className = "custom-audio-toggle";
+  toggle.setAttribute("aria-label", document.documentElement.lang === "en" ? "Play audio" : "Reproduzir áudio");
+  const progress = document.createElement("input");
+  progress.type = "range";
+  progress.className = "custom-audio-progress";
+  progress.min = "0";
+  progress.max = "1000";
+  progress.value = "0";
+  progress.setAttribute("aria-label", document.documentElement.lang === "en" ? "Audio progress" : "Progresso do áudio");
+  const clock = document.createElement("span");
+  clock.className = "custom-audio-clock";
+  clock.textContent = "00:00 / 00:00";
+  const icon = (playing) => playing
+    ? '<svg viewBox="0 0 448 512" aria-hidden="true" focusable="false"><path fill="currentColor" d="M48 64C21.5 64 0 85.5 0 112v288c0 26.5 21.5 48 48 48h80c26.5 0 48-21.5 48-48V112c0-26.5-21.5-48-48-48H48zm272 0c-26.5 0-48 21.5-48 48v288c0 26.5 21.5 48 48 48h80c26.5 0 48-21.5 48-48V112c0-26.5-21.5-48-48-48h-80z"/></svg>'
+    : '<svg viewBox="0 0 448 512" aria-hidden="true" focusable="false"><path fill="currentColor" d="M424.4 214.7 72.4 6.6C43.8-10.3 0 6.1 0 39.9v432.2c0 33.8 43.8 50.2 72.4 33.3l352-208.1c31.4-18.6 31.4-64.1 0-82.6z"/></svg>';
+  const update = () => {
+    const duration = Number.isFinite(audio.duration) ? audio.duration : 0;
+    clock.textContent = formatAudioClock(audio.currentTime) + " / " + formatAudioClock(duration);
+    progress.value = String(duration ? Math.round(audio.currentTime / duration * 1000) : 0);
+    progress.disabled = !duration;
+  };
+  const updateToggle = () => {
+    toggle.innerHTML = icon(!audio.paused && !audio.ended);
+    toggle.setAttribute("aria-label", audio.paused || audio.ended
+      ? (document.documentElement.lang === "en" ? "Play audio" : "Reproduzir áudio")
+      : (document.documentElement.lang === "en" ? "Pause audio" : "Pausar áudio"));
+  };
+  audio.controls = false;
+  audio.classList.remove("hidden");
+  audio.classList.add("custom-audio-source");
+  audio.parentNode?.insertBefore(player, audio);
+  player.append(audio, toggle, progress, clock);
+  toggle.append();
+  toggle.addEventListener("click", () => {
+    if (audio.paused) void audio.play().catch(() => {});
+    else audio.pause();
+  });
+  progress.addEventListener("input", () => {
+    if (Number.isFinite(audio.duration) && audio.duration > 0) audio.currentTime = Number(progress.value) / 1000 * audio.duration;
+  });
+  for (const eventName of ["loadedmetadata", "durationchange", "timeupdate", "seeked"]) audio.addEventListener(eventName, update);
+  for (const eventName of ["play", "pause", "ended"]) audio.addEventListener(eventName, updateToggle);
+  audio.addEventListener("loadedmetadata", () => { if (audio.src) player.hidden = false; });
+  audio.addEventListener("emptied", () => { player.hidden = true; update(); });
+  update();
+  updateToggle();
+  return player;
+}
+
 function formatHistoryDate(value) {
   const date = new Date(value);
   if (!Number.isFinite(date.getTime())) return "";
@@ -98,7 +160,7 @@ function renderHistory(items) {
     const card = document.createElement("article"); card.className = "history-item";
     const preview = document.createElement("div"); preview.className = "history-preview";
     if (item.type === "audio" && item.mediaUrl) {
-      const audio = document.createElement("audio"); audio.src = item.mediaUrl; audio.controls = true; audio.preload = "metadata"; audio.className = "history-audio-preview"; preview.append(audio);
+      const audio = document.createElement("audio"); audio.src = item.mediaUrl; audio.preload = "metadata"; audio.className = "history-audio-preview"; preview.append(audio); enhanceAudioPlayer(audio, "history");
     } else if (item.type === "image" && item.mediaUrl) {
       const img = document.createElement("img"); img.src = item.mediaUrl; img.alt = item.prompt || historyText("image"); img.loading = "lazy"; preview.append(img);
     } else if (item.type === "video" && item.mediaUrl) {
@@ -444,12 +506,15 @@ const SUPPORTED_VOICE_AUDIO_TYPES = new Set([
 ]);
 const voiceAudioInput = $("voice-audio-input");
 const voiceAudioPreview = $("voice-audio-preview");
+const voiceAudioPlayer = enhanceAudioPlayer(voiceAudioPreview, "voice");
+const generatedAudioPlayer = enhanceAudioPlayer($("generated-audio"), "output");
 function clearVoiceAudio() {
   voiceAudioDataUrl = "";
   if (voiceAudioObjectUrl) URL.revokeObjectURL(voiceAudioObjectUrl);
   voiceAudioObjectUrl = "";
   voiceAudioPreview.removeAttribute("src");
   voiceAudioPreview.classList.add("hidden");
+  if (voiceAudioPlayer) voiceAudioPlayer.hidden = true;
   $("voice-audio-remove").classList.add("hidden");
   voiceAudioInput.value = "";
   $("voice-audio-status").textContent = document.documentElement.lang === "en" ? "No voice sample selected." : "Nenhuma amostra de voz selecionada.";
@@ -507,6 +572,7 @@ async function readVoiceAudio(file, knownDuration = null) {
       voiceAudioObjectUrl = previewUrl;
       voiceAudioPreview.src = previewUrl;
       voiceAudioPreview.classList.remove("hidden");
+      if (voiceAudioPlayer) voiceAudioPlayer.hidden = false;
       $("voice-audio-status").textContent = document.documentElement.lang === "en" ? "Voice sample ready." : "Amostra de voz pronta.";
       $("voice-audio-remove").classList.remove("hidden");
       resolve();
