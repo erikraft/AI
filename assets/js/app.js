@@ -311,13 +311,14 @@ function updateModelSelection() {
   $("empty-result").classList.toggle("task-empty-no-image", isCosmos || isQwen || isVoice);
   $("selected-model-label").textContent = model;
   const labels = {
-    [FLUX_MODEL]: english ? FLUX_MODEL + " — text-to-image" : FLUX_MODEL + " — texto → imagem",
-    [QWYTHOS_MODEL]: english ? QWYTHOS_MODEL + " — image → text → image" : QWYTHOS_MODEL + " — imagem → texto → imagem",
-    [COSMOS_MODEL]: english ? COSMOS_MODEL + " — text-to-video (experimental)" : COSMOS_MODEL + " — texto → vídeo (experimental)",
-    [QWEN_MODEL]: english ? QWEN_MODEL + " — text assistant (experimental)" : QWEN_MODEL + " — assistente de texto (experimental)",
-    [VOICE_CLONE_MODEL]: english ? "XTTS-v2 — voice cloning" : "XTTS-v2 — clonagem de voz"
+    [FLUX_MODEL]: english ? "FLUX.1-dev — Image generation" : "FLUX.1-dev — Gerar imagens",
+    [QWYTHOS_MODEL]: english ? "Qwythos — Image editing" : "Qwythos — Editar imagens",
+    [COSMOS_MODEL]: english ? "Cosmos3 Nano — Video generation (experimental)" : "Cosmos3 Nano — Gerar vídeos (experimental)",
+    [QWEN_MODEL]: english ? "Qwen3.8 27B — Chatbot (experimental)" : "Qwen3.8 27B — Chatbot (experimental)",
+    [VOICE_CLONE_MODEL]: english ? "XTTS-v2 — Voice / audio" : "XTTS-v2 — Voz / áudio"
   };
   for (const option of modelSelect.options) if (labels[option.value]) option.textContent = labels[option.value];
+  $("selected-model-label").textContent = labels[model] || model;
   $("image-options-row").classList.toggle("hidden", isCosmos || isQwen || isVoice);
   $("prompt").previousElementSibling.textContent = isVoice ? (english ? "Text to speak" : "Texto para falar") : languageText("prompt_label");
   $("prompt").placeholder = isVoice ? (english ? "Write the text for the cloned voice to speak..." : "Escreva o texto que a voz clonada deverá falar...") : languageText("prompt_placeholder");
@@ -404,7 +405,6 @@ function filterModels() {
 modelSelect.addEventListener("change", updateModelSelection);
 $("model-search")?.addEventListener("input", filterModels);
 $("model-task-filter")?.addEventListener("change", filterModels);
-filterModels();
 
 async function loadModelAvailability() {
   try {
