@@ -451,15 +451,54 @@ def _validated_reference_audio_path(reference_audio: str) -> str:
     return audio_path
 
 
+VOICE_LANGUAGE_CODES = {
+    "en": "en", "pt": "pt", "es": "es", "fr": "fr", "de": "de",
+    "it": "it", "pl": "pl", "tr": "tr", "ru": "ru", "nl": "nl",
+    "cs": "cs", "ar": "ar", "zh": "zh-cn", "ja": "ja", "ko": "ko",
+    "hu": "hu",
+}
+
+
+def _detect_reference_language(reference_audio: str) -> str:
+    """Detect spoken language from the reference audio, never from website locale."""
+    whisper = Client("hf-audio/whisper-large-v3", verbose=False)
+    result = whisper.predict(
+        handle_file(reference_audio),
+        "transcribe",
+        api_name="/file_transcribe",
+    )
+    transcript = result[0] if isinstance(result, (list, tuple)) and result else result
+    if not isinstance(transcript, str) or len(transcript.strip()) < 12:
+        raise gr.Error(
+            "Could not detect the language from this audio. Upload a clearer sample with at least 5–10 seconds of speech. "
+            "/ Não foi possível detectar o idioma. Envie uma amostra mais nítida com pelo menos 5–10 segundos de fala."
+        )
+    from langid import classify
+    detected, _score = classify(transcript)
+    language = VOICE_LANGUAGE_CODES.get(detected)
+    if not language:
+        raise gr.Error(
+            "The reference audio language is not supported by this voice model. Supported languages include English, Portuguese, Spanish, French, German, Italian, Polish, Turkish, Russian, Dutch, Czech, Arabic, Chinese, Japanese, Korean, and Hungarian. "
+            "/ O idioma do áudio de referência não é compatível com este modelo."
+        )
+    return language
+
+
 def clone_voice(prompt: str, reference_audio: str):
-    """Proxy voice cloning to the public tonyassi/voice-clone Space."""
+    """Detect the reference speech language, then clone it with multilingual XTTS."""
     prompt = (prompt or "").strip()
     if not prompt or len(prompt) > 1500:
         raise gr.Error("Enter text between 1 and 1500 characters. / Digite um texto de 1 a 1500 caracteres.")
     safe_reference_audio = _validated_reference_audio_path(reference_audio)
     try:
-        client = Client("tonyassi/voice-clone", verbose=False)
-        result = client.predict(prompt, handle_file(safe_reference_audio), api_name="/clone")
+        language = _detect_reference_language(safe_reference_audio)
+        client = Client("Nymbo/Voice-Clone-Multilingual", verbose=False)
+        result = client.predict(
+            prompt,
+            handle_file(safe_reference_audio),
+            language,
+            api_name="/predict",
+        )
         first = result[0] if isinstance(result, (list, tuple)) and result else result
         if isinstance(first, dict):
             first = first.get("path") or first.get("url")
@@ -473,8 +512,8 @@ def clone_voice(prompt: str, reference_audio: str):
     except Exception as exc:
         print(f"[voice-clone-proxy] {type(exc).__name__}: {exc}", flush=True)
         raise gr.Error(
-            "Voice cloning is temporarily unavailable; check the upstream Space queue and try again later. "
-            "/ A clonagem está temporariamente indisponível; verifique a fila do Space de origem e tente mais tarde."
+            "Voice cloning or reference-language detection is temporarily unavailable. Try a clearer 5–10 second sample later. "
+            "/ A clonagem ou detecção do idioma está temporariamente indisponível. Tente depois com uma amostra nítida de 5–10 segundos."
         ) from exc
 
 
