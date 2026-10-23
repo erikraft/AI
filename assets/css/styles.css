@@ -441,3 +441,13 @@
     display: none !important;
   }
 }
+
+
+/* Compact, bilingual model discovery controls. */
+.model-discovery{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:9px;margin:0 0 10px}
+.model-discovery input,.model-discovery select{display:block;width:100%;min-width:0;min-height:43px;padding:10px 12px;border:1px solid #30394b;border-radius:10px;background:#0b0e15;color:var(--text);font:11px var(--sans);outline:none}
+.model-discovery input:focus,.model-discovery select:focus{border-color:var(--blue);box-shadow:0 0 0 3px #4285f41c}
+.model-discovery input::placeholder{color:var(--muted);opacity:.9}
+.model-filter-status{margin:0 0 9px;min-height:15px;font-size:10px}
+.sr-only{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}
+@media(max-width:520px){.model-discovery{grid-template-columns:1fr;gap:7px}.model-discovery input,.model-discovery select{font-size:12px;min-height:45px}.model-filter-status{font-size:10px}}
