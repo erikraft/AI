@@ -2,6 +2,7 @@ import { initializeApp, cert, getApps } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 import { getFirestore, Timestamp } from "firebase-admin/firestore";
 import { Client, handle_file } from "@gradio/client";
+import { franc } from "franc-min";
 
 const WINDOW_MS = 60 * 60 * 1000;
 // Keep a finite free-tier default; provider limits remain independent.
@@ -18,7 +19,15 @@ const QWYTHOS_MODEL_ID = "fluffy12222/Qwythos-9B-Claude-Mythos-5-1M-heretic-abli
 const COSMOS_MODEL_ID = "DuoNeural/Cosmos3-Nano-Abliterated";
 const QWEN_MODEL_ID = "0bserverx/Qwen3.8-27B-Heretic-Abliterated-Uncensored-GGUF";
 const VOICE_CLONE_MODEL_ID = "tonyassi/voice-clone";
-const VOICE_CLONE_SPACE_ID = "tonyassi/voice-clone";
+const VOICE_LANGUAGE_SPACE_ID = "hf-audio/whisper-large-v3";
+const VOICE_CLONE_SPACE_ID = "Nymbo/Voice-Clone-Multilingual";
+const VOICE_LANGUAGE_TIMEOUT_MS = 75_000;
+const VOICE_CLONE_TIMEOUT_MS = 150_000;
+const VOICE_LANGUAGE_CODES = Object.freeze({
+  eng: "en", por: "pt", spa: "es", fra: "fr", fre: "fr", deu: "de", ger: "de",
+  ita: "it", pol: "pl", tur: "tr", rus: "ru", nld: "nl", dut: "nl", ces: "cs", cze: "cs",
+  ara: "ar", cmn: "zh-cn", zho: "zh-cn", jpn: "ja", kor: "ko", hun: "hu"
+});
 const MAX_VOICE_AUDIO_BYTES = 3 * 1024 * 1024;
 const ENABLED_VALUES = new Set(["1", "true", "yes", "on"]);
 const envEnabled = (value) => {
@@ -76,6 +85,36 @@ function requestLanguage(req) {
 
 function localized(req, portuguese, english) {
   return requestLanguage(req) === "en" ? english : portuguese;
+}
+
+function detectReferenceLanguage(transcript) {
+  if (typeof transcript !== "string" || transcript.trim().length < 12) return null;
+  const code = franc(transcript.trim());
+  return VOICE_LANGUAGE_CODES[code] || null;
+}
+
+async function detectVoiceReferenceLanguage(audioFile, clientOptions) {
+  const whisper = await withTimeout(
+    Client.connect(VOICE_LANGUAGE_SPACE_ID, clientOptions),
+    SPACE_CONNECT_TIMEOUT_MS,
+    "Timed out connecting to the speech-language detector."
+  );
+  const result = await predictWithTimeout(
+    whisper,
+    "/file_transcribe",
+    [audioFile, "transcribe"],
+    VOICE_LANGUAGE_TIMEOUT_MS
+  );
+  const transcript = result?.data?.find((value) => typeof value === "string") || "";
+  const language = detectReferenceLanguage(transcript);
+  if (!language) {
+    const error = new Error(
+      "Could not reliably detect a supported language from the reference audio. Upload a clear sample with at least 5–10 seconds of speech."
+    );
+    error.name = "UnsupportedReferenceLanguageError";
+    throw error;
+  }
+  return language;
 }
 
 function voiceAudioToGradioFile(dataUrl) {
@@ -259,6 +298,29 @@ export default async function handler(req, res) {
 
     phase = "space-connect";
     const clientOptions = process.env.HF_TOKEN ? { token: process.env.HF_TOKEN } : {};
+    let voiceLanguage = null;
+    if (isVoiceClone) {
+      phase = "voice-language-detection";
+      try {
+        voiceLanguage = await detectVoiceReferenceLanguage(voiceAudioFile, clientOptions);
+      } catch (error) {
+        await releaseGenerationReservation(db, quotaRef, reservation);
+        reservation = null;
+        const unsupported = error?.name === "UnsupportedReferenceLanguageError";
+        return res.status(unsupported ? 422 : 503).json({
+          error: localized(
+            req,
+            unsupported
+              ? "Não foi possível identificar com segurança um idioma compatível no áudio de referência. Envie uma amostra nítida com pelo menos 5–10 segundos de fala."
+              : "A detecção do idioma do áudio está temporariamente indisponível. Tente novamente mais tarde.",
+            unsupported
+              ? "Could not reliably identify a supported language in the reference audio. Upload a clear sample with at least 5–10 seconds of speech."
+              : "Reference-audio language detection is temporarily unavailable. Please try again later."
+          )
+        });
+      }
+    }
+
     const targetSpaceId = isVoiceClone ? VOICE_CLONE_SPACE_ID : spaceId;
     const client = await withTimeout(
       Client.connect(targetSpaceId, clientOptions),
@@ -269,11 +331,16 @@ export default async function handler(req, res) {
     let result;
     if (isVoiceClone) {
       phase = "space-voice-clone";
-      result = await predictWithTimeout(client, "/clone", [prompt.trim(), voiceAudioFile], EXPERIMENTAL_INFERENCE_TIMEOUT_MS);
+      result = await predictWithTimeout(
+        client,
+        "/predict",
+        [prompt.trim(), voiceAudioFile, voiceLanguage],
+        VOICE_CLONE_TIMEOUT_MS
+      );
       const first = result?.data?.[0];
       const audioUrl = typeof first === "string" ? first : (first?.url || first?.path || first?.audio?.url || first?.audio?.path);
-      if (!audioUrl) throw new Error("Voice-clone Space returned no recognized audio URL.");
-      return res.status(200).json({ type: "audio", audioUrl, limit, remaining: Math.max(0, limit - reservation.count), tier: "account" });
+      if (!audioUrl) throw new Error("Multilingual voice-clone Space returned no recognized audio URL.");
+      return res.status(200).json({ type: "audio", audioUrl, detectedLanguage: voiceLanguage, limit, remaining: Math.max(0, limit - reservation.count), tier: "account" });
     } else if (isCosmos) {
       phase = "space-video";
       result = await predictWithTimeout(client, "/generate_video", [prompt.trim(), spaceApiSecret]);

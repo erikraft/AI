@@ -33,7 +33,7 @@ The repository workflow `.github/workflows/sync-to-huggingface.yml` syncs this d
 
 Qwen text and Cosmos video are intentionally hidden from the public Space UI because they require the server-side `HF_SPACE_API_SECRET`. Use the authenticated ErikrafT AI website to invoke them; the website backend supplies the secret without exposing it to browser users. Direct calls without the configured secret are rejected by design. Do not populate a browser field with a server secret.
 
-Voice cloning remains available in the Space UI and through the authenticated website backend. Reference audio is restricted to files under Gradio's managed upload cache and limited to 3 MiB.
+Voice cloning remains available in the Space UI and through the authenticated website backend. Reference audio is restricted to files under Gradio's managed upload cache and limited to 3 MiB. The flow first transcribes the reference sample with Whisper to identify its spoken language, then selects the matching XTTS v2 language on the multilingual voice-cloning Space; it does not use the website locale. Supported languages include English, Portuguese, Spanish, French, German, Italian, Polish, Turkish, Russian, Dutch, Czech, Arabic, Chinese, Japanese, Korean, and Hungarian. Samples with too little or unclear speech fail with an actionable message rather than silently forcing English. Reference audio is sent to the Whisper and multilingual XTTS Hugging Face Spaces for inference.
 
 ## Experimental models (guarded at request time)
 

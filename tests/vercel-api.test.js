@@ -259,7 +259,10 @@ test("voice cloning remains available and confines reference audio to Gradio's c
   assert.match(source, /cache_root = os\.path\.realpath\(os\.fspath\(cache_dir\)\)/);
   assert.match(source, /audio_path = os\.path\.realpath\(reference_audio\)/);
   assert.match(source, /os\.path\.commonpath\(\(cache_root, audio_path\)\)/);
-  assert.match(source, /client\.predict\(prompt, handle_file\(safe_reference_audio\), api_name=["']\/clone["']\)/);
+  assert.match(source, /Client\("hf-audio\/whisper-large-v3", verbose=False\)/);
+  assert.match(source, /_detect_reference_language\(safe_reference_audio\)/);
+  assert.match(source, /Client\("Nymbo\/Voice-Clone-Multilingual", verbose=False\)/);
+  assert.match(source, /language,\s*api_name=["\']\/predict["\']/);
 });
 
 test("voice-cloning reference audio is confined to Gradio's resolved cache path", () => {
@@ -285,4 +288,18 @@ test("voice preview only accepts supported audio MIME types and uses a normalize
   assert.ok(app.includes('if (!previewUrl.startsWith("blob:"))'));
   assert.ok(app.includes("`data:${mimeType};base64,${dataUrl[1]}`"));
   assert.ok(api.includes("(?:wav|x-wav|mpeg|mp3|ogg|webm|mp4|x-m4a)"));
+});
+
+test("voice cloning detects language from reference speech instead of website locale", () => {
+  const api = readFileSync(new URL("../api/generate.js", import.meta.url), "utf8");
+  const pkg = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
+  assert.ok(pkg.dependencies["franc-min"]);
+  assert.ok(api.includes('const VOICE_LANGUAGE_SPACE_ID = "hf-audio/whisper-large-v3"'));
+  assert.ok(api.includes('const VOICE_CLONE_SPACE_ID = "Nymbo/Voice-Clone-Multilingual"'));
+  assert.ok(api.includes("detectVoiceReferenceLanguage(voiceAudioFile, clientOptions)"));
+  assert.ok(api.includes("franc(transcript.trim())"));
+  assert.ok(api.includes("[prompt.trim(), voiceAudioFile, voiceLanguage]"));
+  assert.ok(api.includes("detectedLanguage: voiceLanguage"));
+  assert.ok(api.includes("UnsupportedReferenceLanguageError"));
+  assert.ok(api.includes("VOICE_LANGUAGE_TIMEOUT_MS"));
 });
