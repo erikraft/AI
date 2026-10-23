@@ -619,7 +619,7 @@ $("voice-record-start").addEventListener("click", async () => {
   try {
     voiceRecorderStream = await navigator.mediaDevices.getUserMedia({ audio: true });
     voiceRecorderChunks = [];
-    voiceRecorder = new MediaRecorder(voiceRecorderStream);
+    voiceRecorder = new MediaRecorder(voiceRecorderStream, { audioBitsPerSecond: 64000 });
     voiceRecorder.addEventListener("dataavailable", (event) => { if (event.data?.size) voiceRecorderChunks.push(event.data); });
     voiceRecorder.addEventListener("stop", async () => {
       const recordedDuration = Math.min(MAX_VOICE_RECORDING_SECONDS, Math.max(0, (Date.now() - voiceRecordingStartedAt) / 1000));
