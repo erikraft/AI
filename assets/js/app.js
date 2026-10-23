@@ -22,6 +22,7 @@ function canUseStudio(user) {
 
 function updateStudioAccess(user) {
   const authenticated = canUseStudio(user);
+  $("usage-notice")?.classList.toggle("hidden", authenticated);
   const generator = $("generator-form");
   const resultPanel = $("result-panel");
   const loginPanel = $("studio-login-panel");
@@ -39,6 +40,7 @@ function updateStudioAccess(user) {
     $("generated-video").classList.add("hidden");
     $("generated-video").removeAttribute("src");
     $("generated-audio").classList.add("hidden");
+    $("generated-audio").closest(".custom-audio-player")?.setAttribute("hidden", "");
     $("generated-audio").pause();
     $("generated-audio").removeAttribute("src");
     $("generated-text").classList.add("hidden");
@@ -79,10 +81,81 @@ function historyText(key) {
     deleteError:["Não foi possível excluir este registro.","Could not delete this record."],
     deleted:["Registro excluído do histórico.","History record deleted."],
     deleteLabel:["Excluir do histórico","Delete from history"],
-    image:["Imagem","Image"], video:["Vídeo","Video"], text:["Conversa","Conversation"]
+    image:["Imagem","Image"], video:["Vídeo","Video"], audio:["Áudio","Audio"], text:["Conversa","Conversation"]
   };
   return copy[key]?.[en ? 1 : 0] || key;
 }
+function formatAudioClock(seconds) {
+  if (!Number.isFinite(seconds) || seconds < 0) return "00:00";
+  const value = Math.floor(seconds);
+  return String(Math.floor(value / 60)).padStart(2, "0") + ":" + String(value % 60).padStart(2, "0");
+}
+function enhanceAudioPlayer(audio, variant = "") {
+  if (!audio || audio.dataset.customAudioPlayer === "true") return audio?.closest(".custom-audio-player") || null;
+  audio.dataset.customAudioPlayer = "true";
+  const player = document.createElement("div");
+  player.className = "custom-audio-player" + (variant ? " custom-audio-player-" + variant : "");
+  player.hidden = audio.classList.contains("hidden");
+  const toggle = document.createElement("button");
+  toggle.type = "button";
+  toggle.className = "custom-audio-toggle";
+  toggle.setAttribute("aria-label", document.documentElement.lang === "en" ? "Play audio" : "Reproduzir áudio");
+  const progress = document.createElement("input");
+  progress.type = "range";
+  progress.className = "custom-audio-progress";
+  progress.min = "0";
+  progress.max = "1000";
+  progress.value = "0";
+  progress.setAttribute("aria-label", document.documentElement.lang === "en" ? "Audio progress" : "Progresso do áudio");
+  const clock = document.createElement("span");
+  clock.className = "custom-audio-clock";
+  clock.textContent = "00:00 / 00:00";
+  const iconPath = (playing) => playing
+    ? "M48 64C21.5 64 0 85.5 0 112v288c0 26.5 21.5 48 48 48h80c26.5 0 48-21.5 48-48V112c0-26.5-21.5-48-48-48H48zm272 0c-26.5 0-48 21.5-48 48v288c0 26.5 21.5 48 48 48h80c26.5 0 48-21.5 48-48V112c0-26.5-21.5-48-48-48h-80z"
+    : "M424.4 214.7 72.4 6.6C43.8-10.3 0 6.1 0 39.9v432.2c0 33.8 43.8 50.2 72.4 33.3l352-208.1c31.4-18.6 31.4-64.1 0-82.6z";
+  const update = () => {
+    const duration = Number.isFinite(audio.duration) ? audio.duration : 0;
+    clock.textContent = formatAudioClock(audio.currentTime) + " / " + formatAudioClock(duration);
+    progress.value = String(duration ? Math.round(audio.currentTime / duration * 1000) : 0);
+    progress.disabled = !duration;
+  };
+  const updateToggle = () => {
+    const playing = !audio.paused && !audio.ended;
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("viewBox", "0 0 448 512");
+    svg.setAttribute("aria-hidden", "true");
+    svg.setAttribute("focusable", "false");
+    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    path.setAttribute("fill", "currentColor");
+    path.setAttribute("d", iconPath(playing));
+    svg.append(path);
+    toggle.replaceChildren(svg);
+    toggle.setAttribute("aria-label", playing
+      ? (document.documentElement.lang === "en" ? "Pause audio" : "Pausar áudio")
+      : (document.documentElement.lang === "en" ? "Play audio" : "Reproduzir áudio"));
+  };
+  audio.controls = false;
+  audio.classList.remove("hidden");
+  audio.classList.add("custom-audio-source");
+  audio.parentNode?.insertBefore(player, audio);
+  player.append(audio, toggle, progress, clock);
+  toggle.append();
+  toggle.addEventListener("click", () => {
+    if (audio.paused) void audio.play().catch(() => {});
+    else audio.pause();
+  });
+  progress.addEventListener("input", () => {
+    if (Number.isFinite(audio.duration) && audio.duration > 0) audio.currentTime = Number(progress.value) / 1000 * audio.duration;
+  });
+  for (const eventName of ["loadedmetadata", "durationchange", "timeupdate", "seeked"]) audio.addEventListener(eventName, update);
+  for (const eventName of ["play", "pause", "ended"]) audio.addEventListener(eventName, updateToggle);
+  audio.addEventListener("loadedmetadata", () => { if (audio.src) player.hidden = false; });
+  audio.addEventListener("emptied", () => { player.hidden = true; update(); });
+  update();
+  updateToggle();
+  return player;
+}
+
 function formatHistoryDate(value) {
   const date = new Date(value);
   if (!Number.isFinite(date.getTime())) return "";
@@ -96,16 +169,24 @@ function renderHistory(items) {
   for (const item of items) {
     const card = document.createElement("article"); card.className = "history-item";
     const preview = document.createElement("div"); preview.className = "history-preview";
-    if (item.type === "image" && item.mediaUrl) {
+    let historyAudio = null;
+    if (item.type === "audio" && item.mediaUrl) {
+      historyAudio = document.createElement("audio"); historyAudio.src = item.mediaUrl; historyAudio.preload = "metadata"; historyAudio.className = "history-audio-preview";
+      const audioIcon = document.createElement("i"); audioIcon.className = "fa-solid fa-music"; audioIcon.setAttribute("aria-hidden", "true"); preview.append(audioIcon);
+    } else if (item.type === "image" && item.mediaUrl) {
       const img = document.createElement("img"); img.src = item.mediaUrl; img.alt = item.prompt || historyText("image"); img.loading = "lazy"; preview.append(img);
     } else if (item.type === "video" && item.mediaUrl) {
       const video = document.createElement("video"); video.src = item.mediaUrl; video.controls = true; video.playsInline = true; video.preload = "metadata"; preview.append(video);
     } else { const icon = document.createElement("i"); icon.className = "fa-solid fa-comments"; icon.setAttribute("aria-hidden","true"); preview.append(icon); }
     const details = document.createElement("div"); details.className = "history-item-details";
-    const kind = document.createElement("span"); kind.className = "history-kind"; kind.textContent = historyText(item.type === "image" ? "image" : item.type === "video" ? "video" : "text");
+    const kind = document.createElement("span"); kind.className = "history-kind"; kind.textContent = historyText(item.type === "image" ? "image" : item.type === "video" ? "video" : item.type === "audio" ? "audio" : "text");
     const prompt = document.createElement("textarea"); prompt.className = "history-prompt"; prompt.value = item.prompt || ""; prompt.readOnly = true; prompt.rows = 4; prompt.spellcheck = false; prompt.setAttribute("aria-label", document.documentElement.lang === "en" ? "Generation prompt (read-only; selectable and copyable)" : "Prompt da geração (somente leitura; selecione e copie)");
     const meta = document.createElement("small"); meta.textContent = [item.model || "", item.createdAt ? formatHistoryDate(item.createdAt) : ""].filter(Boolean).join(" · ");
     details.append(kind,prompt,meta);
+    if (historyAudio) {
+      details.append(historyAudio);
+      enhanceAudioPlayer(historyAudio);
+    }
     if (item.outputText) { const output = document.createElement("p"); output.className = "history-output"; output.textContent = item.outputText; details.append(output); }
     if (item.mediaUrl) { const open = document.createElement("a"); open.href = item.mediaUrl; open.target="_blank"; open.rel="noopener noreferrer"; open.className="history-open-link"; open.textContent=document.documentElement.lang==="en"?"Open media ↗":"Abrir mídia ↗"; details.append(open); }
     const remove = document.createElement("button");
@@ -137,6 +218,7 @@ function collectQwenMessages() {
     .slice(-30).map((message)=>({role:message.dataset.role==="assistant"?"assistant":"user",text:message.querySelector(".qwen-message-content")?.textContent||""}));
 }
 $("history-refresh")?.addEventListener("click",()=>void loadHistory());
+$("voice-audio-remove")?.addEventListener("click", () => { clearVoiceAudio(); });
 
 if (configured) {
   const app = initializeApp(firebaseConfig);
@@ -440,12 +522,17 @@ const SUPPORTED_VOICE_AUDIO_TYPES = new Set([
 ]);
 const voiceAudioInput = $("voice-audio-input");
 const voiceAudioPreview = $("voice-audio-preview");
+const voiceAudioPlayer = enhanceAudioPlayer(voiceAudioPreview, "voice");
+const generatedAudioPlayer = enhanceAudioPlayer($("generated-audio"), "output");
 function clearVoiceAudio() {
   voiceAudioDataUrl = "";
   if (voiceAudioObjectUrl) URL.revokeObjectURL(voiceAudioObjectUrl);
   voiceAudioObjectUrl = "";
   voiceAudioPreview.removeAttribute("src");
   voiceAudioPreview.classList.add("hidden");
+  if (voiceAudioPlayer) voiceAudioPlayer.hidden = true;
+  $("voice-audio-remove").classList.add("hidden");
+  voiceAudioInput.value = "";
   $("voice-audio-status").textContent = document.documentElement.lang === "en" ? "No voice sample selected." : "Nenhuma amostra de voz selecionada.";
 }
 async function getVoiceAudioDuration(file) {
@@ -501,7 +588,9 @@ async function readVoiceAudio(file, knownDuration = null) {
       voiceAudioObjectUrl = previewUrl;
       voiceAudioPreview.src = previewUrl;
       voiceAudioPreview.classList.remove("hidden");
+      if (voiceAudioPlayer) voiceAudioPlayer.hidden = false;
       $("voice-audio-status").textContent = document.documentElement.lang === "en" ? "Voice sample ready." : "Amostra de voz pronta.";
+      $("voice-audio-remove").classList.remove("hidden");
       resolve();
     };
     reader.onerror = () => reject(new Error(document.documentElement.lang === "en" ? "Could not read the audio file." : "Não foi possível ler o áudio."));
@@ -514,6 +603,29 @@ voiceAudioInput.addEventListener("change", async () => {
   try { await readVoiceAudio(file); }
   catch (error) { clearVoiceAudio(); $("voice-audio-status").textContent = error.message; }
 });
+const MIN_VOICE_RECORDING_SECONDS = 10;
+const MAX_VOICE_RECORDING_SECONDS = 60;
+const voiceRecordTimer = $("voice-record-timer");
+let voiceRecordingInterval = null;
+let voiceRecordingTimeout = null;
+function formatVoiceRecordingTime(seconds) {
+  const safeSeconds = Math.max(0, Math.min(MAX_VOICE_RECORDING_SECONDS, Math.floor(seconds)));
+  return String(Math.floor(safeSeconds / 60)).padStart(2, "0") + ":" + String(safeSeconds % 60).padStart(2, "0");
+}
+function updateVoiceRecordingTimer() {
+  const elapsed = voiceRecordingStartedAt ? (Date.now() - voiceRecordingStartedAt) / 1000 : 0;
+  voiceRecordTimer.textContent = formatVoiceRecordingTime(elapsed) + " / " + formatVoiceRecordingTime(MAX_VOICE_RECORDING_SECONDS);
+  $("voice-record-stop").disabled = elapsed < MIN_VOICE_RECORDING_SECONDS;
+  if (elapsed >= MAX_VOICE_RECORDING_SECONDS && voiceRecorder?.state === "recording") voiceRecorder.stop();
+}
+function stopVoiceRecordingTimer() {
+  if (voiceRecordingInterval !== null) window.clearInterval(voiceRecordingInterval);
+  if (voiceRecordingTimeout !== null) window.clearTimeout(voiceRecordingTimeout);
+  voiceRecordingInterval = null;
+  voiceRecordingTimeout = null;
+  voiceRecordingStartedAt = 0;
+  voiceRecordTimer.textContent = "00:00 / " + formatVoiceRecordingTime(MAX_VOICE_RECORDING_SECONDS);
+}
 $("voice-record-start").addEventListener("click", async () => {
   if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
     $("voice-audio-status").textContent = document.documentElement.lang === "en" ? "Recording is not supported here; choose an audio file instead." : "A gravação não é compatível com este navegador; escolha um arquivo de áudio.";
@@ -522,12 +634,13 @@ $("voice-record-start").addEventListener("click", async () => {
   try {
     voiceRecorderStream = await navigator.mediaDevices.getUserMedia({ audio: true });
     voiceRecorderChunks = [];
-    voiceRecorder = new MediaRecorder(voiceRecorderStream);
+    voiceRecorder = new MediaRecorder(voiceRecorderStream, { audioBitsPerSecond: 64000 });
     voiceRecorder.addEventListener("dataavailable", (event) => { if (event.data?.size) voiceRecorderChunks.push(event.data); });
     voiceRecorder.addEventListener("stop", async () => {
-      const recordedDuration = Math.max(0, (Date.now() - voiceRecordingStartedAt) / 1000);
-      voiceRecordingStartedAt = 0;
-      const blob = new Blob(voiceRecorderChunks, { type: voiceRecorder.mimeType || "audio/webm" });
+      const recordedDuration = Math.min(MAX_VOICE_RECORDING_SECONDS, Math.max(0, (Date.now() - voiceRecordingStartedAt) / 1000));
+      stopVoiceRecordingTimer();
+      const recorder = voiceRecorder;
+      const blob = new Blob(voiceRecorderChunks, { type: recorder?.mimeType || "audio/webm" });
       voiceRecorderStream?.getTracks().forEach((track) => track.stop());
       voiceRecorderStream = null;
       voiceRecorder = null;
@@ -544,14 +657,25 @@ $("voice-record-start").addEventListener("click", async () => {
     }, { once: true });
     voiceRecordingStartedAt = Date.now();
     voiceRecorder.start();
+    updateVoiceRecordingTimer();
+    voiceRecordingInterval = window.setInterval(updateVoiceRecordingTimer, 100);
+    voiceRecordingTimeout = window.setTimeout(() => { if (voiceRecorder?.state === "recording") voiceRecorder.stop(); }, MAX_VOICE_RECORDING_SECONDS * 1000);
     $("voice-record-start").disabled = true;
-    $("voice-record-stop").disabled = false;
-    $("voice-audio-status").textContent = document.documentElement.lang === "en" ? "Recording… click Stop recording when finished." : "Gravando… clique em Parar gravação ao terminar.";
+    $("voice-record-stop").disabled = true;
+    $("voice-audio-status").textContent = document.documentElement.lang === "en" ? "Recording… stop is available after 10 seconds; maximum 60 seconds." : "Gravando… parar fica disponível após 10 segundos; máximo de 60 segundos.";
   } catch {
+    stopVoiceRecordingTimer();
+    voiceRecorderStream?.getTracks().forEach((track) => track.stop());
+    voiceRecorderStream = null;
+    $("voice-record-start").disabled = false;
+    $("voice-record-stop").disabled = true;
     $("voice-audio-status").textContent = document.documentElement.lang === "en" ? "Microphone access was denied or unavailable." : "O microfone não está disponível ou o acesso foi negado.";
   }
 });
-$("voice-record-stop").addEventListener("click", () => { if (voiceRecorder?.state === "recording") voiceRecorder.stop(); });
+$("voice-record-stop").addEventListener("click", () => {
+  const elapsed = voiceRecordingStartedAt ? (Date.now() - voiceRecordingStartedAt) / 1000 : 0;
+  if (voiceRecorder?.state === "recording" && elapsed >= MIN_VOICE_RECORDING_SECONDS) voiceRecorder.stop();
+});
 const MAX_REFERENCE_FILE_BYTES = 12 * 1024 * 1024;
 const MAX_REFERENCE_DATA_BYTES = 3 * 1024 * 1024;
 const referenceImageInput = $("reference-image");
@@ -873,6 +997,7 @@ $("generator-form").addEventListener("submit", async (event) => {
         audio.classList.remove("hidden"); $("download").disabled = false; $("download").classList.remove("hidden");
         $("result-status").textContent = document.documentElement.lang === "en" ? "Voice audio ready." : "Áudio de voz pronto.";
         $("result-status").className = "result-status status-success";
+        void saveHistoryEntry("audio", prompt, modelSelect.value, { mediaUrl: audioUrl });
       };
       audio.onerror = () => {
         $("loading-result").classList.add("hidden"); $("empty-result").classList.remove("hidden");
@@ -959,7 +1084,7 @@ const translations = {
     account_visitor:"Visitante",account_connected:"Conectado",sign_in:"Entrar",sign_out:"Sair",
     aspect_square:"Quadrada · 1:1",aspect_landscape:"Paisagem · 4:3",aspect_portrait:"Retrato · 3:4",
     quality_standard:"Padrão · 20 passos",quality_detailed:"Detalhada · 28 passos",
-    voice_audio_label:"Áudio de referência da voz",voice_record_start:"Gravar áudio",voice_record_stop:"Parar gravação",voice_initial_status:"Envie um arquivo ou grave uma amostra de voz.",voice_sample_note:"Use uma amostra nítida de pelo menos 10 segundos e com pouco ruído de fundo. O idioma é detectado pelo áudio de referência, não pelo idioma do site. Clone somente a sua voz ou uma voz cujo uso você tenha autorização.",
+    voice_audio_label:"Áudio de referência da voz",voice_upload_label:"Enviar arquivo de áudio",voice_record_start:"Iniciar gravação",voice_record_stop:"Parar gravação",voice_record_timer_label:"Duração da gravação",voice_audio_remove:"Remover áudio enviado",voice_initial_status:"Envie um arquivo ou grave uma amostra de voz.",voice_sample_note:"Use uma amostra nítida de pelo menos 10 segundos e com pouco ruído de fundo. O idioma é detectado pelo áudio de referência, não pelo idioma do site. Clone somente a sua voz ou uma voz cujo uso você tenha autorização.",
     generated_image_alt:"Imagem gerada por IA",footer_aria_label:"Rodapé do ErikrafT AI",modal_close_label:"Fechar",huggingface_logo_alt:"Logo do Hugging Face",
     model_selector_kicker:"ROTEADOR DE MODELOS",model_search_label:"Pesquisar modelos e tarefas",model_search_placeholder:"Pesquisar: gerar texto, chatbot, imagem, vídeo, áudio…",model_filter_label:"Filtrar por tarefa",filter_all:"Todas as tarefas",filter_image:"Gerar imagens",filter_video:"Gerar vídeos",filter_text:"Gerar texto",filter_chatbot:"Chatbot / conversa",filter_audio:"Áudio / voz",model_filter_empty:"Nenhum modelo corresponde à pesquisa.",model_filter_count:"modelos encontrados",
     nav_studio:"Modelos",nav_how:"Como funciona",nav_donate:"Doar",nav_source:"Código-fonte ↗",footer_privacy:"Privacidade",footer_terms:"Termos de Uso",bitcoin_qr_primary_label:"QR code Bitcoin para a conta principal",bitcoin_qr_email_label:"QR code Bitcoin para a conta de e-mail",hero_eyebrow:"HUB DE MODELOS DE IA · CÓDIGO ABERTO",hero_title:"Um hub de IA.",hero_title_emphasis:"Várias possibilidades.",hero_lead:"Explore fluxos de imagem, vídeo e texto em um único hub de código aberto. Escolha um modelo e a interface se adapta à tarefa, conforme a disponibilidade do backend.",meta_prompt:"Prompt personalizado",meta_login:"Conta gratuita",meta_limits:"Limites contra abuso",studio_eyebrow:"UM HUB · VÁRIOS MODELOS",studio_title:"Hub de modelos",studio_title_accent:".",studio_intro:"Escolha um modelo disponível. Os campos, as instruções e a área de resultado mudam de acordo com a tarefa selecionada.",prompt_label:"Seu prompt",prompt_placeholder:"Ex.: Uma estação de trem futurista no meio de uma floresta, luz azul cinematográfica, neblina suave, composição detalhada...",prompt_help:"Descreva o assunto, o ambiente, a luz e o estilo.",model_label:"Modelo e tarefa",model_help:"O FLUX transforma texto em imagem. Para usar uma imagem de referência, selecione Qwythos; os campos mudam conforme o modelo escolhido.",qwythos_help:"Fluxo experimental Imagem + texto → imagem: envie uma imagem de referência e descreva as alterações desejadas. O Qwythos interpreta a imagem e as instruções em uma etapa de texto; depois, o FLUX renderiza a imagem final.",qwythos_runtime_notice:"O Qwythos interpreta a imagem enviada e as instruções; em seguida, o FLUX renderiza a imagem final em uma chamada separada. O upload é obrigatório neste modo.",model_runtime_notice:"Modo texto → imagem: escreva um prompt para gerar uma imagem com FLUX. Para usar uma imagem enviada como referência, selecione Qwythos. Filas e limites do provedor podem variar.",qwythos_image_button:"Gerar imagem (imagem → texto → imagem)",reference_image_label:"Imagem de entrada (obrigatória neste modo)",reference_drop_title:"Arraste uma imagem para cá ou toque para escolher",reference_drop_hint:"Use a câmera, a galeria ou os arquivos do dispositivo · imagens de até 12 MB",reference_camera:"Tirar foto",reference_gallery:"Abrir galeria",reference_browse:"Escolher arquivo",reference_image_help:"Envie qualquer arquivo de imagem que seu navegador consiga abrir (até 12 MB) e descreva a alteração desejada. A imagem será convertida para JPEG e enviada ao modelo Qwythos para interpretação; o FLUX renderiza a imagem final.",reference_image_required:"Envie uma imagem de referência para usar o fluxo Imagem → texto → imagem.",reference_image_too_large:"A imagem original deve ter no máximo 12 MB; a versão preparada para envio é limitada a 3 MB.",reference_image_type:"Selecione uma imagem que seu navegador consiga abrir.",reference_image_read_error:"Não foi possível ler a imagem selecionada.",reference_image_clear:"Remover imagem",reference_image_status:"Nenhuma imagem selecionada.",reference_image_processing:"Preparando imagem para envio…",reference_image_added:"Imagem preparada e pronta para ser enviada ao Qwythos.",reference_image_unsupported:"O navegador não conseguiu abrir ou converter este arquivo de imagem. Tente outro formato.",reference_image_uploading:"Convertendo e enviando a imagem e as instruções para o Qwythos…",aspect_label:"Proporção",quality_label:"Etapas de geração",notice_limits:"Entre com Google, GitHub ou e-mail e senha para usar os modelos. O site limita a até 5 solicitações por hora por conta; a disponibilidade do provedor pode variar.",generate_button:"Gerar imagem",responsible_note:"Ao gerar, você concorda em usar o serviço de forma responsável.",result_eyebrow:"RESULTADO",result_title:"Seu resultado",empty_title:"Sua imagem começa aqui",empty_desc:"O resultado aparecerá nesta área depois da geração.",video_result_title:"Seu vídeo",video_empty_title:"Seu vídeo aparecerá aqui",video_empty_desc:"O vídeo gerado será exibido nesta área quando estiver pronto.",qwen_chat_title:"Conversa com Qwen",qwen_empty_title:"Converse com o Qwen",qwen_empty_desc:"Digite uma pergunta no campo abaixo para iniciar a conversa.",qwen_user_label:"Você",qwen_assistant_label:"Qwen",qwen_thinking:"Pensando…",qwen_timeout:"O Qwen não respondeu dentro do limite de 3 minutos. Confira os logs do Space; antes de repetir, aguarde um pouco porque a inferência anterior pode ainda estar na fila.",request_timeout:"A solicitação demorou demais e foi encerrada. Confira o status do Space e tente novamente mais tarde.",loading_title:"Preparando sua imagem...",loading_desc:"Enviando o prompt para o modelo de IA.",loading_note:"Isso pode levar alguns minutos na cota gratuita.",ready_status:"Pronto para criar.",how_eyebrow:"UM HUB · VÁRIAS TAREFAS",how_title:"Da ideia ao resultado.",step1_title:"Escreva sua ideia",step1_desc:"Use um prompt original. Você controla a descrição, sem texto fixo escondido no código.",step2_title:"Escolha o modelo",step2_desc:"O hub encaminha o pedido ao modelo selecionado e apresenta o resultado como imagem, vídeo ou texto, conforme a tarefa e a disponibilidade do backend.",step3_title:"Confira o resultado",step3_desc:"Visualize a imagem, assista ao vídeo ou leia a resposta textual. Baixe os arquivos de mídia quando houver suporte.",security_title:"Limites de uso · proteção contra abuso",security_desc:"Somente usuários autenticados com Google, GitHub ou e-mail e senha podem gerar imagens. O backend valida a sessão Firebase e aplica até 5 gerações por hora por conta.",space_feature_eyebrow:"EXECUÇÃO DE MODELOS · HUGGING FACE",space_feature_title:"Conheça o Space do ErikrafT AI",space_feature_desc:"O Space do Hugging Face é o ambiente que executa os modelos de IA por trás do ErikrafT AI. Explore a página do Space para acompanhar a aplicação e seus recursos; o processamento pode variar conforme a disponibilidade, a fila e os limites de hardware.",space_feature_open:"Abrir Space no Hugging Face ↗",space_feature_source:"Código aberto do Space ↗",github_feature_eyebrow:"CÓDIGO ABERTO · COMUNIDADE",github_feature_title:"Explore o repositório do ErikrafT AI",github_feature_desc:"Consulte o código-fonte, relate bugs ou proponha melhorias. Antes de abrir uma issue ou pull request, confira as orientações de contribuição e o código de conduta.",github_feature_repo:"Abrir repositório ↗",github_feature_issues:"Relatar issue ↗",github_feature_pulls:"Criar pull request ↗",quota_title:"Cota gratuita e limites do provedor",quota_intro:"O ErikrafT AI envia as solicitações para um Space do Hugging Face. Os limites do site e os limites de computação do provedor são diferentes.",quota_site_label:"LIMITES DO ERIKRAFT AI",quota_site_value:"Até 5 gerações por hora por conta autenticada",quota_site_desc:"A geração requer uma sessão Firebase válida obtida com Google, GitHub ou e-mail e senha. O backend aplica até 5 gerações por hora por conta autenticada.",quota_gpu_label:"HUGGING FACE ZEROGPU · SE APLICÁVEL",quota_gpu_value:"2 min/dia sem autenticação · 5 min/dia para conta Free",quota_gpu_desc:"Quando o Space usa ZeroGPU, o Hugging Face documenta cotas diárias de tempo de GPU por categoria de conta. A cota reinicia 24 horas após o primeiro uso de GPU, e o saldo restante afeta a prioridade na fila. É tempo de computação, não um número garantido de imagens.",quota_availability_label:"DISPONIBILIDADE DO SPACE",quota_availability_value:"Filas, inicializações e suspensões podem ocorrer",quota_availability_desc:"O hardware gratuito pode ficar temporariamente indisponível ou precisar ser reiniciado após inatividade. No hardware CPU Basic, o Hugging Face informa suspensão após 48 horas sem atividade. Carregar um modelo grande também pode demorar.",quota_note:"A cota ZeroGPU só se aplica se este Space estiver usando esse hardware. A cota do provedor é independente dos limites do ErikrafT AI e não garante uma quantidade de imagens por dia nem um tempo de resposta.",quota_link_space:"Abrir Space utilizado pelo ErikrafT AI ↗",quota_link_zerogpu:"Cotas oficiais do ZeroGPU ↗",quota_link_sleep:"Regras de suspensão dos Spaces ↗",studio_login_eyebrow:"AUTENTICAÇÃO NECESSÁRIA",studio_login_title:"Entre para gerar imagens",studio_login_desc:"O gerador e os resultados ficam disponíveis somente depois de entrar com Google, GitHub ou e-mail e senha.",studio_google_button:"Continuar com Google",studio_github_button:"Continuar com GitHub",studio_login_note:"Até 5 gerações por hora por conta. A disponibilidade do Hugging Face pode variar.",auth_unavailable:"A autenticação está indisponível. Tente novamente mais tarde ou informe o administrador.",auth_required_error:"Entre com Google, GitHub ou uma conta de e-mail verificada antes de gerar imagens.",auth_provider_error:"Entre usando Google, GitHub ou uma conta de e-mail verificada para continuar.",email_separator:"OU USE E-MAIL E SENHA",email_label:"E-mail",password_label:"Senha",email_placeholder:"voce@exemplo.com",password_placeholder:"Mínimo de 6 caracteres",email_sign_in:"Entrar com e-mail",create_account:"Criar conta",forgot_password:"Esqueci minha senha",modal_auth_eyebrow:"SUA CONTA",modal_auth_title:"Entre ou crie sua conta",modal_auth_desc:"Use Google, GitHub ou seu e-mail e senha para continuar.",modal_auth_note:"A autenticação e a senha são gerenciadas pelo Firebase.",email_required:"Informe seu endereço de e-mail.",invalid_email:"Informe um endereço de e-mail válido.",password_required:"Digite sua senha.",weak_password:"A senha precisa ter pelo menos 6 caracteres.",email_already_in_use:"Este e-mail já está cadastrado. Entre ou redefina sua senha.",invalid_credentials:"E-mail ou senha incorretos.",too_many_requests:"Muitas tentativas. Aguarde antes de tentar novamente.",network_error:"Falha de conexão. Verifique sua internet e tente novamente.",email_provider_disabled:"O login por e-mail e senha não está habilitado no Firebase.",verification_email_sent:"Conta criada. Enviamos um link de verificação para seu e-mail. Confirme-o antes de entrar.",email_verification_required:"Seu e-mail ainda não foi verificado. Enviamos um novo link; confirme-o antes de entrar.",reset_email_sent:"Se existir uma conta com esse e-mail, enviaremos instruções para redefinir a senha.",reset_email_failed:"Não foi possível enviar o e-mail de redefinição. Verifique o endereço e tente novamente.",auth_domain_error:"Este domínio não está autorizado no Firebase Authentication.",auth_failed:"Não foi possível entrar. Tente novamente.",generation_http_error:"A geração falhou",provider_image_missing:"O Space não retornou uma imagem reconhecida.",support_project:"APOIE O PROJETO",donate_title:"Ajude a manter o projeto aberto.",donate_desc:"Se o ErikrafT AI™ é útil para você, contribua com Bitcoin. Confira a carteira antes de enviar; transações na blockchain são irreversíveis.",primary_account:"Conta principal",email_account:"Conta de e-mail",copy_address:"Copiar endereço",copied:"Endereço copiado!",open_wallet:"Abrir na carteira ↗",scan_qr:"Escaneie com sua carteira Bitcoin",bitcoin_note:"Envie apenas Bitcoin pela rede Bitcoin. Sempre confira o endereço na sua carteira antes de confirmar.",history_eyebrow:"SUA BIBLIOTECA",history_title:"Histórico de criações e conversas",history_desc:"Histórico guarda prompts, mensagens e links. A lixeira apaga o registro, não cópias de terceiros.",history_refresh:"Atualizar",history_loading:"Carregando histórico…",footer_text:"Open source · Construído por ErikrafT",generate:"Gerar imagem",generating:"Gerando...",validating:"Validando o limite de uso...",image_ready:"Imagem pronta.",image_load_error:"A imagem temporária não pôde ser carregada. Tente gerar novamente.",generation_error:"Não foi possível gerar a imagem."
@@ -969,7 +1094,7 @@ const translations = {
     account_visitor:"Visitor",account_connected:"Signed in",sign_in:"Sign in",sign_out:"Sign out",
     aspect_square:"Square · 1:1",aspect_landscape:"Landscape · 4:3",aspect_portrait:"Portrait · 3:4",
     quality_standard:"Standard · 20 steps",quality_detailed:"Detailed · 28 steps",
-    voice_audio_label:"Voice reference audio",voice_record_start:"Record audio",voice_record_stop:"Stop recording",voice_initial_status:"Upload a file or record a voice sample.",voice_sample_note:"Use a clear sample of at least 10 seconds with minimal background noise. The spoken language is detected from the reference audio, not the website language. Clone only your own voice or a voice you have permission to use.",
+    voice_audio_label:"Voice reference audio",voice_upload_label:"Upload audio file",voice_record_start:"Start recording",voice_record_stop:"Stop recording",voice_record_timer_label:"Recording duration",voice_audio_remove:"Remove uploaded audio",voice_initial_status:"Upload a file or record a voice sample.",voice_sample_note:"Use a clear sample of at least 10 seconds with minimal background noise. The spoken language is detected from the reference audio, not the website language. Clone only your own voice or a voice you have permission to use.",
     generated_image_alt:"AI-generated image",footer_aria_label:"ErikrafT AI footer",modal_close_label:"Close",huggingface_logo_alt:"Hugging Face logo",
     model_selector_kicker:"MODEL ROUTER",model_search_label:"Search models and tasks",model_search_placeholder:"Search: generate text, chatbot, image, video, audio…",model_filter_label:"Filter by task",filter_all:"All tasks",filter_image:"Generate images",filter_video:"Generate videos",filter_text:"Generate text",filter_chatbot:"Chatbot / chat",filter_audio:"Audio / voice",model_filter_empty:"No models match your search.",model_filter_count:"models found",
     nav_studio:"AI Hub",nav_how:"How it works",nav_donate:"Donate",nav_source:"Source code ↗",footer_privacy:"Privacy",footer_terms:"Terms of Use",bitcoin_qr_primary_label:"Bitcoin QR code for the main account",bitcoin_qr_email_label:"Bitcoin QR code for the email account",hero_eyebrow:"AI MODEL HUB · OPEN SOURCE",hero_title:"One AI hub.",hero_title_emphasis:"Many possibilities.",hero_lead:"Explore image, video, and text workflows in one open-source hub. Choose a model and the interface adapts to its task, subject to backend availability.",meta_prompt:"Custom prompts",meta_login:"Free account",meta_limits:"Abuse protection",studio_eyebrow:"ONE HUB · MULTIPLE MODELS",studio_title:"AI model hub",studio_title_accent:".",studio_intro:"Choose an available model. The inputs, guidance, and result area change to match the selected task.",prompt_label:"Your prompt",prompt_placeholder:"E.g. A futuristic train station in a forest, cinematic blue light, soft mist, detailed composition...",prompt_help:"Describe the subject, setting, lighting, and style.",model_label:"Model and task",model_help:"FLUX turns text into an image. To use a reference image, select Qwythos; the inputs change with the selected model.",qwythos_help:"Experimental image + text → image workflow: upload a reference image and describe the changes. Qwythos interprets the image and instructions in a text step; FLUX then renders the final image.",qwythos_runtime_notice:"Qwythos interprets the uploaded image and instructions; FLUX then renders the final image in a separate request. An image upload is required in this mode.",model_runtime_notice:"Text → image mode: write a prompt to generate an image with FLUX. To start from an uploaded reference, select Qwythos. Provider queues and limits may vary.",qwythos_image_button:"Generate image (image → text → image)",reference_image_label:"Input image (required for this task)",reference_drop_title:"Drop an image here or tap to choose",reference_drop_hint:"Use your camera, photo gallery, or device files · images up to 12 MB",reference_camera:"Take a photo",reference_gallery:"Open photo gallery",reference_browse:"Choose file",reference_image_help:"Upload any image file your browser can open (up to 12 MB) and describe the desired changes. The image is converted to JPEG and sent to the Qwythos model for AI interpretation; FLUX renders the final image.",reference_image_required:"Upload a reference image to use the image → text → image workflow.",reference_image_too_large:"The original image must be 12 MB or smaller; the prepared upload is capped at 3 MB.",reference_image_type:"Choose an image file your browser can open.",reference_image_read_error:"Could not read the selected image.",reference_image_clear:"Remove image",reference_image_status:"No image selected.",reference_image_processing:"Preparing image for upload…",reference_image_added:"Image prepared and ready to send to Qwythos.",reference_image_unsupported:"The browser could not open or convert this image file. Try another format.",reference_image_uploading:"Converting and sending the image and instructions to Qwythos…",aspect_label:"Aspect ratio",quality_label:"Generation steps",notice_limits:"Sign in with Google, GitHub, or email and password to use the models. The site limits usage to 5 requests per account per hour; provider availability may vary.",generate_button:"Generate image",responsible_note:"By generating, you agree to use the service responsibly.",result_eyebrow:"RESULT",result_title:"Your result",empty_title:"Your image starts here",empty_desc:"Your result will appear here after generation.",video_result_title:"Your video",video_empty_title:"Your video will appear here",video_empty_desc:"The generated video will be displayed in this area when it is ready.",qwen_chat_title:"Chat with Qwen",qwen_empty_title:"Chat with Qwen",qwen_empty_desc:"Type a question in the prompt field below to start the conversation.",qwen_user_label:"You",qwen_assistant_label:"Qwen",qwen_thinking:"Thinking…",qwen_timeout:"Qwen did not respond within the 3-minute limit. Check the Space logs; wait a little before retrying because the previous inference may still be queued.",request_timeout:"The request took too long and was stopped. Check the Space status and try again later.",loading_title:"Preparing your image...",loading_desc:"Sending the prompt to the AI model.",loading_note:"This may take a few minutes on the free tier.",ready_status:"Ready to create.",how_eyebrow:"ONE HUB · MULTIPLE TASKS",how_title:"From idea to output.",step1_title:"Write your idea",step1_desc:"Use an original prompt. You control the description, with no hidden fixed text in the code.",step2_title:"Choose a model",step2_desc:"The hub routes your request to the selected model and displays an image, video, or text response according to the task and backend availability.",step3_title:"Review the result",step3_desc:"View the image, watch the video, or read the text response. Download media files when supported.",security_title:"Usage limits · abuse protection",security_desc:"Only users authenticated with Google, GitHub, or email and password can generate images. The backend validates the Firebase session and allows up to 5 generations per hour per account.",space_feature_eyebrow:"MODEL RUNTIME · HUGGING FACE",space_feature_title:"Explore the ErikrafT AI Space",space_feature_desc:"The Hugging Face Space is the environment that runs the AI models behind ErikrafT AI. Visit the Space page to explore the app and its resources; processing may vary with availability, queueing, and hardware limits.",space_feature_open:"Open Space on Hugging Face ↗",space_feature_source:"Open-source Space code ↗",github_feature_eyebrow:"OPEN SOURCE · COMMUNITY",github_feature_title:"Explore the ErikrafT AI repository",github_feature_desc:"Browse the source code, report bugs, or propose improvements. Before opening an issue or pull request, review the contribution guidelines and code of conduct.",github_feature_repo:"Open repository ↗",github_feature_issues:"Report an issue ↗",github_feature_pulls:"Create a pull request ↗",quota_title:"Free-tier quotas and provider limits",quota_intro:"ErikrafT AI sends image requests to a Hugging Face Space. This website’s limits are separate from the provider’s compute limits.",quota_site_label:"ERIKRAFT AI LIMITS",quota_site_value:"Up to 5 generations per hour per authenticated account",quota_site_desc:"Image generation requires a valid Firebase session from Google, GitHub, or email and password. The backend allows up to 5 generations per hour per authenticated account.",quota_gpu_label:"HUGGING FACE ZEROGPU · IF APPLICABLE",quota_gpu_value:"2 min/day unauthenticated · 5 min/day for a Free account",quota_gpu_desc:"When a Space uses ZeroGPU, Hugging Face documents daily GPU-time quotas by account tier. The quota resets 24 hours after first GPU use, and remaining quota affects queue priority. This is compute time, not a guaranteed number of images.",quota_availability_label:"SPACE AVAILABILITY",quota_availability_value:"Queues, cold starts, and suspensions may occur",quota_availability_desc:"Free hardware may be temporarily unavailable or need to restart after inactivity. On CPU Basic hardware, Hugging Face documents suspension after 48 hours without activity. Loading a large model can also take time.",quota_note:"The ZeroGPU quota only applies if this Space uses that hardware. Provider quota is independent of ErikrafT AI’s limits and does not guarantee a number of images per day or a response time.",quota_link_space:"Open the Space used by ErikrafT AI ↗",quota_link_zerogpu:"Official ZeroGPU quotas ↗",quota_link_sleep:"Spaces sleep and lifecycle rules ↗",studio_login_eyebrow:"SIGN-IN REQUIRED",studio_login_title:"Sign in to generate images",studio_login_desc:"The generator and results are available only after you sign in with Google, GitHub, or email and password.",studio_google_button:"Continue with Google",studio_github_button:"Continue with GitHub",studio_login_note:"Up to 5 generations per hour per account. Hugging Face availability may vary.",auth_unavailable:"Authentication is unavailable. Try again later or contact the administrator.",auth_required_error:"Sign in with Google, GitHub, or a verified email account before generating images.",auth_provider_error:"Sign in using Google, GitHub, or a verified email account to continue.",email_separator:"OR USE EMAIL AND PASSWORD",email_label:"Email",password_label:"Password",email_placeholder:"you@example.com",password_placeholder:"At least 6 characters",email_sign_in:"Sign in with email",create_account:"Create account",forgot_password:"Forgot password?",modal_auth_eyebrow:"YOUR ACCOUNT",modal_auth_title:"Sign in or create your account",modal_auth_desc:"Use Google, GitHub, or your email and password to continue.",modal_auth_note:"Authentication and password handling are managed by Firebase.",email_required:"Enter your email address.",invalid_email:"Enter a valid email address.",password_required:"Enter your password.",weak_password:"Your password must contain at least 6 characters.",email_already_in_use:"This email is already registered. Sign in or reset your password.",invalid_credentials:"Incorrect email or password.",too_many_requests:"Too many attempts. Please wait before trying again.",network_error:"Connection failed. Check your internet connection and try again.",email_provider_disabled:"Email and password sign-in is not enabled in Firebase.",verification_email_sent:"Account created. We sent a verification link to your email. Verify it before signing in.",email_verification_required:"Your email has not been verified yet. We sent a new link; verify it before signing in.",reset_email_sent:"If an account exists for this email, password-reset instructions will be sent.",reset_email_failed:"Could not send the password-reset email. Check the address and try again.",auth_domain_error:"This domain is not authorized in Firebase Authentication.",auth_failed:"Sign-in failed. Please try again.",generation_http_error:"Image generation failed",provider_image_missing:"The Space did not return a recognized image.",support_project:"SUPPORT THE PROJECT",donate_title:"Help keep the project open.",donate_desc:"If ErikrafT AI™ is useful to you, support it with Bitcoin. Verify the wallet before sending; blockchain transactions are irreversible.",primary_account:"Primary account",email_account:"Email account",copy_address:"Copy address",copied:"Address copied!",open_wallet:"Open in wallet ↗",scan_qr:"Scan with your Bitcoin wallet",bitcoin_note:"Send Bitcoin only over the Bitcoin network. Always verify the address in your wallet before confirming.",history_eyebrow:"YOUR LIBRARY",history_title:"Creation and conversation history",history_desc:"History stores prompts, messages and links. Trash deletes the record, not third-party copies.",history_refresh:"Refresh",history_loading:"Loading history…",footer_text:"Open source · Built by ErikrafT",generate:"Generate image",generating:"Generating...",validating:"Checking usage limit...",image_ready:"Image ready.",image_load_error:"The temporary image could not be loaded. Try generating again.",generation_error:"Could not generate the image."
@@ -980,6 +1105,15 @@ function setLanguage(language){
   const selected=translations[language]?language:"pt-BR";
   const dict=translations[selected];
   document.documentElement.lang=selected;
+  document.querySelectorAll(".custom-audio-player").forEach((player) => {
+    const audio = player.querySelector("audio");
+    const toggle = player.querySelector(".custom-audio-toggle");
+    const progress = player.querySelector(".custom-audio-progress");
+    if (toggle) toggle.setAttribute("aria-label", audio && !audio.paused && !audio.ended
+      ? (selected === "en" ? "Pause audio" : "Pausar áudio")
+      : (selected === "en" ? "Play audio" : "Reproduzir áudio"));
+    if (progress) progress.setAttribute("aria-label", selected === "en" ? "Audio progress" : "Progresso do áudio");
+  });
   const seo = selected === "en"
     ? { title: "ErikrafT AI™ — AI Model Hub", description: "Explore an open-source AI hub for image, video, and text workflows using multiple models.", ogTitle: "ErikrafT AI™ — AI Model Hub", ogDescription: "Open-source AI hub for FLUX image generation, Qwythos image-guided workflows, Cosmos video, and Qwen text when available." }
     : { title: "ErikrafT AI™ — Hub de modelos de IA", description: "Explore um hub de IA de código aberto para fluxos de imagem, vídeo e texto com vários modelos.", ogTitle: "ErikrafT AI™ — Hub de modelos de IA", ogDescription: "Hub de IA de código aberto para imagens com FLUX, fluxos com imagem de referência via Qwythos, vídeos com Cosmos e texto com Qwen quando disponíveis." };

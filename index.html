@@ -11,6 +11,12 @@
 <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
 <link rel="canonical" href="https://ai.erikraft.com/">
 <link rel="icon" href="/favicon.ico" type="image/x-icon">
+<link rel="icon" href="/assets/icons/erikraft-ai.svg" type="image/svg+xml">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="ErikrafT AI">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdnjs.cloudflare.com">
@@ -89,7 +95,7 @@
 <main>
 <section class="hero">
 <div class="hero-copy"><p class="eyebrow" data-i18n="hero_eyebrow">HUB DE MODELOS DE IA · CÓDIGO ABERTO</p><h1 data-i18n="hero_title">Um hub de IA.<br><span>Várias possibilidades.</span></h1><p class="lead" data-i18n="hero_lead">Explore fluxos de imagem, vídeo e texto em um único hub de código aberto. Escolha um modelo e a interface se adapta à tarefa, conforme a disponibilidade do backend.</p><div class="hero-meta"><span><i class="dot"></i> <span data-i18n="meta_prompt">Prompt personalizado</span></span><span><i class="dot"></i> <span data-i18n="meta_login">Login gratuito</span></span><span><i class="dot"></i> <span data-i18n="meta_limits">Limites contra abuso</span></span></div></div>
-<div class="hero-art" aria-hidden="true"><span class="brand-mark hero-brand-mark"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" fill="currentColor" aria-hidden="true" focusable="false"><path fill-rule="evenodd" d="M36 24h56a12 12 0 0 1 12 12v56a12 12 0 0 1-12 12H36a12 12 0 0 1-12-12V36a12 12 0 0 1 12-12Zm0 8a4 4 0 0 0-4 4v56a4 4 0 0 0 4 4h56a4 4 0 0 0 4-4V36a4 4 0 0 0-4-4H36Z"></path><path d="M40 12h8v12h-8zm20 0h8v12h-8zm20 0h8v12h-8zM40 104h8v12h-8zm20 0h8v12h-8zm20 0h8v12h-8zM12 40h12v8H12zm0 20h12v8H12zm0 20h12v8H12zm92-40h12v8h-12zm0 20h12v8h-12zm0 20h12v8h-12z"></path><path fill-rule="evenodd" d="m41 80 13-36h4l13 36h-9l-2-7H52l-2 7h-9Zm13-15h4l-2-7-2 7Z"></path><path d="M75 44h8v36h-8z"></path></svg></span><span class="hero-brand-orbit"></span></div>
+<div class="hero-art" aria-hidden="true"><span class="brand-mark hero-brand-mark"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" fill="currentColor" aria-hidden="true" focusable="false"><path fill-rule="evenodd" d="M36 24h56a12 12 0 0 1 12 12v56a12 12 0 0 1-12 12H36a12 12 0 0 1-12-12V36a12 12 0 0 1 12-12Zm0 8a4 4 0 0 0-4 4v56a4 4 0 0 0 4 4h56a4 4 0 0 0 4-4V36a4 4 0 0 0-4-4H36Z"></path><path d="M40 12h8v12h-8zm20 0h8v12h-8zm20 0h8v12h-8zM40 104h8v12h-8zm20 0h8v12h-8zm20 0h8v12h-8zM12 40h12v8H12zm0 20h12v8H12zm0 20h12v8H12zm92-40h12v8h-12zm0 20h12v8h-12zm0 20h12v8h-12z"></path><path fill-rule="evenodd" d="m41 80 13-36h4l13 36h-9l-2-7H52l-2 7h-9Zm13-15h4l-2-7-2 7Z"></path><path d="M75 44h8v36h-8z"></path></svg></span></div>
 </section>
 <section id="studio" class="studio-section">
 <div class="section-heading"><div><p class="eyebrow" data-i18n="studio_eyebrow">UM HUB · VÁRIOS MODELOS</p><h2 data-i18n="studio_title">Hub de modelos<span class="accent">.</span></h2><p class="muted" data-i18n="studio_intro">Escolha um modelo disponível. Os campos, as instruções e a área de resultado mudam de acordo com a tarefa selecionada.</p></div><span class="model-pill"><span class="dot"></span> <span id="selected-model-label">aoxo/flux.1dev-abliterated</span></span></div>
@@ -164,17 +170,31 @@
 </div></div>
 <div id="voice-clone-input" class="field voice-clone-input hidden" hidden aria-hidden="true">
   <label for="voice-audio-input" data-i18n="voice_audio_label">Áudio de referência da voz</label>
-  <input id="voice-audio-input" type="file" accept="audio/wav,audio/x-wav,audio/mpeg,audio/mp3,audio/ogg,audio/webm,audio/mp4,audio/x-m4a">
+  <div class="voice-audio-upload">
+    <svg viewBox="0 0 512 512" aria-hidden="true" focusable="false"><path fill="currentColor" d="M288 109.3V352c0 17.7-14.3 32-32 32s-32-14.3-32-32V109.3l-73.4 73.4c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3l128-128c12.5-12.5 32.8-12.5 45.3 0l128 128c12.5 12.5 12.5 32.8 0 45.3s-32.8 12.5-45.3 0L288 109.3zM64 352h96v32c0 35.3 28.7 64 64 64h64c35.3 0 64-28.7 64-64v-32h96c35.3 0 64 28.7 64 64v32c0 35.3-28.7 64-64 64H64c-35.3 0-64-28.7-64-64v-32c0-35.3 28.7-64 64-64z"/></svg>
+    <span data-i18n="voice_upload_label">Enviar áudio</span>
+    <input id="voice-audio-input" type="file" accept="audio/wav,audio/x-wav,audio/mpeg,audio/mp3,audio/ogg,audio/webm,audio/mp4,audio/x-m4a">
+  </div>
   <div class="voice-record-actions">
-    <button id="voice-record-start" class="button secondary small" type="button" data-i18n="voice_record_start">Gravar áudio</button>
-    <button id="voice-record-stop" class="button secondary small" type="button" data-i18n="voice_record_stop" disabled>Parar gravação</button>
+    <button id="voice-record-start" class="voice-record-button" type="button" data-i18n-aria-label="voice_record_start" data-i18n-title="voice_record_start" aria-label="Iniciar gravação" title="Iniciar gravação">
+      <svg viewBox="0 0 384 512" aria-hidden="true" focusable="false"><path fill="currentColor" d="M192 0C139 0 96 43 96 96v160c0 53 43 96 96 96s96-43 96-96V96c0-53-43-96-96-96zM48 224c-8.8 0-16 7.2-16 16v16c0 85.3 63.1 155.8 144 167.2V448H112c-8.8 0-16 7.2-16 16v32c0 8.8 7.2 16 16 16h160c8.8 0 16-7.2 16-16v-32c0-8.8-7.2-16-16-16h-64v-24.8c80.9-11.4 144-81.9 144-167.2v-16c0-8.8-7.2-16-16-16h-32c-8.8 0-16 7.2-16 16v16c0 53-43 96-96 96s-96-43-96-96v-16c0-8.8-7.2-16-16-16H48z"/></svg>
+    </button>
+    <button id="voice-record-stop" class="voice-record-button voice-record-stop" type="button" data-i18n-aria-label="voice_record_stop" data-i18n-title="voice_record_stop" aria-label="Parar gravação" title="Parar gravação" disabled>
+      <svg viewBox="0 0 512 512" aria-hidden="true" focusable="false"><path fill="currentColor" d="M80 80h352v352H80z"/></svg>
+    </button>
+    <span id="voice-record-timer" class="voice-record-timer" role="timer" data-i18n-aria-label="voice_record_timer_label" aria-label="Duração da gravação">00:00 / 01:00</span>
     <span id="voice-audio-status" class="small-note" role="status" aria-live="polite" data-i18n="voice_initial_status">Envie um arquivo ou grave uma amostra de voz.</span>
   </div>
-  <audio id="voice-audio-preview" class="voice-audio-preview hidden" controls preload="metadata"></audio>
+  <div class="voice-audio-preview-wrap">
+    <audio id="voice-audio-preview" class="voice-audio-preview hidden" preload="metadata"></audio>
+    <button id="voice-audio-remove" class="voice-audio-remove hidden" type="button" data-i18n-aria-label="voice_audio_remove" data-i18n-title="voice_audio_remove" aria-label="Remover áudio enviado" title="Remover áudio enviado">
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M9 3h6l1 2h5v2H3V5h5l1-2zm-4 6h14l-1 12H6L5 9zm4 2v8h2v-8H9zm4 0v8h2v-8h-2z"/></svg>
+    </button>
+  </div>
   <p class="small-note" data-i18n="voice_sample_note">Use uma amostra nítida, curta e sem ruído. Clone somente a sua voz ou uma voz cujo uso você tenha autorização. O Space de referência gera fala em inglês.</p>
 </div>
 <div id="image-options-row" class="options-row"><div class="field"><label for="aspect" data-i18n="aspect_label">Proporção</label><select id="aspect"><option value="square" data-i18n="aspect_square">Quadrada · 1:1</option><option value="landscape" data-i18n="aspect_landscape">Paisagem · 4:3</option><option value="portrait" data-i18n="aspect_portrait">Retrato · 3:4</option></select></div><div class="field"><label for="quality" data-i18n="quality_label">Etapas de geração</label><select id="quality"><option value="20" data-i18n="quality_standard">Padrão · 20 passos</option><option value="28" data-i18n="quality_detailed">Detalhada · 28 passos</option></select></div></div>
-<div class="notice"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5m0-8h.01"/></svg><p data-i18n="notice_limits">Sem conta: até 2 imagens por hora por IP. Com conta: até 5 por hora. Limites sujeitos à disponibilidade do provedor. Não envie informações pessoais no prompt.</p></div>
+<div id="usage-notice" class="notice"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5m0-8h.01"/></svg><p data-i18n="notice_limits">Sem conta: até 2 imagens por hora por IP. Com conta: até 5 por hora. Limites sujeitos à disponibilidade do provedor. Não envie informações pessoais no prompt.</p></div>
 <button id="generate" class="button primary generate-button" type="submit"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 1.9 5.8L20 11l-6.1 2.2L12 19l-2-5.8L4 11l6-2.2z"/><path d="m19 15 .9 2.1L22 18l-2.1.9L19 21l-.9-2.1L16 18l2.1-.9z"/></svg><span data-i18n="generate_button">Gerar imagem</span></button>
 <p class="small-note" data-i18n="responsible_note">Ao gerar, você concorda em usar o serviço de forma responsável.</p>
 </form>
@@ -271,4 +291,5 @@
 <script type="module" src="/assets/js/app.js"></script>
 <script type="module" src="/assets/js/profile.js"></script>
 <script src="/assets/js/favicon-animation.js" defer></script>
+<script src="/assets/js/pwa-register.js" defer></script>
 </body></html>

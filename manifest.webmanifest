@@ -1,0 +1,31 @@
+{
+  "id": "/",
+  "name": "ErikrafT AI™",
+  "short_name": "ErikrafT AI",
+  "description": "Open-source AI model hub for image, video, and text workflows.",
+  "lang": "pt-BR",
+  "start_url": "/?source=pwa",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": [
+    "standalone",
+    "minimal-ui",
+    "browser"
+  ],
+  "orientation": "any",
+  "theme_color": "#0a090b",
+  "background_color": "#0a090b",
+  "categories": [
+    "productivity",
+    "utilities",
+    "photo"
+  ],
+  "icons": [
+    {
+      "src": "/assets/icons/erikraft-ai-pwa.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

@@ -73,14 +73,14 @@ export default async function handler(req, res) {
 
     if (req.method === "POST") {
       const body = req.body || {};
-      const type = ["image", "video", "text"].includes(body.type) ? body.type : null;
+      const type = ["image", "video", "audio", "text"].includes(body.type) ? body.type : null;
       const prompt = cleanText(body.prompt, 1500);
       const model = cleanText(body.model, 200);
       const outputText = cleanText(body.outputText, 12000);
       const mediaUrl = cleanText(body.mediaUrl, 2048);
       const messages = cleanMessages(body.messages);
       if (!type || !prompt || !model) return res.status(400).json({ error: "Invalid history entry." });
-      if (["image", "video"].includes(type) && (!mediaUrl || !/^https:\/\//i.test(mediaUrl))) {
+      if (["image", "video", "audio"].includes(type) && (!mediaUrl || !/^https:\/\//i.test(mediaUrl))) {
         return res.status(400).json({ error: "A secure media URL is required." });
       }
       const record = {

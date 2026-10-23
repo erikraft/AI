@@ -139,3 +139,26 @@ test("voice cloning discovers the current Whisper endpoint and enforces a ten-se
   assert.match(frontend, /recordedDuration < 10/);
   assert.match(frontend, /duration < 10/);
 });
+
+
+test("voice recording controls enforce duration limits and save audio history", () => {
+  const html = read("../index.html");
+  const app = read("../assets/js/app.js");
+  const css = read("../assets/css/styles.css");
+  const historyApi = read("../api/history.js");
+  assert.match(html, /id="voice-record-timer"/);
+  assert.match(html, /id="voice-audio-remove"/);
+  assert.match(html, /id="usage-notice"/);
+  assert.match(html, /viewBox="0 0 384 512"/);
+  assert.match(app, /MIN_VOICE_RECORDING_SECONDS = 10/);
+  assert.match(app, /MAX_VOICE_RECORDING_SECONDS = 60/);
+  assert.match(app, /recordedDuration < 10/);
+  assert.match(app, /voiceRecordingTimeout = window\.setTimeout/);
+  assert.match(app, /function enhanceAudioPlayer\(audio, variant = ""\)/);
+  assert.match(app, /saveHistoryEntry\("audio", prompt, modelSelect\.value, \{ mediaUrl: audioUrl \}\)/);
+  assert.match(app, /classList\.toggle\("hidden", authenticated\)/);
+  assert.doesNotMatch(app, /innerHTML/);
+  assert.match(css, /\.custom-audio-player/);
+  assert.match(historyApi, /\["image", "video", "audio", "text"\]/);
+  assert.match(historyApi, /\["image", "video", "audio"\]\.includes\(type\)/);
+});
