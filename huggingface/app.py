@@ -485,6 +485,15 @@ with gr.Blocks(title="ErikrafT AI — FLUX + Qwythos", delete_cache=(3600, 86400
         "to let Qwythos interpret the request before FLUX renders the result. "
         "Each model runs in a separate GPU request to stay within the provider's duration limit."
     )
+    gr.Markdown(
+        "**Protected experimental models / Modelos experimentais protegidos:** "
+        "Use the authenticated ErikrafT AI website for Qwen text and Cosmos video. "
+        "These endpoints require a server-side shared secret and intentionally reject direct calls "
+        "from this public Space interface. Do not put secrets into browser fields. / "
+        "Use o site ErikrafT AI autenticado para texto Qwen e vídeo Cosmos. Esses endpoints exigem "
+        "um segredo compartilhado no servidor e rejeitam chamadas diretas nesta interface pública. "
+        "Nunca coloque segredos em campos do navegador."
+    )
 
     with gr.Tab("FLUX text-to-image"):
         prompt_image = gr.Textbox(label="Prompt", lines=4, max_lines=8)
@@ -556,7 +565,7 @@ with gr.Blocks(title="ErikrafT AI — FLUX + Qwythos", delete_cache=(3600, 86400
         voice_output = gr.Audio(type="filepath", label="Generated audio / Áudio gerado")
         voice_button.click(clone_voice, [voice_prompt, voice_reference], voice_output, api_name="clone_voice")
 
-    with gr.Tab("Cosmos3 Nano text-to-video"):
+    with gr.Tab("Cosmos3 Nano text-to-video", visible=False):
         gr.Markdown(
             "Experimental short video generation. Disabled until ENABLE_COSMOS_VIDEO is set and GPU/disk checks pass. "
             "Initial outputs are restricted to 16 frames at 256×256."
@@ -567,7 +576,7 @@ with gr.Blocks(title="ErikrafT AI — FLUX + Qwythos", delete_cache=(3600, 86400
         video_output = gr.Video(label="Generated video")
         video_button.click(generate_video, [video_prompt, experimental_api_secret], video_output, api_name="generate_video")
 
-    with gr.Tab("Qwen3.8 text assistant"):
+    with gr.Tab("Qwen3.8 text assistant", visible=False):
         gr.Markdown(
             "Experimental CPU-only GGUF inference using the low-memory RVN-IQ2_XS quantization. "
             "Responses may be slower and quality is reduced versus larger quantizations."
