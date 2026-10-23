@@ -110,9 +110,9 @@ function enhanceAudioPlayer(audio, variant = "") {
   const clock = document.createElement("span");
   clock.className = "custom-audio-clock";
   clock.textContent = "00:00 / 00:00";
-  const icon = (playing) => playing
-    ? '<svg viewBox="0 0 448 512" aria-hidden="true" focusable="false"><path fill="currentColor" d="M48 64C21.5 64 0 85.5 0 112v288c0 26.5 21.5 48 48 48h80c26.5 0 48-21.5 48-48V112c0-26.5-21.5-48-48-48H48zm272 0c-26.5 0-48 21.5-48 48v288c0 26.5 21.5 48 48 48h80c26.5 0 48-21.5 48-48V112c0-26.5-21.5-48-48-48h-80z"/></svg>'
-    : '<svg viewBox="0 0 448 512" aria-hidden="true" focusable="false"><path fill="currentColor" d="M424.4 214.7 72.4 6.6C43.8-10.3 0 6.1 0 39.9v432.2c0 33.8 43.8 50.2 72.4 33.3l352-208.1c31.4-18.6 31.4-64.1 0-82.6z"/></svg>';
+  const iconPath = (playing) => playing
+    ? "M48 64C21.5 64 0 85.5 0 112v288c0 26.5 21.5 48 48 48h80c26.5 0 48-21.5 48-48V112c0-26.5-21.5-48-48-48H48zm272 0c-26.5 0-48 21.5-48 48v288c0 26.5 21.5 48 48 48h80c26.5 0 48-21.5 48-48V112c0-26.5-21.5-48-48-48h-80z"
+    : "M424.4 214.7 72.4 6.6C43.8-10.3 0 6.1 0 39.9v432.2c0 33.8 43.8 50.2 72.4 33.3l352-208.1c31.4-18.6 31.4-64.1 0-82.6z";
   const update = () => {
     const duration = Number.isFinite(audio.duration) ? audio.duration : 0;
     clock.textContent = formatAudioClock(audio.currentTime) + " / " + formatAudioClock(duration);
@@ -120,10 +120,19 @@ function enhanceAudioPlayer(audio, variant = "") {
     progress.disabled = !duration;
   };
   const updateToggle = () => {
-    toggle.innerHTML = icon(!audio.paused && !audio.ended);
-    toggle.setAttribute("aria-label", audio.paused || audio.ended
-      ? (document.documentElement.lang === "en" ? "Play audio" : "Reproduzir áudio")
-      : (document.documentElement.lang === "en" ? "Pause audio" : "Pausar áudio"));
+    const playing = !audio.paused && !audio.ended;
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("viewBox", "0 0 448 512");
+    svg.setAttribute("aria-hidden", "true");
+    svg.setAttribute("focusable", "false");
+    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    path.setAttribute("fill", "currentColor");
+    path.setAttribute("d", iconPath(playing));
+    svg.append(path);
+    toggle.replaceChildren(svg);
+    toggle.setAttribute("aria-label", playing
+      ? (document.documentElement.lang === "en" ? "Pause audio" : "Pausar áudio")
+      : (document.documentElement.lang === "en" ? "Play audio" : "Reproduzir áudio"));
   };
   audio.controls = false;
   audio.classList.remove("hidden");
@@ -632,7 +641,7 @@ $("voice-record-start").addEventListener("click", async () => {
       $("voice-record-start").disabled = false;
       $("voice-record-stop").disabled = true;
       try {
-        if (recordedDuration < MIN_VOICE_RECORDING_SECONDS) throw new Error(document.documentElement.lang === "en" ? "Recording must be at least 10 seconds. Record again for longer." : "A gravação deve ter pelo menos 10 segundos. Grave novamente por mais tempo.");
+        if (recordedDuration < 10) throw new Error(document.documentElement.lang === "en" ? "Recording must be at least 10 seconds. Record again for longer." : "A gravação deve ter pelo menos 10 segundos. Grave novamente por mais tempo.");
         if (blob.size > MAX_VOICE_AUDIO_BYTES) throw new Error(document.documentElement.lang === "en" ? "Recording exceeds 3 MiB. Record a shorter sample." : "A gravação excede 3 MiB. Grave uma amostra mais curta.");
         const mimeType = (blob.type || "audio/webm").split(";")[0];
         const file = new File([blob], "voice-reference." + (mimeType.includes("mp4") ? "m4a" : "webm"), { type: mimeType });
