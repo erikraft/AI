@@ -250,7 +250,7 @@ test("experimental Space tabs are hidden from the public UI while server-side au
   assert.match(source, /_authorize_experimental_api\(api_secret\)/);
   assert.match(source, /server-side shared secret/);
   assert.match(source, /from this public Space interface/);
-  assert.match(source, /client\.predict\(\s*["']\/generate_text["']/);
+  assert.match(source, /text_button\.click\(generate_text,[\s\S]*?api_name=["']generate_text["']/);
 });
 
 test("voice cloning remains available and confines reference audio to Gradio's cache", () => {
