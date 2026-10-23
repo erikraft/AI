@@ -231,3 +231,14 @@ test("voice-cloning reference audio is confined to Gradio's resolved cache path"
   assert.equal(source.includes("os.path.isfile(reference_audio)"), false);
   assert.equal(source.includes("os.path.getsize(reference_audio)"), false);
 });
+
+test("voice preview only accepts supported audio MIME types and uses a normalized Blob URL", () => {
+  const app = readFileSync(new URL("../assets/js/app.js", import.meta.url), "utf8");
+  const api = readFileSync(new URL("../api/generate.js", import.meta.url), "utf8");
+  assert.ok(app.includes("const SUPPORTED_VOICE_AUDIO_TYPES = new Set(["));
+  assert.ok(app.includes("if (!SUPPORTED_VOICE_AUDIO_TYPES.has(mimeType))"));
+  assert.ok(app.includes("new Blob([file], { type: mimeType })"));
+  assert.ok(app.includes('if (!previewUrl.startsWith("blob:"))'));
+  assert.ok(app.includes("`data:${mimeType};base64,${dataUrl[1]}`"));
+  assert.ok(api.includes("data:(audio\\\\/(?:wav|x-wav|mpeg|mp3|ogg|webm|mp4|x-m4a))"));
+});
