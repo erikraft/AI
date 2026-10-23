@@ -413,7 +413,11 @@ function readVoiceAudio(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => {
-      voiceAudioDataUrl = String(reader.result || "");
+      if (typeof reader.result !== "string" || !reader.result.startsWith("data:audio/")) {
+        reject(new Error(document.documentElement.lang === "en" ? "Could not read the audio file." : "Não foi possível ler o áudio."));
+        return;
+      }
+      voiceAudioDataUrl = reader.result;
       if (voiceAudioObjectUrl) URL.revokeObjectURL(voiceAudioObjectUrl);
       voiceAudioObjectUrl = URL.createObjectURL(file);
       voiceAudioPreview.src = voiceAudioObjectUrl;
