@@ -94,7 +94,8 @@ function historyText(key) {
     deleteAllError:["Não foi possível apagar todo o histórico.","Could not delete all history."],
     cancel:["Cancelar","Cancel"],
     user:["Você","You"], assistant:["IA","AI"],
-    image:["Imagem","Image"], video:["Vídeo","Video"], audio:["Áudio","Audio"], text:["Conversa","Conversation"]
+    image:["Imagem","Image"], video:["Vídeo","Video"], audio:["Áudio","Audio"], text:["Conversa","Conversation"],
+    generatedDate:["Gerado em","Generated on"], conversationDate:["Conversa em","Conversation on"]
   };
   return copy[key]?.[en ? 1 : 0] || key;
 }
@@ -194,7 +195,9 @@ function renderHistory(items) {
     const details = document.createElement("div"); details.className = "history-item-details";
     const kind = document.createElement("span"); kind.className = "history-kind"; kind.textContent = historyText(item.type === "image" ? "image" : item.type === "video" ? "video" : item.type === "audio" ? "audio" : "text");
     const prompt = document.createElement("textarea"); prompt.className = "history-prompt"; prompt.value = item.prompt || ""; prompt.readOnly = true; prompt.rows = 4; prompt.spellcheck = false; prompt.setAttribute("aria-label", document.documentElement.lang === "en" ? "Generation prompt (read-only; selectable and copyable)" : "Prompt da geração (somente leitura; selecione e copie)");
-    const meta = document.createElement("small"); meta.textContent = [item.model || "", item.createdAt ? formatHistoryDate(item.createdAt) : ""].filter(Boolean).join(" · ");
+    const dateLabel = historyText(item.type === "text" ? "conversationDate" : "generatedDate");
+    const timestamp = item.createdAt ? `${dateLabel}: ${formatHistoryDate(item.createdAt)}` : "";
+    const meta = document.createElement("small"); meta.className = "history-item-meta"; meta.textContent = [item.model || "", timestamp].filter(Boolean).join(" · ");
     details.append(kind,prompt,meta);
     if (historyAudio) {
       details.append(historyAudio);
