@@ -111,3 +111,28 @@ test("Hugging Face Space exposes a voice-cloning tab with reference-language det
   assert.match(app, /sources=\["upload", "microphone"\]/);
   assert.match(app, /3 \* 1024 \* 1024/);
 });
+
+
+test("voice cloning discovers the current Whisper endpoint and enforces a ten-second minimum", () => {
+  const space = read("../huggingface/app.py");
+  const api = read("../api/generate.js");
+  const frontend = read("../assets/js/app.js");
+  const pkg = JSON.parse(read("../package.json"));
+
+  assert.match(space, /_whisper_transcription_endpoint\(whisper\)/);
+  assert.match(space, /view_api\(return_format="dict", print_info=False\)/);
+  assert.match(space, /min_length=10/);
+  assert.doesNotMatch(space, /api_name="\/file_transcribe"/);
+
+  assert.match(api, /findWhisperTranscriptionEndpoint\(client\)/);
+  assert.match(api, /await client\.view_api\(\)/);
+  assert.match(api, /MIN_VOICE_AUDIO_DURATION_SECONDS = 10/);
+  assert.match(api, /await parseBuffer\(bytes, \{ mimeType \}, \{ duration: true, skipCovers: true \}\)/);
+  assert.match(api, /await voiceAudioToGradioFile\(voiceAudio\)/);
+  assert.doesNotMatch(api, /"\/file_transcribe"/);
+  assert.ok(pkg.dependencies["music-metadata"]);
+
+  assert.match(frontend, /getVoiceAudioDuration\(file\)/);
+  assert.match(frontend, /recordedDuration < 10/);
+  assert.match(frontend, /duration < 10/);
+});
