@@ -16,9 +16,12 @@ test("voice cloning is exposed in the selector and has upload, recording, and au
   assert.match(app, /data\.type === "audio"/);
 });
 
-test("voice cloning routes through the authenticated generation API to the upstream Gradio endpoint", () => {
+test("voice cloning routes through authenticated API with reference-language detection", () => {
   const api = read("../api/generate.js");
-  assert.ok(api.includes('VOICE_CLONE_SPACE_ID = "tonyassi/voice-clone"'));
+  assert.ok(api.includes('VOICE_CLONE_SPACE_ID = "Nymbo/Voice-Clone-Multilingual"'));
+  assert.ok(api.includes('VOICE_LANGUAGE_SPACE_ID = "hf-audio/whisper-large-v3"'));
+  assert.ok(api.includes("detectVoiceReferenceLanguage(voiceAudioFile, clientOptions)"));
+  assert.ok(api.includes("[prompt.trim(), voiceAudioFile, voiceLanguage]"));
   assert.match(api, /Client\.connect\(targetSpaceId/);
   assert.ok(api.includes('predictWithTimeout(client, "/clone", [prompt.trim(), voiceAudioFile]'));
   assert.match(api, /MAX_VOICE_AUDIO_BYTES = 3 \* 1024 \* 1024/);
@@ -88,10 +91,12 @@ test("privacy policy and terms use the requested October 23, 2026 date in both l
 });
 
 
-test("Hugging Face Space exposes a voice-cloning tab proxied to tonyassi/voice-clone", () => {
+test("Hugging Face Space exposes a voice-cloning tab with reference-language detection", () => {
   const app = read("../huggingface/app.py");
   assert.match(app, /from gradio_client import Client, handle_file/);
-  assert.match(app, /Client\("tonyassi\/voice-clone", verbose=False\)/);
+  assert.match(app, /Client\("hf-audio\/whisper-large-v3", verbose=False\)/);
+  assert.match(app, /Client\("Nymbo\/Voice-Clone-Multilingual", verbose=False\)/);
+  assert.match(app, /_detect_reference_language\(safe_reference_audio\)/);
   assert.match(app, /api_name="clone_voice"/);
   assert.match(app, /sources=\["upload", "microphone"\]/);
   assert.match(app, /3 \* 1024 \* 1024/);
