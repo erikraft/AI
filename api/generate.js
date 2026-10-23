@@ -3,6 +3,7 @@ import { getAuth } from "firebase-admin/auth";
 import { getFirestore, Timestamp } from "firebase-admin/firestore";
 import { Client, handle_file } from "@gradio/client";
 import { franc } from "franc-min";
+import { parseBuffer } from "music-metadata";
 
 const WINDOW_MS = 60 * 60 * 1000;
 // Keep a finite free-tier default; provider limits remain independent.
@@ -29,6 +30,7 @@ const VOICE_LANGUAGE_CODES = Object.freeze({
   ara: "ar", cmn: "zh-cn", zho: "zh-cn", jpn: "ja", kor: "ko", hun: "hu"
 });
 const MAX_VOICE_AUDIO_BYTES = 3 * 1024 * 1024;
+const MIN_VOICE_AUDIO_DURATION_SECONDS = 10;
 const ENABLED_VALUES = new Set(["1", "true", "yes", "on"]);
 const envEnabled = (value) => {
   // Allow real inference attempts unless the operator explicitly disables a model.
@@ -93,15 +95,32 @@ function detectReferenceLanguage(transcript) {
   return VOICE_LANGUAGE_CODES[code] || null;
 }
 
+async function findWhisperTranscriptionEndpoint(client) {
+  const api = await client.view_api();
+  const endpoints = api?.named_endpoints || {};
+  const match = Object.entries(endpoints).find(([, endpoint]) => {
+    const parameters = endpoint?.parameters || [];
+    const components = new Set(parameters.map((parameter) => String(parameter?.component || "").toLowerCase()));
+    return parameters.length >= 2 && components.has("audio") && components.has("radio");
+  });
+  if (!match) throw new Error("Whisper Space exposes no discoverable audio transcription endpoint.");
+  return match[0];
+}
+
 async function detectVoiceReferenceLanguage(audioFile, clientOptions) {
   const whisper = await withTimeout(
     Client.connect(VOICE_LANGUAGE_SPACE_ID, clientOptions),
     SPACE_CONNECT_TIMEOUT_MS,
     "Timed out connecting to the speech-language detector."
   );
+  const endpoint = await withTimeout(
+    findWhisperTranscriptionEndpoint(whisper),
+    SPACE_CONNECT_TIMEOUT_MS,
+    "Timed out discovering the speech-language detector endpoint."
+  );
   const result = await predictWithTimeout(
     whisper,
-    "/file_transcribe",
+    endpoint,
     [audioFile, "transcribe"],
     VOICE_LANGUAGE_TIMEOUT_MS
   );
@@ -109,7 +128,7 @@ async function detectVoiceReferenceLanguage(audioFile, clientOptions) {
   const language = detectReferenceLanguage(transcript);
   if (!language) {
     const error = new Error(
-      "Could not reliably detect a supported language from the reference audio. Upload a clear sample with at least 5–10 seconds of speech."
+      "Could not reliably detect a supported language from the reference audio. Upload a clear sample with at least 10 seconds of speech."
     );
     error.name = "UnsupportedReferenceLanguageError";
     throw error;
@@ -117,12 +136,23 @@ async function detectVoiceReferenceLanguage(audioFile, clientOptions) {
   return language;
 }
 
-function voiceAudioToGradioFile(dataUrl) {
+
+async function voiceAudioToGradioFile(dataUrl) {
   const match = /^data:(audio\x2f(?:wav|x-wav|mpeg|mp3|ogg|webm|mp4|x-m4a));base64,([A-Za-z0-9+/]+={0,2})$/i.exec(dataUrl);
   if (!match) throw new Error("Invalid voice reference audio data URL.");
   const mimeType = match[1].toLowerCase();
   const bytes = Buffer.from(match[2], "base64");
   if (!bytes.length || bytes.byteLength > MAX_VOICE_AUDIO_BYTES) throw new Error("Voice reference audio exceeds the 3 MiB inference payload limit.");
+  let duration;
+  try {
+    const metadata = await parseBuffer(bytes, { mimeType }, { duration: true, skipCovers: true });
+    duration = metadata.format.duration;
+  } catch {
+    throw new Error("Could not read the audio duration. Upload a valid audio file at least 10 seconds long.");
+  }
+  if (!Number.isFinite(duration) || duration < MIN_VOICE_AUDIO_DURATION_SECONDS) {
+    throw new Error("Voice reference audio must be at least 10 seconds long.");
+  }
   const extension = mimeType.includes("wav") ? "wav" : mimeType.includes("mpeg") || mimeType.includes("mp3") ? "mp3" : mimeType.includes("ogg") ? "ogg" : mimeType.includes("mp4") || mimeType.includes("m4a") ? "m4a" : "webm";
   return handle_file(new File([bytes], "voice-reference." + extension, { type: mimeType }));
 }
@@ -221,7 +251,7 @@ export default async function handler(req, res) {
         error: localized(req, "Envie uma imagem de referência para usar Qwythos com instruções.", "Upload a reference image to use Qwythos with instructions.")
       });
     }
-    if (isVoiceClone && (!voiceAudio || typeof voiceAudio !== "string" || !/^data:audio\x2f(?:wav|x-wav|mpeg|mp3|ogg|webm|mp4|x-m4a);base64,[A-Za-z0-9+/]+={0,2}$/i.test(voiceAudio) || voiceAudio.length > 4_200_000)) return res.status(400).json({ error: localized(req, "Envie um áudio de referência válido de até 3 MiB.", "Upload a valid voice reference audio file up to 3 MiB.") });
+    if (isVoiceClone && (!voiceAudio || typeof voiceAudio !== "string" || !/^data:audio\x2f(?:wav|x-wav|mpeg|mp3|ogg|webm|mp4|x-m4a);base64,[A-Za-z0-9+/]+={0,2}$/i.test(voiceAudio) || voiceAudio.length > 4_200_000)) return res.status(400).json({ error: localized(req, "Envie um áudio de referência válido de até 3 MiB e com pelo menos 10 segundos.", "Upload a valid voice reference audio file up to 3 MiB and at least 10 seconds long.") });
     if (!isVoiceClone && voiceAudio !== null) return res.status(400).json({ error: localized(req, "O áudio de referência só é aceito no modelo de clonagem de voz.", "Voice reference audio is only accepted for the voice-cloning model.") });
     if (referenceImage !== null && (!isQwythos || typeof referenceImage !== "string" || !/^data:image\/(?:png|jpeg|webp);base64,[A-Za-z0-9+/]+={0,2}$/i.test(referenceImage) || referenceImage.length > 4_200_000)) {
       return res.status(400).json({ error: localized(req, "Imagem inválida ou grande demais. Envie uma imagem compatível; a versão preparada para inferência pode ter até 3 MB.", "Invalid or oversized image. Upload a supported image; the prepared inference image may be up to 3 MB.") });
@@ -236,8 +266,8 @@ export default async function handler(req, res) {
     }
     let voiceAudioFile = null;
     if (isVoiceClone) {
-      try { voiceAudioFile = voiceAudioToGradioFile(voiceAudio); }
-      catch { return res.status(400).json({ error: localized(req, "Não foi possível preparar o áudio. Use WAV, MP3, OGG, WebM ou M4A de até 3 MiB.", "Could not prepare the audio. Use WAV, MP3, OGG, WebM, or M4A up to 3 MiB.") }); }
+      try { voiceAudioFile = await voiceAudioToGradioFile(voiceAudio); }
+      catch { return res.status(400).json({ error: localized(req, "Não foi possível preparar o áudio. Use WAV, MP3, OGG, WebM ou M4A de até 3 MiB e com pelo menos 10 segundos.", "Could not prepare the audio. Use WAV, MP3, OGG, WebM, or M4A up to 3 MiB and at least 10 seconds long.") }); }
     }
     const allowedSizes = new Set(["768x768", "1024x768", "768x1024"]);
     if (!isCosmos && !isQwen && !isVoiceClone && (!allowedSizes.has(width + "x" + height) || ![20, 28].includes(Number(steps)))) {
@@ -311,10 +341,10 @@ export default async function handler(req, res) {
           error: localized(
             req,
             unsupported
-              ? "Não foi possível identificar com segurança um idioma compatível no áudio de referência. Envie uma amostra nítida com pelo menos 5–10 segundos de fala."
+              ? "Não foi possível identificar com segurança um idioma compatível no áudio de referência. Envie uma amostra nítida com pelo menos 10 segundos de fala."
               : "A detecção do idioma do áudio está temporariamente indisponível. Tente novamente mais tarde.",
             unsupported
-              ? "Could not reliably identify a supported language in the reference audio. Upload a clear sample with at least 5–10 seconds of speech."
+              ? "Could not reliably identify a supported language in the reference audio. Upload a clear sample with at least 10 seconds of speech."
               : "Reference-audio language detection is temporarily unavailable. Please try again later."
           )
         });
