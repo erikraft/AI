@@ -435,3 +435,9 @@
   }
 }
 
+/* Keep the hero artwork on desktop-sized screens only. */
+@media (max-width: 900px) {
+  .hero-art {
+    display: none !important;
+  }
+}
