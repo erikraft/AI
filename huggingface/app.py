@@ -459,19 +459,36 @@ VOICE_LANGUAGE_CODES = {
 }
 
 
+def _whisper_transcription_endpoint(whisper: Client) -> str | int:
+    """Discover the current Whisper audio+task endpoint instead of assuming its name."""
+    api = whisper.view_api(return_format="dict", print_info=False)
+    for endpoint_name, endpoint in api.get("named_endpoints", {}).items():
+        parameters = endpoint.get("parameters", [])
+        components = {str(parameter.get("component", "")).lower() for parameter in parameters}
+        if len(parameters) >= 2 and "audio" in components and "radio" in components:
+            return endpoint_name
+    for endpoint_index, endpoint in api.get("unnamed_endpoints", {}).items():
+        parameters = endpoint.get("parameters", [])
+        components = {str(parameter.get("component", "")).lower() for parameter in parameters}
+        if len(parameters) >= 2 and "audio" in components and "radio" in components:
+            return int(endpoint_index)
+    raise RuntimeError("Whisper Space exposes no discoverable audio transcription endpoint.")
+
+
 def _detect_reference_language(reference_audio: str) -> str:
     """Detect spoken language from the reference audio, never from website locale."""
     whisper = Client("hf-audio/whisper-large-v3", verbose=False)
+    endpoint = _whisper_transcription_endpoint(whisper)
     result = whisper.predict(
         handle_file(reference_audio),
         "transcribe",
-        api_name="/file_transcribe",
+        **({"api_name": endpoint} if isinstance(endpoint, str) else {"fn_index": endpoint}),
     )
     transcript = result[0] if isinstance(result, (list, tuple)) and result else result
     if not isinstance(transcript, str) or len(transcript.strip()) < 12:
         raise gr.Error(
             "Could not detect the language from this audio. Upload a clearer sample with at least 5–10 seconds of speech. "
-            "/ Não foi possível detectar o idioma. Envie uma amostra mais nítida com pelo menos 5–10 segundos de fala."
+            "/ Não foi possível detectar o idioma. Envie uma amostra mais nítida com pelo menos 10 segundos de fala."
         )
     from langid import classify
     detected, _score = classify(transcript)
@@ -584,7 +601,7 @@ with gr.Blocks(title="ErikrafT AI — FLUX + Qwythos", delete_cache=(3600, 86400
         gr.Markdown(
             "Whisper transcribes the reference sample to detect its spoken language, then multilingual XTTS-v2 "
             "synthesizes your text in that detected language—not the website locale. For best results, use a clear "
-            "recording with at least 5–10 seconds of speech. Supported languages include English, Portuguese, Spanish, "
+            "recording with at least 10 seconds of speech. Supported languages include English, Portuguese, Spanish, "
             "French, German, Italian, Polish, Turkish, Russian, Dutch, Czech, Arabic, Chinese, Japanese, Korean, and "
             "Hungarian. Use only audio you own or are authorized to use. / "
             "O Whisper transcreve a amostra de referência para detectar o idioma falado; depois, o XTTS-v2 multilíngue "
@@ -602,7 +619,8 @@ with gr.Blocks(title="ErikrafT AI — FLUX + Qwythos", delete_cache=(3600, 86400
         voice_reference = gr.Audio(
             sources=["upload", "microphone"],
             type="filepath",
-            label="Reference audio / Áudio de referência (upload or microphone / arquivo ou microfone)",
+            min_length=10,
+            label="Reference audio / Áudio de referência (minimum 10 seconds / mínimo de 10 segundos)",
         )
         voice_button = gr.Button("Clone voice / Clonar voz")
         voice_output = gr.Audio(type="filepath", label="Generated audio / Áudio gerado")
