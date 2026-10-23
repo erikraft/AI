@@ -169,8 +169,10 @@ function renderHistory(items) {
   for (const item of items) {
     const card = document.createElement("article"); card.className = "history-item";
     const preview = document.createElement("div"); preview.className = "history-preview";
+    let historyAudio = null;
     if (item.type === "audio" && item.mediaUrl) {
-      const audio = document.createElement("audio"); audio.src = item.mediaUrl; audio.preload = "metadata"; audio.className = "history-audio-preview"; preview.append(audio); enhanceAudioPlayer(audio, "history");
+      historyAudio = document.createElement("audio"); historyAudio.src = item.mediaUrl; historyAudio.preload = "metadata"; historyAudio.className = "history-audio-preview";
+      const audioIcon = document.createElement("i"); audioIcon.className = "fa-solid fa-music"; audioIcon.setAttribute("aria-hidden", "true"); preview.append(audioIcon);
     } else if (item.type === "image" && item.mediaUrl) {
       const img = document.createElement("img"); img.src = item.mediaUrl; img.alt = item.prompt || historyText("image"); img.loading = "lazy"; preview.append(img);
     } else if (item.type === "video" && item.mediaUrl) {
@@ -181,6 +183,10 @@ function renderHistory(items) {
     const prompt = document.createElement("textarea"); prompt.className = "history-prompt"; prompt.value = item.prompt || ""; prompt.readOnly = true; prompt.rows = 4; prompt.spellcheck = false; prompt.setAttribute("aria-label", document.documentElement.lang === "en" ? "Generation prompt (read-only; selectable and copyable)" : "Prompt da geração (somente leitura; selecione e copie)");
     const meta = document.createElement("small"); meta.textContent = [item.model || "", item.createdAt ? formatHistoryDate(item.createdAt) : ""].filter(Boolean).join(" · ");
     details.append(kind,prompt,meta);
+    if (historyAudio) {
+      const audioPlayer = enhanceAudioPlayer(historyAudio);
+      if (audioPlayer) details.append(audioPlayer);
+    }
     if (item.outputText) { const output = document.createElement("p"); output.className = "history-output"; output.textContent = item.outputText; details.append(output); }
     if (item.mediaUrl) { const open = document.createElement("a"); open.href = item.mediaUrl; open.target="_blank"; open.rel="noopener noreferrer"; open.className="history-open-link"; open.textContent=document.documentElement.lang==="en"?"Open media ↗":"Abrir mídia ↗"; details.append(open); }
     const remove = document.createElement("button");
