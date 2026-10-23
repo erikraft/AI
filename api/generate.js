@@ -251,7 +251,7 @@ export default async function handler(req, res) {
         error: localized(req, "Envie uma imagem de referência para usar Qwythos com instruções.", "Upload a reference image to use Qwythos with instructions.")
       });
     }
-    if (isVoiceClone && (!voiceAudio || typeof voiceAudio !== "string" || !/^data:audio\x2f(?:wav|x-wav|mpeg|mp3|ogg|webm|mp4|x-m4a);base64,[A-Za-z0-9+/]+={0,2}$/i.test(voiceAudio) || voiceAudio.length > 4_200_000)) return res.status(400).json({ error: localized(req, "Envie um áudio de referência válido de até 3 MiB.", "Upload a valid voice reference audio file up to 3 MiB.") });
+    if (isVoiceClone && (!voiceAudio || typeof voiceAudio !== "string" || !/^data:audio\x2f(?:wav|x-wav|mpeg|mp3|ogg|webm|mp4|x-m4a);base64,[A-Za-z0-9+/]+={0,2}$/i.test(voiceAudio) || voiceAudio.length > 4_200_000)) return res.status(400).json({ error: localized(req, "Envie um áudio de referência válido de até 3 MiB e com pelo menos 10 segundos.", "Upload a valid voice reference audio file up to 3 MiB and at least 10 seconds long.") });
     if (!isVoiceClone && voiceAudio !== null) return res.status(400).json({ error: localized(req, "O áudio de referência só é aceito no modelo de clonagem de voz.", "Voice reference audio is only accepted for the voice-cloning model.") });
     if (referenceImage !== null && (!isQwythos || typeof referenceImage !== "string" || !/^data:image\/(?:png|jpeg|webp);base64,[A-Za-z0-9+/]+={0,2}$/i.test(referenceImage) || referenceImage.length > 4_200_000)) {
       return res.status(400).json({ error: localized(req, "Imagem inválida ou grande demais. Envie uma imagem compatível; a versão preparada para inferência pode ter até 3 MB.", "Invalid or oversized image. Upload a supported image; the prepared inference image may be up to 3 MB.") });
@@ -341,10 +341,10 @@ export default async function handler(req, res) {
           error: localized(
             req,
             unsupported
-              ? "Não foi possível identificar com segurança um idioma compatível no áudio de referência. Envie uma amostra nítida com pelo menos 5–10 segundos de fala."
+              ? "Não foi possível identificar com segurança um idioma compatível no áudio de referência. Envie uma amostra nítida com pelo menos 10 segundos de fala."
               : "A detecção do idioma do áudio está temporariamente indisponível. Tente novamente mais tarde.",
             unsupported
-              ? "Could not reliably identify a supported language in the reference audio. Upload a clear sample with at least 5–10 seconds of speech."
+              ? "Could not reliably identify a supported language in the reference audio. Upload a clear sample with at least 10 seconds of speech."
               : "Reference-audio language detection is temporarily unavailable. Please try again later."
           )
         });
