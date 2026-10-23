@@ -52,7 +52,7 @@ async function deleteMongoUserData(db, uid) {
   const collections = await db.listCollections({}, { nameOnly: true }).toArray();
   for (const entry of collections) {
     const name = entry.name;
-    if (!name || name.startsWith("system.")) continue;
+    if (!name || name.startsWith("system.") || entry.type === "view") continue;
     await db.collection(name).deleteMany({ userId: uid });
   }
 }
