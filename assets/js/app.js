@@ -810,11 +810,16 @@ $("qwen-mcp-auth")?.addEventListener("change", () => {
 });
 $("qwen-mcp-save")?.addEventListener("click", async () => {
   const name = $("qwen-mcp-name").value.trim();
-  const url = $("qwen-mcp-url").value.trim();
+  const urlInput = $("qwen-mcp-url");
+  const url = urlInput.value.trim();
   const authMode = $("qwen-mcp-auth").value;
   const token = $("qwen-mcp-token").value.trim();
   if (!name) return mcpStatus(languageText("mcp_name_required"), "error");
   if (!url) return mcpStatus(languageText("mcp_url_required"), "error");
+  if (!urlInput.checkValidity()) {
+    urlInput.reportValidity();
+    return;
+  }
   if (!$("qwen-mcp-trust").checked) return mcpStatus(languageText("mcp_trust_required"), "error");
   if (authMode === "OAUTH" && !token) return mcpStatus(languageText("mcp_token_label"), "error");
   const save = $("qwen-mcp-save");

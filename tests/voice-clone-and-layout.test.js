@@ -185,3 +185,13 @@ test("Google and GitHub sign-in buttons in the modal preserve SVG logos and loca
   assert.match(app, /google_login_button:"Continuar com Google"/);
   assert.match(app, /github_login_button:"Continuar com GitHub"/);
 });
+
+test("hidden Qwen MCP URL validation does not block image generation", () => {
+  const html = read("../index.html");
+  const app = read("../assets/js/app.js");
+  const urlInput = html.match(/<input id="qwen-mcp-url"[^>]*>/)?.[0];
+
+  assert.ok(urlInput, "Qwen MCP URL input should exist");
+  assert.doesNotMatch(urlInput, /\brequired\b/, "hidden MCP URL must not participate in native form validation");
+  assert.match(app, /const urlInput = \$\("qwen-mcp-url"\);[\s\S]*?if \(!urlInput\.checkValidity\(\)\) \{\s*urlInput\.reportValidity\(\);/);
+});
