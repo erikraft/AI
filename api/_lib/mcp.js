@@ -8,6 +8,7 @@ const COLLECTION_NAME = "qwen_mcp_servers";
 const MAX_SERVERS_PER_USER = 10;
 const MAX_TOOLS_PER_SERVER = 20;
 const MAX_TOOL_RESULT_CHARS = 4000;
+const MCP_RPC_TIMEOUT_MS = 5000;
 let clientPromise;
 let requestId = 0;
 
@@ -106,7 +107,7 @@ async function rpc(server, method, params = {}, { notification = false } = {}) {
     headers,
     body: JSON.stringify(body),
     redirect: "manual",
-    signal: AbortSignal.timeout(12000)
+    signal: AbortSignal.timeout(MCP_RPC_TIMEOUT_MS)
   });
   if (response.status >= 300 && response.status < 400) throw new Error("MCP redirects are blocked for security; use the final HTTPS endpoint URL.");
   if (response.status === 401 || response.status === 403) throw new Error("MCP authentication failed. Check the server's OAuth access token and permissions.");
@@ -119,10 +120,30 @@ async function rpc(server, method, params = {}, { notification = false } = {}) {
   const contentType = response.headers.get("content-type") || "";
   let payload;
   if (contentType.includes("text/event-stream")) {
-    const text = await response.text();
-    const dataLines = text.split(/\r?\n/).filter((line) => line.startsWith("data:")).map((line) => line.slice(5).trim());
-    for (const line of dataLines.reverse()) {
-      try { const parsed = JSON.parse(line); if (parsed.id === body.id || body.id == null) { payload = parsed; break; } } catch {}
+    const reader = response.body?.getReader();
+    if (!reader) throw new Error("MCP server returned an unreadable event stream.");
+    const decoder = new TextDecoder();
+    let buffer = "";
+    try {
+      while (true) {
+        const { value, done } = await reader.read();
+        buffer += decoder.decode(value || new Uint8Array(), { stream: !done });
+        let boundary;
+        while ((boundary = buffer.search(/\r?\n\r?\n/)) >= 0) {
+          const event = buffer.slice(0, boundary);
+          const separator = buffer.slice(boundary).match(/^\r?\n\r?\n/)[0];
+          buffer = buffer.slice(boundary + separator.length);
+          const data = event.split(/\r?\n/).filter((line) => line.startsWith("data:")).map((line) => line.slice(5).trim()).join("\n");
+          if (!data) continue;
+          try {
+            const parsed = JSON.parse(data);
+            if (body.id == null || parsed.id === body.id) { payload = parsed; break; }
+          } catch {}
+        }
+        if (payload || done) break;
+      }
+    } finally {
+      try { await reader.cancel(); } catch {}
     }
   } else {
     const text = await response.text();
