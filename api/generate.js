@@ -65,12 +65,8 @@ async function withTimeout(promise, timeoutMs, message) {
   }
 }
 
-async function predictWithTimeout(client, endpoint, args, timeoutMs = EXPERIMENTAL_INFERENCE_TIMEOUT_MS) {
-  return withTimeout(
-    client.predict(endpoint, args),
-    timeoutMs,
-    "Experimental inference exceeded its server-side time budget."
-  );
+async function predictWithTimeout(client, endpoint, args, timeoutMs = EXPERIMENTAL_INFERENCE_TIMEOUT_MS, timeoutMessage = "Experimental inference exceeded its server-side time budget.") {
+  return withTimeout(client.predict(endpoint, args), timeoutMs, timeoutMessage);
 }
 
 function getAdminApp() {
@@ -428,7 +424,10 @@ export default async function handler(req, res) {
           client,
           "/generate_text",
           [prompt.trim(), "auto", spaceApiSecret, JSON.stringify(toolset.tools), JSON.stringify(messages)],
-          qwenRoundTimeout
+          qwenRoundTimeout,
+          toolset.tools.length
+            ? localized(req, "O Qwen não respondeu dentro do limite de 65 segundos desta etapa com MCP.", "Qwen did not respond within the 65-second MCP step budget.")
+            : undefined
         );
         const first = result?.data?.[0];
         const rawAnswer = typeof first === "string" ? first : (first?.text || first?.value || first?.content || "");
@@ -585,8 +584,8 @@ export default async function handler(req, res) {
         error: timedOut
           ? (phase === "space-text"
               ? localized(req,
-                  "O Qwen não respondeu em 235 segundos. A geração foi encerrada para evitar espera indefinida; confira os logs do Space e aguarde antes de repetir.",
-                  "Qwen did not respond within 235 seconds. The request was stopped to avoid an indefinite wait; check Space logs and wait before retrying.")
+                  "O Qwen não respondeu dentro do limite de tempo configurado para esta etapa. A geração foi encerrada para evitar espera indefinida; confira os logs do Space e aguarde antes de repetir.",
+                  "Qwen did not respond within the configured time budget for this step. The request was stopped to avoid an indefinite wait; check Space logs and wait before retrying.")
               : localized(req,
                   "A inferência experimental ultrapassou o limite de tempo do servidor. O processamento pode continuar na fila do Space; aguarde antes de repetir para evitar solicitações duplicadas.",
                   "Experimental inference exceeded the server time budget. Processing may still be queued in the Space; wait before retrying to avoid duplicate requests."))
