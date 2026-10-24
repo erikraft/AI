@@ -52,6 +52,10 @@ const envEnabled = (value) => {
 // already queued by Gradio, so users are warned not to retry immediately.
 const EXPERIMENTAL_INFERENCE_TIMEOUT_MS = 235_000;
 const QWEN_INFERENCE_TIMEOUT_MS = 235_000;
+// Bound image inference before Vercel's function deadline so callers receive JSON
+// errors instead of a platform-generated 502 when a Space stalls in its queue.
+const IMAGE_INFERENCE_TIMEOUT_MS = 225_000;
+const QWYTHOS_STEP_TIMEOUT_MS = 105_000;
 const SPACE_CONNECT_TIMEOUT_MS = 30_000;
 
 async function withTimeout(promise, timeoutMs, message) {
@@ -492,9 +496,12 @@ export default async function handler(req, res) {
       });
     } else if (isQwythos) {
       phase = "space-interpret";
-      const interpretation = await client.predict(
+      const interpretation = await predictWithTimeout(
+        client,
         "/generate_image_from_image",
-        [prompt.trim(), referenceImageFile, "auto"]
+        [prompt.trim(), referenceImageFile, "auto"],
+        QWYTHOS_STEP_TIMEOUT_MS,
+        localized(req, "A interpretação da imagem pelo Qwythos demorou demais. Aguarde antes de tentar novamente para evitar solicitações duplicadas.", "Qwythos image interpretation timed out. Wait before retrying to avoid duplicate requests.")
       );
       const interpreted = interpretation?.data?.[0];
       const generatedPrompt = typeof interpreted === "string"
@@ -507,15 +514,21 @@ export default async function handler(req, res) {
       // Keep model calls separate: Qwythos interpretation and FLUX rendering each use
       // their own GPU duration budget instead of requesting 450 seconds in one call.
       phase = "space-generate";
-      result = await client.predict(
+      result = await predictWithTimeout(
+        client,
         "/generate_image_from_image_render",
-        [generatedPrompt.trim().slice(0, MAX_PROMPT_LENGTH), referenceImageFile, Number(width), Number(height), Number(steps)]
+        [generatedPrompt.trim().slice(0, MAX_PROMPT_LENGTH), referenceImageFile, Number(width), Number(height), Number(steps)],
+        QWYTHOS_STEP_TIMEOUT_MS,
+        localized(req, "A renderização da imagem pelo Qwythos demorou demais. Aguarde antes de tentar novamente para evitar solicitações duplicadas.", "Qwythos image rendering timed out. Wait before retrying to avoid duplicate requests.")
       );
     } else {
       phase = "space-generate";
-      result = await client.predict(
+      result = await predictWithTimeout(
+        client,
         "/generate_image",
-        [prompt.trim(), Number(width), Number(height), Number(steps)]
+        [prompt.trim(), Number(width), Number(height), Number(steps)],
+        IMAGE_INFERENCE_TIMEOUT_MS,
+        localized(req, "A geração da imagem excedeu o limite de tempo do servidor. Aguarde antes de tentar novamente, pois o processamento pode continuar na fila do Space.", "Image generation exceeded the server time budget. Wait before retrying because processing may still be queued in the Space.")
       );
     }
 
@@ -562,6 +575,17 @@ export default async function handler(req, res) {
     }
 
     console.error("[image-generation:" + phase + "]", error?.stack || rawMessage);
+
+    if (phase === "space-generate" || phase === "space-interpret") {
+      const timedOut = error?.name === "InferenceTimeoutError" || /exceeded its server-side time budget/.test(normalized);
+      if (timedOut) {
+        return res.status(504).json({
+          error: localized(req,
+            "A geração da imagem excedeu o limite de tempo do servidor. Aguarde antes de tentar novamente para evitar tarefas duplicadas; se persistir, confira os logs do Hugging Face Space.",
+            "Image generation exceeded the server time budget. Wait before retrying to avoid duplicate jobs; if it persists, check the Hugging Face Space logs.")
+        });
+      }
+    }
 
     if (phase === "space-video" || phase === "space-text") {
       const timedOut = error?.name === "InferenceTimeoutError" || /exceeded its server-side time budget/.test(normalized);
