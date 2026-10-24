@@ -1,6 +1,6 @@
 // Animate the site favicon briefly while keeping the static icon in the HTML for crawlers.
 (() => {
-  const favicon = document.querySelector('link[rel~="icon"]');
+  const favicon = document.querySelector('link[rel~="icon"][href="/favicon.ico"]');
   if (!favicon || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
   const icon1 = '/favicon.ico';
