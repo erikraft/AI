@@ -118,7 +118,7 @@
     <div class="email-auth-actions"><button id="studio-email-login" class="button primary" type="submit" data-i18n="email_sign_in">Entrar com e-mail</button><button id="studio-email-create" class="button secondary" type="button" data-i18n="create_account">Criar conta</button></div>
     <button id="studio-email-reset" class="link-button" type="button" data-i18n="forgot_password">Esqueci minha senha</button>
   </form>
-  <p class="small-note" data-i18n="studio_login_note">Até 5 gerações por hora por conta. A disponibilidade do Hugging Face pode variar.</p>
+  <p class="small-note" data-i18n="studio_login_note">Até 15 edições Qwythos por hora e até 10 solicitações por hora em cada outro modelo. A disponibilidade do Hugging Face pode variar.</p>
   <p id="studio-auth-error" class="error-text" role="alert" aria-live="polite"></p>
 </div>
 <div id="studio-password-reset-panel" class="panel studio-login-panel password-reset-panel hidden" aria-labelledby="studio-reset-title">
@@ -180,7 +180,7 @@
     <input id="reference-image-gallery" class="reference-file-input" type="file" accept="image/*" tabindex="-1" aria-hidden="true">
     <input id="reference-image" class="reference-file-input" name="reference-image" type="file" accept="image/*" tabindex="-1" aria-hidden="true">
   </div>
-  <p class="small-note" data-i18n="reference_image_help">Envie qualquer imagem em um formato compatível com seu navegador (arquivo original de até 12 MB) e descreva a alteração desejada. Ela será convertida para JPEG e enviada ao Qwythos; o FLUX renderiza a imagem final.</p>
+  <p class="small-note" data-i18n="reference_image_help">Envie uma imagem de até 12 MB e descreva as alterações. O Qwythos interpreta as instruções e o FLUX usa a imagem original como base de edição com baixa intensidade para ajudar a preservar rostos e aparência.</p>
   <div class="reference-image-preview-row">
     <img id="reference-image-preview" class="reference-image-preview hidden" alt="" aria-hidden="true">
     <span id="reference-image-status" class="small-note" data-i18n="reference_image_status">Nenhuma imagem selecionada.</span>
@@ -240,8 +240,8 @@
   <div class="quota-grid">
     <article class="quota-item">
       <span class="quota-label" data-i18n="quota_site_label">LIMITES DO ERIKRAFT AI</span>
-      <strong data-i18n="quota_site_value">Até 2 por hora sem login · até 5 com login</strong>
-      <p data-i18n="quota_site_desc">Sem conta, até 2 gerações por hora por IP. Com conta autenticada, até 5 gerações por hora por usuário. Esses limites são aplicados pelo backend do site para reduzir abuso.</p>
+      <strong data-i18n="quota_site_value">Até 15 edições Qwythos por hora · até 10 solicitações por hora nos demais modelos</strong>
+      <p data-i18n="quota_site_desc">A geração requer login. O backend aplica limites separados por modelo: até 15 edições Qwythos por hora e até 10 solicitações por hora em cada outro modelo.</p>
     </article>
     <article class="quota-item">
       <span class="quota-label" data-i18n="quota_gpu_label">HUGGING FACE ZEROGPU · SE APLICÁVEL</span>
