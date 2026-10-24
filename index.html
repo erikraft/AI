@@ -195,6 +195,7 @@
       <input id="qwen-mcp-token" type="password" maxlength="4096" autocomplete="off" spellcheck="false" data-i18n-placeholder="mcp_token_placeholder" placeholder="Cole o token de acesso">
       <p class="small-note" data-i18n="mcp_token_note">O token é criptografado no MongoDB Atlas e nunca é devolvido ao navegador. Esta versão aceita tokens OAuth já obtidos; o fluxo automático de autorização OAuth ainda não está implementado.</p>
       <label class="qwen-mcp-trust"><input id="qwen-mcp-trust" type="checkbox"><span data-i18n="mcp_trust">Entendo os riscos e confio neste servidor MCP.</span></label>
+      <label class="qwen-mcp-trust"><input id="qwen-mcp-write-trust" type="checkbox"><span data-i18n="mcp_write_tools">Permitir ferramentas que criam, editam ou excluem dados externos.</span></label>
       <p class="qwen-mcp-warning" data-i18n="mcp_warning">Servidores MCP personalizados podem ler dados enviados ao modelo e executar ações em serviços conectados. Conecte apenas servidores confiáveis. Ferramentas de escrita ou exclusão podem alterar dados externos.</p>
       <div class="qwen-mcp-actions">
         <button id="qwen-mcp-save" class="button primary small" type="button" data-i18n="mcp_save">Conectar e salvar</button>
