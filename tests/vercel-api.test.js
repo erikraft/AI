@@ -443,3 +443,20 @@ test("Qwen custom MCP controls are bilingual and do not render server-supplied t
   assert.match(readme, /MCP Streamable HTTP/);
   assert.match(readme, /automatic authorization\/redirect flow/);
 });
+
+test("Qwythos reference editing preserves source dimensions and MCP controls have bilingual translations", () => {
+  const space = readFileSync(new URL("../huggingface/app.py", import.meta.url), "utf8");
+  const app = readFileSync(new URL("../assets/js/app.js", import.meta.url), "utf8");
+  assert.match(space, /image=source,[\s\S]*?width=safe_width,[\s\S]*?height=safe_height,/);
+  const keys = [
+    "mcp_auth_required", "mcp_load_error", "mcp_empty", "mcp_connection_tunnel",
+    "mcp_connection_url", "mcp_auth_oauth", "mcp_auth_mixed", "mcp_auth_none",
+    "mcp_write_enabled", "mcp_read_only_enabled", "mcp_delete", "mcp_delete_confirm",
+    "mcp_deleted", "mcp_name_required", "mcp_url_required", "mcp_trust_required",
+    "mcp_token_label", "mcp_connecting", "mcp_connected"
+  ];
+  for (const key of keys) {
+    assert.match(app, new RegExp(key + ":"));
+    assert.ok((app.match(new RegExp(key + ":", "g")) || []).length >= 2, key + " must be translated in both locales");
+  }
+});
