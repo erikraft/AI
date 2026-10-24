@@ -190,8 +190,8 @@ test("Yahoo sign-in is accepted consistently by all authenticated account endpoi
   assert.match(history, /"yahoo\.com"/);
   assert.match(mcp, /"yahoo\.com"/);
   assert.match(account, /"yahoo\.com"/);
-  assert.match(generation, /Google, GitHub, Yahoo/);
-  assert.match(generation, /Google, GitHub, Yahoo/);
+  assert.match(generation, /Google, GitHub, Yahoo ou e-mail/);
+  assert.match(generation, /Google, GitHub, Yahoo, or email/);
   assert.ok(profile.includes('verifyIdToken(match[1])'), "profile API should continue to use authenticated Firebase identity");
 });
 
