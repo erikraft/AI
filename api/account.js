@@ -5,7 +5,7 @@ import { MongoClient } from "mongodb";
 
 const DATABASE_NAME = process.env.MONGODB_DATABASE || "ErikrafTAI";
 const RECENT_AUTH_SECONDS = 5 * 60;
-const ALLOWED_PROVIDERS = new Set(["google.com", "github.com", "password"]);
+const ALLOWED_PROVIDERS = new Set(["google.com", "github.com", "yahoo.com", "password"]);
 let clientPromise;
 
 function adminApp() {
@@ -82,9 +82,17 @@ export default async function handler(req, res) {
   try {
     const db = await database();
     await deleteMongoUserData(db, user.uid);
-    // Remove the account-specific hourly generation quota before deleting Auth.
-    // If this fails, the endpoint reports failure and the user can retry.
-    await getFirestore(adminApp()).collection("generation_limits").doc(user.uid).delete();
+    // Generation quota documents are keyed by "<uid>_<model>", not by uid alone.
+    // Delete every current model bucket and the legacy uid-only document before Auth.
+    // A single batch keeps these cleanup writes consistent and retryable.
+    const firestore = getFirestore(adminApp());
+    const generationLimits = firestore.collection("generation_limits");
+    const quotaKeys = ["flux", "qwythos", "cosmos", "qwen", "voice"];
+    const quotaBatch = firestore.batch();
+    for (const documentId of [user.uid, ...quotaKeys.map((key) => `${user.uid}_${key}`)]) {
+      quotaBatch.delete(generationLimits.doc(documentId));
+    }
+    await quotaBatch.commit();
     // Delete Firebase Auth last. If database cleanup fails, the user can still
     // sign in and retry; if Auth deletion fails, retrying safely repeats cleanup.
     await getAuth(adminApp()).deleteUser(user.uid);
