@@ -1312,7 +1312,7 @@ $("generator-form").addEventListener("submit", async (event) => {
   const requestController = new AbortController();
   // Qwen runs on CPU and has its own server-side budget; this is a final UI
   // safeguard for transport failures that would otherwise leave "Thinking…" visible.
-  const requestTimeoutMs = isQwenRequest ? 285_000 : 285_000;
+  const requestTimeoutMs = 285_000;
   const requestTimeoutId = window.setTimeout(() => requestController.abort(), requestTimeoutMs);
   try {
     const headers = { "Content-Type": "application/json", Authorization: "Bearer " + await currentUser.getIdToken() };
