@@ -95,6 +95,18 @@ function detectReferenceLanguage(transcript) {
   return VOICE_LANGUAGE_CODES[code] || null;
 }
 
+function detectVoicePromptLanguage(prompt) {
+  if (typeof prompt !== "string" || prompt.trim().length < 12) return null;
+  const code = franc(prompt.trim());
+  const language = VOICE_LANGUAGE_CODES[code];
+  if (!language) {
+    const error = new Error("The requested voice output language is not supported by the multilingual voice model.");
+    error.name = "UnsupportedVoiceTargetLanguageError";
+    throw error;
+  }
+  return language;
+}
+
 async function findWhisperTranscriptionEndpoint(client) {
   const api = await client.view_api();
   const endpoints = api?.named_endpoints || {};
@@ -332,21 +344,25 @@ export default async function handler(req, res) {
     if (isVoiceClone) {
       phase = "voice-language-detection";
       try {
-        voiceLanguage = await detectVoiceReferenceLanguage(voiceAudioFile, clientOptions);
+        // XTTS language selection follows the requested speech text, not the website locale.
+        // For very short text, fall back to the detected reference voice language.
+        voiceLanguage = detectVoicePromptLanguage(prompt)
+          || await detectVoiceReferenceLanguage(voiceAudioFile, clientOptions);
       } catch (error) {
         console.error("[image-generation:voice-language-detection]", error?.stack || error?.message || error);
         await releaseGenerationReservation(db, quotaRef, reservation);
         reservation = null;
-        const unsupported = error?.name === "UnsupportedReferenceLanguageError";
+        const unsupported = error?.name === "UnsupportedReferenceLanguageError"
+          || error?.name === "UnsupportedVoiceTargetLanguageError";
         return res.status(unsupported ? 422 : 503).json({
           error: localized(
             req,
             unsupported
-              ? "Não foi possível identificar com segurança um idioma compatível no áudio de referência. Envie uma amostra nítida com pelo menos 10 segundos de fala."
-              : "A detecção do idioma do áudio está temporariamente indisponível. Tente novamente mais tarde.",
+              ? "O idioma solicitado para a fala não foi reconhecido ou não é compatível com a clonagem multilíngue. Use inglês, português, espanhol, francês, alemão, italiano, polonês, turco, russo, holandês, tcheco, árabe, chinês, japonês, coreano ou húngaro."
+              : "A detecção do idioma está temporariamente indisponível. Tente novamente mais tarde.",
             unsupported
-              ? "Could not reliably identify a supported language in the reference audio. Upload a clear sample with at least 10 seconds of speech."
-              : "Reference-audio language detection is temporarily unavailable. Please try again later."
+              ? "The requested speech language was not recognized or is unsupported by multilingual voice cloning. Use English, Portuguese, Spanish, French, German, Italian, Polish, Turkish, Russian, Dutch, Czech, Arabic, Chinese, Japanese, Korean, or Hungarian."
+              : "Language detection is temporarily unavailable. Please try again later."
           )
         });
       }
@@ -381,7 +397,7 @@ export default async function handler(req, res) {
       return res.status(200).json({ type: "video", videoUrl, limit, remaining: Math.max(0, limit - reservation.count), tier: "account" });
     } else if (isQwen) {
       phase = "space-text";
-      result = await predictWithTimeout(client, "/generate_text", [prompt.trim(), requestLanguage(req), spaceApiSecret], QWEN_INFERENCE_TIMEOUT_MS);
+      result = await predictWithTimeout(client, "/generate_text", [prompt.trim(), "auto", spaceApiSecret], QWEN_INFERENCE_TIMEOUT_MS);
       const first = result?.data?.[0];
       const answer = typeof first === "string" ? first : (first?.text || first?.value || first?.content || "");
       if (typeof answer !== "string" || !answer.trim()) throw new Error("Space returned no recognized text response.");
@@ -390,7 +406,7 @@ export default async function handler(req, res) {
       phase = "space-interpret";
       const interpretation = await client.predict(
         "/generate_image_from_image",
-        [prompt.trim(), referenceImageFile, requestLanguage(req)]
+        [prompt.trim(), referenceImageFile, "auto"]
       );
       const interpreted = interpretation?.data?.[0];
       const generatedPrompt = typeof interpreted === "string"
@@ -489,8 +505,8 @@ export default async function handler(req, res) {
         error: timedOut
           ? (phase === "space-text"
               ? localized(req,
-                  "O Qwen não respondeu em 135 segundos. A geração foi encerrada para evitar espera indefinida; confira os logs do Space e aguarde antes de repetir.",
-                  "Qwen did not respond within 135 seconds. The request was stopped to avoid an indefinite wait; check Space logs and wait before retrying.")
+                  "O Qwen não respondeu em 235 segundos. A geração foi encerrada para evitar espera indefinida; confira os logs do Space e aguarde antes de repetir.",
+                  "Qwen did not respond within 235 seconds. The request was stopped to avoid an indefinite wait; check Space logs and wait before retrying.")
               : localized(req,
                   "A inferência experimental ultrapassou o limite de tempo do servidor. O processamento pode continuar na fila do Space; aguarde antes de repetir para evitar solicitações duplicadas.",
                   "Experimental inference exceeded the server time budget. Processing may still be queued in the Space; wait before retrying to avoid duplicate requests."))
