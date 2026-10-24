@@ -67,3 +67,12 @@ Cosmos checks cold-download disk capacity before evicting other models, then rel
 ## Development-agent skills
 
 This Space includes a metadata catalog for Pedro Nauck's 88 upstream agent skills in `agent_skills/catalog.json`. The catalog is for development-agent tooling only. It is not injected into model prompts, is not a Gradio input, and does not change FLUX, Qwythos, Cosmos, or Qwen inference. Full upstream skill packages can be installed directly with `npx skills add https://github.com/pedronauck/skills`; see [agent_skills/README.md](agent_skills/README.md).
+
+
+## Multilingual prompts
+
+The website API accepts prompts in their original language for FLUX image generation and Cosmos video generation; it does not silently rewrite the user's text. The model's actual quality varies by language and prompt style, so accepting a language is not a guarantee of equal results in every language.
+
+For image editing, the Qwythos stage is instructed to detect the language of the user's instructions and return its image prompt in that same language. The Qwen text assistant is likewise instructed to answer in the language used in the prompt, rather than forcing the website's English or Brazilian Portuguese locale.
+
+Voice cloning chooses the requested spoken-output language from the text to be spoken when it can be detected reliably. Short text falls back to the reference-audio language. The multilingual voice model has a finite supported-language list; it cannot promise arbitrary-language speech.

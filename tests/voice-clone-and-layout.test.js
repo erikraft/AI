@@ -36,10 +36,15 @@ test("profile popover remains fixed and layered above the footer", () => {
 
 test("result stage has responsive desktop, tablet, and mobile rules", () => {
   const css = read("../assets/css/styles.css");
+  const app = read("../assets/js/app.js");
   assert.match(css, /@media \(min-width:1100px\)/);
   assert.match(css, /@media \(max-width:900px\)/);
   assert.match(css, /@media \(max-width:600px\)/);
   assert.match(css, /\.result-stage\.is-audio-result/);
+  assert.match(app, /generatorForm\.parentElement !== resultStage/);
+  assert.match(app, /generatorForm\.parentElement !== studioGrid/);
+  assert.match(css, /\.result-stage\.is-chat-result #generator-form\.is-chat-composer/);
+  assert.match(css, /\.result-stage:not\(\.is-chat-result\) \.qwen-chat-thread/);
 });
 
 test("voice upload status never reflects an attacker-controlled filename as markup", () => {
@@ -149,7 +154,7 @@ test("voice recording controls enforce duration limits and save audio history", 
   assert.match(html, /id="voice-record-timer"/);
   assert.match(html, /id="voice-audio-remove"/);
   assert.match(html, /id="usage-notice"/);
-  assert.match(html, /viewBox="0 0 384 512"/);
+  assert.match(html, /viewBox="0 0 640 640"/);
   assert.match(app, /MIN_VOICE_RECORDING_SECONDS = 10/);
   assert.match(app, /MAX_VOICE_RECORDING_SECONDS = 60/);
   assert.match(app, /recordedDuration < 10/);
@@ -161,4 +166,16 @@ test("voice recording controls enforce duration limits and save audio history", 
   assert.match(css, /\.custom-audio-player/);
   assert.match(historyApi, /\["image", "video", "audio", "text"\]/);
   assert.match(historyApi, /\["image", "video", "audio"\]\.includes\(type\)/);
+});
+
+
+test("Google and GitHub sign-in buttons in the modal are localized in English and Brazilian Portuguese", () => {
+  const html = read("../index.html");
+  const app = read("../assets/js/app.js");
+  assert.match(html, /id="google-login" class="provider-button" data-i18n="google_login_button"/);
+  assert.match(html, /id="github-login" class="provider-button" data-i18n="github_login_button"/);
+  assert.match(app, /google_login_button:"Continue with Google"/);
+  assert.match(app, /github_login_button:"Continue with GitHub"/);
+  assert.match(app, /google_login_button:"Continuar com Google"/);
+  assert.match(app, /github_login_button:"Continuar com GitHub"/);
 });

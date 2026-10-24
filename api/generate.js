@@ -43,7 +43,7 @@ const envEnabled = (value) => {
 // leaving the browser in an endless "Thinking…" state. It cannot cancel GPU work
 // already queued by Gradio, so users are warned not to retry immediately.
 const EXPERIMENTAL_INFERENCE_TIMEOUT_MS = 235_000;
-const QWEN_INFERENCE_TIMEOUT_MS = 135_000;
+const QWEN_INFERENCE_TIMEOUT_MS = 235_000;
 const SPACE_CONNECT_TIMEOUT_MS = 30_000;
 
 async function withTimeout(promise, timeoutMs, message) {
@@ -93,6 +93,18 @@ function detectReferenceLanguage(transcript) {
   if (typeof transcript !== "string" || transcript.trim().length < 12) return null;
   const code = franc(transcript.trim());
   return VOICE_LANGUAGE_CODES[code] || null;
+}
+
+function detectVoicePromptLanguage(prompt) {
+  if (typeof prompt !== "string" || prompt.trim().length < 12) return null;
+  const code = franc(prompt.trim());
+  const language = VOICE_LANGUAGE_CODES[code];
+  if (!language) {
+    const error = new Error("The requested voice output language is not supported by the multilingual voice model.");
+    error.name = "UnsupportedVoiceTargetLanguageError";
+    throw error;
+  }
+  return language;
 }
 
 async function findWhisperTranscriptionEndpoint(client) {
@@ -332,20 +344,25 @@ export default async function handler(req, res) {
     if (isVoiceClone) {
       phase = "voice-language-detection";
       try {
-        voiceLanguage = await detectVoiceReferenceLanguage(voiceAudioFile, clientOptions);
+        // XTTS language selection follows the requested speech text, not the website locale.
+        // For very short text, fall back to the detected reference voice language.
+        voiceLanguage = detectVoicePromptLanguage(prompt)
+          || await detectVoiceReferenceLanguage(voiceAudioFile, clientOptions);
       } catch (error) {
+        console.error("[image-generation:voice-language-detection]", error?.stack || error?.message || error);
         await releaseGenerationReservation(db, quotaRef, reservation);
         reservation = null;
-        const unsupported = error?.name === "UnsupportedReferenceLanguageError";
+        const unsupported = error?.name === "UnsupportedReferenceLanguageError"
+          || error?.name === "UnsupportedVoiceTargetLanguageError";
         return res.status(unsupported ? 422 : 503).json({
           error: localized(
             req,
             unsupported
-              ? "Não foi possível identificar com segurança um idioma compatível no áudio de referência. Envie uma amostra nítida com pelo menos 10 segundos de fala."
-              : "A detecção do idioma do áudio está temporariamente indisponível. Tente novamente mais tarde.",
+              ? "O idioma solicitado para a fala não foi reconhecido ou não é compatível com a clonagem multilíngue. Use inglês, português, espanhol, francês, alemão, italiano, polonês, turco, russo, holandês, tcheco, árabe, chinês, japonês, coreano ou húngaro."
+              : "A detecção do idioma está temporariamente indisponível. Tente novamente mais tarde.",
             unsupported
-              ? "Could not reliably identify a supported language in the reference audio. Upload a clear sample with at least 10 seconds of speech."
-              : "Reference-audio language detection is temporarily unavailable. Please try again later."
+              ? "The requested speech language was not recognized or is unsupported by multilingual voice cloning. Use English, Portuguese, Spanish, French, German, Italian, Polish, Turkish, Russian, Dutch, Czech, Arabic, Chinese, Japanese, Korean, or Hungarian."
+              : "Language detection is temporarily unavailable. Please try again later."
           )
         });
       }
@@ -380,7 +397,7 @@ export default async function handler(req, res) {
       return res.status(200).json({ type: "video", videoUrl, limit, remaining: Math.max(0, limit - reservation.count), tier: "account" });
     } else if (isQwen) {
       phase = "space-text";
-      result = await predictWithTimeout(client, "/generate_text", [prompt.trim(), requestLanguage(req), spaceApiSecret], QWEN_INFERENCE_TIMEOUT_MS);
+      result = await predictWithTimeout(client, "/generate_text", [prompt.trim(), "auto", spaceApiSecret], QWEN_INFERENCE_TIMEOUT_MS);
       const first = result?.data?.[0];
       const answer = typeof first === "string" ? first : (first?.text || first?.value || first?.content || "");
       if (typeof answer !== "string" || !answer.trim()) throw new Error("Space returned no recognized text response.");
@@ -389,7 +406,7 @@ export default async function handler(req, res) {
       phase = "space-interpret";
       const interpretation = await client.predict(
         "/generate_image_from_image",
-        [prompt.trim(), referenceImageFile, requestLanguage(req)]
+        [prompt.trim(), referenceImageFile, "auto"]
       );
       const interpreted = interpretation?.data?.[0];
       const generatedPrompt = typeof interpreted === "string"
@@ -488,8 +505,8 @@ export default async function handler(req, res) {
         error: timedOut
           ? (phase === "space-text"
               ? localized(req,
-                  "O Qwen não respondeu em 135 segundos. A geração foi encerrada para evitar espera indefinida; confira os logs do Space e aguarde antes de repetir.",
-                  "Qwen did not respond within 135 seconds. The request was stopped to avoid an indefinite wait; check Space logs and wait before retrying.")
+                  "O Qwen não respondeu em 235 segundos. A geração foi encerrada para evitar espera indefinida; confira os logs do Space e aguarde antes de repetir.",
+                  "Qwen did not respond within 235 seconds. The request was stopped to avoid an indefinite wait; check Space logs and wait before retrying.")
               : localized(req,
                   "A inferência experimental ultrapassou o limite de tempo do servidor. O processamento pode continuar na fila do Space; aguarde antes de repetir para evitar solicitações duplicadas.",
                   "Experimental inference exceeded the server time budget. Processing may still be queued in the Space; wait before retrying to avoid duplicate requests."))
@@ -550,6 +567,36 @@ export default async function handler(req, res) {
         error: localized(req,
           "O Space do Hugging Face está iniciando, ocupado ou temporariamente indisponível. Aguarde um pouco e tente novamente; isso não confirma que a cota foi esgotada.",
           "The Hugging Face Space is starting, busy, or temporarily unavailable. Wait a little and try again; this does not confirm that the quota is exhausted.")
+      });
+    }
+
+    if (phase === "space-voice-clone" && /requested gpu duration|gpu duration.{0,30}(exceed|limit|maximum)|exceed.{0,30}gpu.{0,20}duration|ran for longer than.{0,20}(60|one minute)/.test(normalized)) {
+      return res.status(503).json({
+        error: localized(req,
+          "O Space de clonagem rejeitou ou excedeu o limite de duração de GPU por solicitação. Isso não confirma cota da sua conta esgotada. Verifique os logs do Space Nymbo/Voice-Clone-Multilingual; se a síntese for longa, tente um texto menor e uma amostra de referência mais curta.",
+          "The voice-cloning Space rejected or exceeded its per-request GPU duration limit. This does not confirm that your account quota is exhausted. Check Nymbo/Voice-Clone-Multilingual Space logs; for long synthesis, try shorter text and a shorter reference sample.")
+      });
+    }
+
+    if (phase === "voice-language-detection" || phase === "space-voice-clone") {
+      const timedOut = error?.name === "InferenceTimeoutError" || /timed out|timeout|exceeded its server-side time budget/.test(normalized);
+      const languageStep = phase === "voice-language-detection";
+      return res.status(timedOut ? 504 : 502).json({
+        error: timedOut
+          ? localized(req,
+              languageStep
+                ? "A detecção do idioma do áudio de referência demorou demais. Verifique os logs do backend e do Space Whisper; confirme que o Space está ativo antes de tentar novamente."
+                : "A clonagem de voz excedeu o tempo limite do provedor. Verifique os logs do backend e do Space de clonagem; a tarefa pode ainda estar na fila, então aguarde antes de repetir.",
+              languageStep
+                ? "Reference-audio language detection timed out. Check the backend and Whisper Space logs, and confirm the Space is running before retrying."
+                : "Voice cloning exceeded the provider timeout. Check the backend and voice-cloning Space logs; the task may still be queued, so wait before retrying.")
+          : localized(req,
+              languageStep
+                ? "Falha ao detectar o idioma do áudio de referência no Space Whisper. Confira os logs da função /api/generate e do Space Whisper para identificar a causa."
+                : "O Space de clonagem de voz falhou durante a síntese. Confira os logs da função /api/generate e do Space de clonagem para identificar a causa. Isso não confirma cota esgotada.",
+              languageStep
+                ? "The Whisper Space failed to detect the reference-audio language. Check /api/generate function logs and the Whisper Space logs to identify the cause."
+                : "The voice-cloning Space failed during synthesis. Check /api/generate function logs and the voice-cloning Space logs to identify the cause. This does not confirm quota exhaustion.")
       });
     }
 
