@@ -169,11 +169,17 @@ test("voice recording controls enforce duration limits and save audio history", 
 });
 
 
-test("Google and GitHub sign-in buttons in the modal are localized in English and Brazilian Portuguese", () => {
+test("Google and GitHub sign-in buttons in the modal preserve SVG logos and localize only their labels", () => {
   const html = read("../index.html");
   const app = read("../assets/js/app.js");
-  assert.match(html, /id="google-login" class="provider-button" data-i18n="google_login_button"/);
-  assert.match(html, /id="github-login" class="provider-button" data-i18n="github_login_button"/);
+  assert.ok(html.includes('<button id="google-login" class="provider-button">'));
+  assert.ok(html.includes('<svg class="provider-logo google-logo"'));
+  assert.ok(html.includes('<span data-i18n="google_login_button">Continuar com Google</span>'));
+  assert.ok(html.includes('<button id="github-login" class="provider-button">'));
+  assert.ok(html.includes('<span data-i18n="github_login_button">Continuar com GitHub</span>'));
+  assert.ok(html.includes('<svg class="provider-logo" viewBox="0 0 24 24">'));
+  assert.doesNotMatch(html, /<button id="google-login"[^>]*data-i18n=/);
+  assert.doesNotMatch(html, /<button id="github-login"[^>]*data-i18n=/);
   assert.match(app, /google_login_button:"Continue with Google"/);
   assert.match(app, /github_login_button:"Continue with GitHub"/);
   assert.match(app, /google_login_button:"Continuar com Google"/);
