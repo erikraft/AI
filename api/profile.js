@@ -48,8 +48,17 @@ export default async function handler(req, res) {
     }
     if (req.method === "PUT") {
       if (req.body?.restoreProviderPhoto === true) {
+        let providerPhoto = user.picture || null;
+        try {
+          const firebaseUser = await getAuth(adminApp()).getUser(user.uid);
+          providerPhoto = firebaseUser.providerData.find((provider) => provider.providerId !== "password" && provider.photoURL)?.photoURL
+            || firebaseUser.photoURL
+            || providerPhoto;
+        } catch (error) {
+          console.warn("[profile-api] Could not read provider profile photo:", error?.message || error);
+        }
         await photos.deleteOne({ userId: user.uid });
-        return res.status(200).json({ restored: true, photo: user.picture || null, photoDisabled: false });
+        return res.status(200).json({ restored: true, photo: providerPhoto, photoDisabled: false });
       }
       const value = req.body?.photo;
       const match = typeof value === "string" && value.match(/^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/]+={0,2})$/i);
