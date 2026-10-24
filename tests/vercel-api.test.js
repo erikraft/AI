@@ -377,3 +377,66 @@ test("multilingual voice cloning chooses the requested text language rather than
   assert.match(api, /O idioma solicitado para a fala/);
   assert.match(api, /The requested speech language/);
 });
+
+
+test("custom MCP server management is authenticated, account-scoped, and requires an explicit trust acknowledgement", () => {
+  const api = readFileSync(new URL("../api/mcp-servers.js", import.meta.url), "utf8");
+  const helper = readFileSync(new URL("../api/_lib/mcp.js", import.meta.url), "utf8");
+  assert.match(api, /verifyIdToken\(match\[1\]\)/);
+  assert.match(api, /req\.body\?\.acknowledged !== true/);
+  assert.match(api, /Allow", "GET, POST, DELETE/);
+  assert.match(helper, /collection\.find\(\{ userId \}/);
+  assert.match(helper, /collection\.deleteOne\(\{ userId, serverId/);
+  assert.match(helper, /qwen_mcp_servers/);
+  assert.match(helper, /MAX_SERVERS_PER_USER = 10/);
+  assert.match(helper, /encryptedToken: 0/);
+});
+
+test("custom MCP clients encrypt OAuth tokens and block unsafe URL targets and redirects", () => {
+  const helper = readFileSync(new URL("../api/_lib/mcp.js", import.meta.url), "utf8");
+  assert.match(helper, /createCipheriv\("aes-256-gcm"/);
+  assert.match(helper, /createDecipheriv\("aes-256-gcm"/);
+  assert.match(helper, /MCP_ENCRYPTION_KEY/);
+  assert.match(helper, /url\.protocol !== "https:"/);
+  assert.match(helper, /privateIp\(entry\.address\)/);
+  assert.match(helper, /redirect: "manual"/);
+  assert.match(helper, /MCP redirects are blocked/);
+  assert.match(helper, /notifications\/initialized/);
+  assert.match(helper, /tools\/list/);
+  assert.match(helper, /tools\/call/);
+});
+
+test("Qwen MCP tool calls require read-only annotations by default and explicit write-tool opt-in", () => {
+  const helper = readFileSync(new URL("../api/_lib/mcp.js", import.meta.url), "utf8");
+  const api = readFileSync(new URL("../api/generate.js", import.meta.url), "utf8");
+  const space = readFileSync(new URL("../huggingface/app.py", import.meta.url), "utf8");
+  assert.match(helper, /tool\.annotations\?\.readOnlyHint === true/);
+  assert.match(helper, /!tool\.readOnlyHint && server\.allowWriteTools !== true/);
+  assert.match(api, /buildUserMcpToolset\(user\.uid\)/);
+  assert.match(api, /callUserMcpTool\(user\.uid/);
+  assert.match(api, /toolset\.toolMap\.has\(functionName\)/);
+  assert.match(api, /toolCallsExecuted >= 8/);
+  assert.match(space, /tools_json: str = "\[\]"/);
+  assert.match(space, /messages_json: str = ""/);
+  assert.match(space, /mcp_tool_calls/);
+  assert.match(space, /request\["tools"\] = supplied_tools/);
+});
+
+test("Qwen custom MCP controls are bilingual and do not render server-supplied text as HTML", () => {
+  const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
+  const app = readFileSync(new URL("../assets/js/app.js", import.meta.url), "utf8");
+  const css = readFileSync(new URL("../assets/css/styles.css", import.meta.url), "utf8");
+  const env = readFileSync(new URL("../.env.example", import.meta.url), "utf8");
+  const readme = readFileSync(new URL("../README.md", import.meta.url), "utf8");
+  assert.match(html, /id="qwen-mcp-panel"/);
+  assert.match(html, /id="qwen-mcp-trust"/);
+  assert.match(html, /id="qwen-mcp-write-trust"/);
+  assert.match(app, /mcp_title:"Servidores MCP personalizados"/);
+  assert.match(app, /mcp_title:"Custom MCP servers"/);
+  assert.match(app, /fetch\("\/api\/mcp-servers"/);
+  assert.equal(app.includes("innerHTML"), false);
+  assert.match(css, /\.qwen-mcp-panel/);
+  assert.match(env, /MCP_ENCRYPTION_KEY=/);
+  assert.match(readme, /MCP Streamable HTTP/);
+  assert.match(readme, /automatic OAuth authorization/);
+});
