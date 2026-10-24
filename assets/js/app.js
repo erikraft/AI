@@ -1441,6 +1441,7 @@ $("download").addEventListener("click", async () => {
 const translations = {
   "pt-BR": {
     language_label:"Idioma",
+    mcp_auth_required:"Entre para gerenciar seus servidores MCP.",mcp_load_error:"Não foi possível carregar os servidores MCP.",mcp_empty:"Nenhum servidor MCP personalizado configurado.",mcp_connection_tunnel:"Transporte: HTTP em fluxo (Streamable HTTP)",mcp_connection_url:"URL do servidor MCP (HTTPS)",mcp_auth_oauth:"Autenticação: OAuth",mcp_auth_mixed:"Autenticação: token ou OAuth",mcp_auth_none:"Autenticação: nenhuma",mcp_write_enabled:"Permitir ferramentas que alteram dados (risco maior)",mcp_read_only_enabled:"Permitir somente ferramentas de leitura",mcp_delete:"Excluir",mcp_delete_confirm:"Tem certeza de que deseja excluir este servidor MCP?",mcp_deleted:"Servidor MCP excluído.",mcp_name_required:"Informe o nome do servidor MCP.",mcp_url_required:"Informe uma URL HTTPS válida para o servidor MCP.",mcp_trust_required:"Confirme que você confia neste servidor e entende os riscos antes de continuar.",mcp_token_label:"Token de acesso (opcional)",mcp_connecting:"Conectando ao servidor MCP…",mcp_connected:"Servidor MCP conectado.",
     account_visitor:"Visitante",account_connected:"Conectado",sign_in:"Entrar",sign_out:"Sair",
     aspect_square:"Quadrada · 1:1",aspect_landscape:"Paisagem · 4:3",aspect_portrait:"Retrato · 3:4",
     quality_standard:"Padrão · 20 passos",quality_detailed:"Detalhada · 28 passos",
@@ -1451,6 +1452,7 @@ const translations = {
   },
   "en": {
     language_label:"Language",
+    mcp_auth_required:"Sign in to manage your MCP servers.",mcp_load_error:"Could not load MCP servers.",mcp_empty:"No custom MCP servers configured.",mcp_connection_tunnel:"Transport: Streamable HTTP",mcp_connection_url:"MCP server URL (HTTPS)",mcp_auth_oauth:"Authentication: OAuth",mcp_auth_mixed:"Authentication: token or OAuth",mcp_auth_none:"Authentication: none",mcp_write_enabled:"Allow tools that modify data (higher risk)",mcp_read_only_enabled:"Allow read-only tools only",mcp_delete:"Delete",mcp_delete_confirm:"Are you sure you want to delete this MCP server?",mcp_deleted:"MCP server deleted.",mcp_name_required:"Enter an MCP server name.",mcp_url_required:"Enter a valid HTTPS URL for the MCP server.",mcp_trust_required:"Confirm that you trust this server and understand the risks before continuing.",mcp_token_label:"Access token (optional)",mcp_connecting:"Connecting to MCP server…",mcp_connected:"MCP server connected.",
     account_visitor:"Visitor",account_connected:"Signed in",sign_in:"Sign in",sign_out:"Sign out",
     aspect_square:"Square · 1:1",aspect_landscape:"Landscape · 4:3",aspect_portrait:"Portrait · 3:4",
     quality_standard:"Standard · 20 steps",quality_detailed:"Detailed · 28 steps",
