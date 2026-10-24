@@ -174,6 +174,7 @@ export async function listUserMcpServers(userId) {
     url: record.url,
     connection: record.connection || "url",
     authMode: record.authMode || "NONE",
+    allowWriteTools: record.allowWriteTools === true,
     createdAt: record.createdAt
   }));
 }
@@ -210,7 +211,7 @@ export async function saveUserMcpServer(userId, input) {
     record.createdAt = new Date();
     await collection.insertOne(record);
   }
-  return { id: record.serverId, name: record.name, description: record.description, url: record.url, connection: record.connection, authMode: record.authMode, createdAt: record.createdAt };
+  return { id: record.serverId, name: record.name, description: record.description, url: record.url, connection: record.connection, authMode: record.authMode, allowWriteTools: record.allowWriteTools, createdAt: record.createdAt };
 }
 
 export async function deleteUserMcpServer(userId, serverId) {
