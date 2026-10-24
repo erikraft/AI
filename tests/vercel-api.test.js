@@ -135,6 +135,7 @@ test("experimental inference has a bounded server-side timeout and actionable ti
   const source = readFileSync(new URL("../api/generate.js", import.meta.url), "utf8");
   assert.ok(source.includes("EXPERIMENTAL_INFERENCE_TIMEOUT_MS = 235_000"));
   assert.ok(source.includes("SPACE_CONNECT_TIMEOUT_MS = 30_000"));
+  assert.ok(source.includes("QWEN_INFERENCE_TIMEOUT_MS = 235_000"));
   assert.ok(source.includes("Client.connect(targetSpaceId, clientOptions)"));
   assert.ok(source.includes("Timed out connecting to the Hugging Face Space."));
   assert.ok(source.includes('predictWithTimeout(client, "/generate_video"'));
@@ -344,4 +345,13 @@ test("voice-cloning integration failures identify the failing upstream phase wit
   assert.match(source, /voice-cloning Space failed during synthesis/);
   assert.match(source, /Voice cloning exceeded the provider timeout/);
   assert.match(source, /This does not confirm quota exhaustion/);
+});
+
+
+test("voice cloning reports ZeroGPU per-request duration failures separately from account quota", () => {
+  const source = readFileSync(new URL("../api/generate.js", import.meta.url), "utf8");
+  assert.match(source, /phase === "space-voice-clone" && \/requested gpu duration/);
+  assert.match(source, /per-request GPU duration limit/);
+  assert.match(source, /This does not confirm that your account quota is exhausted/);
+  assert.match(source, /console\.error\("\[image-generation:voice-language-detection\]"/);
 });
