@@ -86,12 +86,12 @@ test("history prompts are readonly, selectable, scrollable, and localized for as
   assert.match(css, /\.history-prompt\{[^}]*resize:none/);
 });
 
-test("privacy policy and terms use the requested October 23, 2026 date in both languages", () => {
+test("privacy policy and terms use the requested October 24, 2026 date in both languages", () => {
   for (const path of ["../privacy.html", "../terms.html"]) {
     const html = read(path);
-    assert.match(html, /dateModified": "2026-10-23"/);
-    assert.match(html, /23 de outubro de 2026/);
-    assert.match(html, /October 23, 2026/);
+    assert.match(html, /dateModified": "2026-10-24"/);
+    assert.match(html, /24 de outubro de 2026/);
+    assert.match(html, /October 24, 2026/);
     assert.doesNotMatch(html, /October 22, 2026|22 de outubro de 2026|dateModified": "2026-10-22"/);
   }
 });
