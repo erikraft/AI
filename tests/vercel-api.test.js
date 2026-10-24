@@ -355,3 +355,25 @@ test("voice cloning reports ZeroGPU per-request duration failures separately fro
   assert.match(source, /This does not confirm that your account quota is exhausted/);
   assert.match(source, /console\.error\("\[image-generation:voice-language-detection\]"/);
 });
+
+
+test("multilingual prompts are preserved and text/image-editing models infer the prompt language", () => {
+  const api = readFileSync(new URL("../api/generate.js", import.meta.url), "utf8");
+  const space = readFileSync(new URL("../huggingface/app.py", import.meta.url), "utf8");
+  assert.match(api, /function detectVoicePromptLanguage\(prompt\)/);
+  assert.match(api, /\[prompt\.trim\(\), "auto", spaceApiSecret\]/);
+  assert.match(api, /\[prompt\.trim\(\), referenceImageFile, "auto"\]/);
+  assert.match(api, /\[prompt\.trim\(\), Number\(width\), Number\(height\), Number\(steps\)\]/);
+  assert.match(space, /the same language as the user's instructions \(detect the language automatically\)/);
+  assert.match(space, /the same language as the user's prompt \(detect it automatically\)/);
+  assert.match(space, /language_value\.lower\(\) in \{"auto", "detect"\}/);
+});
+
+test("multilingual voice cloning chooses the requested text language rather than the website locale", () => {
+  const api = readFileSync(new URL("../api/generate.js", import.meta.url), "utf8");
+  assert.match(api, /voiceLanguage = detectVoicePromptLanguage\(prompt\)[\s\S]*?await detectVoiceReferenceLanguage/);
+  assert.match(api, /UnsupportedVoiceTargetLanguageError/);
+  assert.match(api, /\[prompt\.trim\(\), voiceAudioFile, voiceLanguage\]/);
+  assert.match(api, /O idioma solicitado para a fala/);
+  assert.match(api, /The requested speech language/);
+});
