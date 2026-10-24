@@ -362,7 +362,7 @@ test("multilingual prompts are preserved and text/image-editing models infer the
   const api = readFileSync(new URL("../api/generate.js", import.meta.url), "utf8");
   const space = readFileSync(new URL("../huggingface/app.py", import.meta.url), "utf8");
   assert.match(api, /function detectVoicePromptLanguage\(prompt\)/);
-  assert.match(api, /\[prompt\.trim\(\), "auto", spaceApiSecret\]/);
+  assert.match(api, /\[prompt\.trim\(\), "auto", spaceApiSecret, JSON\.stringify\(toolset\.tools\), JSON\.stringify\(messages\)\]/);
   assert.match(api, /\[prompt\.trim\(\), referenceImageFile, "auto"\]/);
   assert.match(api, /\[prompt\.trim\(\), Number\(width\), Number\(height\), Number\(steps\)\]/);
   assert.match(space, /the same language as the user's instructions \(detect the language automatically\)/);
@@ -439,5 +439,5 @@ test("Qwen custom MCP controls are bilingual and do not render server-supplied t
   assert.match(css, /\.qwen-mcp-panel/);
   assert.match(env, /MCP_ENCRYPTION_KEY=/);
   assert.match(readme, /MCP Streamable HTTP/);
-  assert.match(readme, /automatic OAuth authorization/);
+  assert.match(readme, /automatic authorization\/redirect flow/);
 });
