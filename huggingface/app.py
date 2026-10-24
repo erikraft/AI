@@ -176,7 +176,11 @@ def generate_image_from_image(
         raise gr.Error("Instructions must contain 1–1500 characters.")
     if reference_image is None:
         raise gr.Error("Upload a reference image.")
-    language = "en" if str(language).lower().startswith("en") else "pt-BR"
+    language_value = str(language or "auto").strip()
+    language = "auto" if language_value.lower() in {"auto", "detect"} else (
+        "en" if language_value.lower().startswith("en") else
+        "pt-BR" if language_value.lower().startswith("pt") else language_value
+    )
 
     # Release FLUX before loading Qwythos so the two large models are not resident together.
     _clear_models("qwythos")
@@ -204,7 +208,13 @@ def generate_image_from_image(
         qwythos_vision_model.to("cuda")
         image = reference_image.convert("RGB")
         image.thumbnail((1280, 1280))
-        language_name = "English" if language == "en" else "Brazilian Portuguese"
+        language_name = (
+            "the same language as the user's instructions (detect the language automatically)"
+            if language == "auto"
+            else "English" if language == "en"
+            else "Brazilian Portuguese" if language == "pt-BR"
+            else language
+        )
         messages = [{
             "role": "user",
             "content": [
@@ -386,7 +396,14 @@ def generate_text(prompt: str, language: str = "pt-BR", api_secret: str = ""):
                 verbose=False,
             )
             print("[qwen-diagnostics] model loaded; starting CPU inference", flush=True)
-        language_name = "Brazilian Portuguese" if str(language).lower().startswith("pt") else "English"
+        language_value = str(language or "auto").strip()
+        language_name = (
+            "the same language as the user's prompt (detect it automatically)"
+            if language_value.lower() in {"auto", "detect"}
+            else "Brazilian Portuguese" if language_value.lower().startswith("pt")
+            else "English" if language_value.lower().startswith("en")
+            else language_value
+        )
         result = qwen_text_model.create_chat_completion(
             messages=[
                 {"role": "system", "content": "Answer helpfully in " + language_name + ". You are a third-party model running inside ErikrafT AI; do not claim ErikrafT created you."},
