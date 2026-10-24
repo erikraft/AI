@@ -192,6 +192,12 @@ test("Yahoo sign-in is accepted consistently by all authenticated account endpoi
   assert.match(account, /"yahoo\.com"/);
   assert.match(generation, /Google, GitHub, Yahoo ou e-mail/);
   assert.match(generation, /Google, GitHub, Yahoo, or email/);
+  const app = readFileSync(new URL("../assets/js/app.js", import.meta.url), "utf8");
+  const privacy = readFileSync(new URL("../privacy.html", import.meta.url), "utf8");
+  const readme = readFileSync(new URL("../README.md", import.meta.url), "utf8");
+  assert.match(app, /Google, GitHub, Yahoo/);
+  assert.match(privacy, /Google, GitHub, Yahoo/);
+  assert.match(readme, /Google, GitHub, Yahoo/);
   assert.ok(profile.includes('verifyIdToken(match[1])'), "profile API should continue to use authenticated Firebase identity");
 });
 
