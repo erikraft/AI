@@ -365,6 +365,8 @@ test("multilingual prompts are preserved and text/image-editing models infer the
   assert.match(api, /\[prompt\.trim\(\), "auto", spaceApiSecret, JSON\.stringify\(toolset\.tools\), JSON\.stringify\(messages\)\]/);
   assert.match(api, /\[prompt\.trim\(\), referenceImageFile, "auto"\]/);
   assert.match(api, /\[prompt\.trim\(\), Number\(width\), Number\(height\), Number\(steps\)\]/);
+  assert.ok(api.includes('"/generate_image_from_image_render"'));
+  assert.match(space, /api_name="generate_image_from_image_render"/);
   assert.match(space, /the same language as the user's instructions \(detect the language automatically\)/);
   assert.match(space, /the same language as the user's prompt \(detect it automatically\)/);
   assert.match(space, /language_value\.lower\(\) in \{"auto", "detect"\}/);
