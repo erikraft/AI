@@ -40,6 +40,10 @@ test("result stage has responsive desktop, tablet, and mobile rules", () => {
   assert.match(css, /@media \(max-width:900px\)/);
   assert.match(css, /@media \(max-width:600px\)/);
   assert.match(css, /\.result-stage\.is-audio-result/);
+  assert.match(app, /generatorForm\.parentElement !== resultStage/);
+  assert.match(app, /generatorForm\.parentElement !== studioGrid/);
+  assert.match(css, /\.result-stage\.is-chat-result #generator-form\.is-chat-composer/);
+  assert.match(css, /\.result-stage:not\(\.is-chat-result\) \.qwen-chat-thread/);
 });
 
 test("voice upload status never reflects an attacker-controlled filename as markup", () => {
