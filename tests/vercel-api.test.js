@@ -397,9 +397,9 @@ test("voice-cloning integration failures identify the failing upstream phase wit
 
 test("voice cloning reports ZeroGPU per-request duration failures separately from account quota", () => {
   const source = readFileSync(new URL("../api/generate.js", import.meta.url), "utf8");
-  assert.match(source, /phase === "space-voice-clone" && \/requested gpu duration/);
-  assert.match(source, /per-request GPU duration limit/);
-  assert.match(source, /This does not confirm that your account quota is exhausted/);
+  assert.match(source, /const gpuDurationFailure = \/requested gpu duration[\s\S]*?if \(gpuDurationFailure\)/);
+  assert.match(source, /phase === "space-voice-clone"[\s\S]*?voice-cloning Space rejected or exceeded its per-request GPU duration limit/);
+  assert.match(source, /This does not mean your account quota is exhausted/);
   assert.match(source, /console\.error\("\[image-generation:voice-language-detection\]"/);
 });
 
