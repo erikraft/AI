@@ -60,7 +60,7 @@ After assigning the Vercel deployment domain, add that exact domain under **Fire
 ### Routes and diagnostics
 
 - `GET /api/health` — returns configuration booleans only; it does not test credentials against Google or execute a model.
-- `GET /api/models` — returns the four current model identifiers and marks Cosmos/Qwen configured only when `HF_SPACE_ID` and the protected API secret are present.
+- `GET /api/models` — returns five selectable model identifiers and marks Cosmos/Qwen configured only when `HF_SPACE_ID` and the protected API secret are present.
 - `POST /api/generate` — validates the Firebase ID token, applies the configurable per-account hourly quota, then calls the selected Hugging Face task.
 
 Vercel Functions have a **4.5 MB request/response body limit**. The current Qwythos browser flow compresses its image to at most 3 MiB so the base64 JSON request fits below this ceiling. The Hobby plan's Fluid Compute maximum is **300 seconds**; Cosmos and especially the sequential Qwythos→FLUX path may still hit that deadline if provider queueing or cold model loads take too long. Qwen runs in the Hugging Face Space, not inside Vercel, but its CPU inference can also be slow. These are provider/runtime constraints—not reasons to change or remove any model. Test real calls and check both Vercel Function logs and Space logs before calling a deployment production-ready.
@@ -124,7 +124,7 @@ The voice-cloning option accepts a reference audio file or a browser recording (
 
 ## Experimental video and text models
 
-The model selector supports four task types: **FLUX text→image**; **Qwythos + FLUX reference image + instructions→image**; **Cosmos3 Nano text→video**; and **Qwen3.8 27B text assistant**. Cosmos and Qwen are exposed by the site only when the Vercel API reports the experimental API as configured. This does not prove the Space-side feature flags or available hardware are sufficient; runtime checks can still reject a request.
+The model selector supports five model workflows: **FLUX text→image**; **Qwythos + FLUX reference image + instructions→image**; **Cosmos3 Nano text→video**; **Qwen3.8 27B text assistant**; and **XTTS-v2 voice cloning→audio**. Cosmos and Qwen are exposed by the site only when the Vercel API reports the experimental API as configured. This does not prove the Space-side feature flags or available hardware are sufficient; runtime checks can still reject a request.
 
 - **Cosmos3 Nano** (`DuoNeural/Cosmos3-Nano-Abliterated`) is a 15.2B-parameter video model. The integration limits requests to 16 frames at 256×256 and 12 steps, declares 180 seconds of GPU time, and refuses to load unless the runtime reports at least 48 GiB total / 40 GiB free VRAM and at least 36 GiB free disk on a cold download. The upstream model reports roughly 48 GB VRAM needs, so these are guardrails, not a guarantee; do not enable on unknown or undersized free GPU hardware.
 - **Qwen3.8 27B GGUF** (`0bserverx/Qwen3.8-27B-Heretic-Abliterated-Uncensored-GGUF`) uses the roughly 9.1 GB `RVN-IQ2_XS.gguf` quantization through `llama-cpp-python==0.3.36` with `n_gpu_layers=0` (CPU only). The Space installs the prebuilt Linux CPU wheel instead of compiling `llama.cpp` at build time. It checks for about 12 GiB free RAM and 11 GiB free disk on a cold download. It should avoid using CUDA VRAM but can be slow and output quality is lower than larger quantizations.
