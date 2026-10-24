@@ -248,27 +248,35 @@ export async function buildUserMcpToolset(userId) {
   const tools = [];
   const toolMap = new Map();
   const warnings = [];
-  for (const server of records) {
+  const discoveredServers = await Promise.all(records.map(async (server) => {
     try {
-      const discovered = await discoverTools(server);
-      for (const tool of discovered) {
-        if (!tool.readOnlyHint && server.allowWriteTools !== true) continue;
-        if (tools.length >= 20) break;
-        const functionName = ("mcp_" + server.serverId.slice(-8) + "_" + tool.name).replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 64);
-        if (toolMap.has(functionName)) continue;
-        tools.push({
-          type: "function",
-          function: {
-            name: functionName,
-            description: (server.name + ": " + tool.description).slice(0, 1000),
-            parameters: tool.inputSchema
-          }
-        });
-        toolMap.set(functionName, { serverId: server.serverId, toolName: tool.name });
-      }
+      return { server, tools: await discoverTools(server), error: null };
     } catch (error) {
-      warnings.push(server.name + ": " + String(error?.message || error).slice(0, 180));
+      return { server, tools: [], error };
     }
+  }));
+  for (const entry of discoveredServers) {
+    const { server, tools: discovered, error } = entry;
+    if (error) {
+      warnings.push(server.name + ": " + String(error?.message || error).slice(0, 180));
+      continue;
+    }
+    for (const tool of discovered) {
+      if (!tool.readOnlyHint && server.allowWriteTools !== true) continue;
+      if (tools.length >= 20) break;
+      const functionName = ("mcp_" + server.serverId.slice(-8) + "_" + tool.name).replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 64);
+      if (toolMap.has(functionName)) continue;
+      tools.push({
+        type: "function",
+        function: {
+          name: functionName,
+          description: (server.name + ": " + tool.description).slice(0, 1000),
+          parameters: tool.inputSchema
+        }
+      });
+      toolMap.set(functionName, { serverId: server.serverId, toolName: tool.name });
+    }
+    if (tools.length >= 20) break;
   }
   return { tools, toolMap, warnings };
 }
