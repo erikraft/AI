@@ -508,7 +508,7 @@ export default async function handler(req, res) {
       // their own GPU duration budget instead of requesting 450 seconds in one call.
       phase = "space-generate";
       result = await client.predict(
-        "/generate_image_from_reference",
+        "/generate_image_from_image_render",
         [generatedPrompt.trim().slice(0, MAX_PROMPT_LENGTH), referenceImageFile, Number(width), Number(height), Number(steps)]
       );
     } else {
