@@ -43,7 +43,7 @@ const envEnabled = (value) => {
 // leaving the browser in an endless "Thinking…" state. It cannot cancel GPU work
 // already queued by Gradio, so users are warned not to retry immediately.
 const EXPERIMENTAL_INFERENCE_TIMEOUT_MS = 235_000;
-const QWEN_INFERENCE_TIMEOUT_MS = 135_000;
+const QWEN_INFERENCE_TIMEOUT_MS = 235_000;
 const SPACE_CONNECT_TIMEOUT_MS = 30_000;
 
 async function withTimeout(promise, timeoutMs, message) {
@@ -550,6 +550,14 @@ export default async function handler(req, res) {
         error: localized(req,
           "O Space do Hugging Face está iniciando, ocupado ou temporariamente indisponível. Aguarde um pouco e tente novamente; isso não confirma que a cota foi esgotada.",
           "The Hugging Face Space is starting, busy, or temporarily unavailable. Wait a little and try again; this does not confirm that the quota is exhausted.")
+      });
+    }
+
+    if (phase === "space-voice-clone" && /requested gpu duration|gpu duration.{0,30}(exceed|limit|maximum)|exceed.{0,30}gpu.{0,20}duration|ran for longer than.{0,20}(60|one minute)/.test(normalized)) {
+      return res.status(503).json({
+        error: localized(req,
+          "O Space de clonagem rejeitou ou excedeu o limite de duração de GPU por solicitação. Isso não confirma cota da sua conta esgotada. Verifique os logs do Space Nymbo/Voice-Clone-Multilingual; se a síntese for longa, tente um texto menor e uma amostra de referência mais curta.",
+          "The voice-cloning Space rejected or exceeded its per-request GPU duration limit. This does not confirm that your account quota is exhausted. Check Nymbo/Voice-Clone-Multilingual Space logs; for long synthesis, try shorter text and a shorter reference sample.")
       });
     }
 
