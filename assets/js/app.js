@@ -566,6 +566,15 @@ function updateModelSelection() {
   resultStage.classList.toggle("is-video-result", isCosmos);
   resultStage.classList.toggle("is-chat-result", isQwen);
   resultStage.classList.toggle("is-audio-result", isVoice);
+  // Keep the Qwen composer inside the conversation stage; restore it for every other task.
+  const generatorForm = $("generator-form");
+  if (isQwen) {
+    if (generatorForm.parentElement !== resultStage) resultStage.appendChild(generatorForm);
+    generatorForm.classList.add("is-chat-composer");
+  } else {
+    if (generatorForm.parentElement !== studioGrid) studioGrid.insertBefore(generatorForm, $("result-panel"));
+    generatorForm.classList.remove("is-chat-composer");
+  }
   $("empty-title").textContent = isVoice ? (english ? "Your cloned voice audio starts here" : "O áudio da voz clonada aparecerá aqui") : isCosmos ? languageText("video_empty_title") : isQwen ? languageText("qwen_empty_title") : languageText("empty_title");
   $("empty-desc").textContent = isVoice ? (english ? "Upload or record a voice sample, write the text, and generate speech." : "Envie ou grave uma amostra de voz, escreva o texto e gere a fala.") : isCosmos ? languageText("video_empty_desc") : isQwen ? languageText("qwen_empty_desc") : languageText("empty_desc");
   $("empty-result").classList.toggle("task-empty-no-image", isCosmos || isQwen || isVoice);
