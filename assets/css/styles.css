@@ -1223,3 +1223,6 @@
 .qwen-mcp-status.is-error{border-color:#82434a;color:#ffb5b5}
 .qwen-mcp-status.is-success{border-color:#42674d;color:#b4e2bf}
 @media(max-width:520px){.qwen-mcp-panel{padding:12px}.qwen-mcp-heading{flex-direction:column}.qwen-mcp-heading .button{width:100%}.qwen-mcp-server{gap:8px}.qwen-mcp-actions{flex-direction:column}.qwen-mcp-actions .button{width:100%}}
+
+/* Keep the image-options controls separated from the submit action in both auth states. */
+#image-options-row{margin-bottom:16px;}
