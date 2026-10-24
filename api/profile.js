@@ -19,7 +19,6 @@ async function userFromRequest(req) {
   try {
     const user = await getAuth(adminApp()).verifyIdToken(match[1]);
     if (user.firebase?.sign_in_provider === "password" && user.email_verified !== true) return null;
-    if (!["google.com", "github.com", "password"].includes(user.firebase?.sign_in_provider)) return null;
     return user;
   } catch { return null; }
 }
