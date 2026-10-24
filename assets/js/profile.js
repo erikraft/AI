@@ -304,8 +304,12 @@ if (!config.apiKey || !config.authDomain || !config.projectId || !config.appId) 
     setProfileStatus("restoringProviderPhoto");
     try {
       const result = await request("PUT", { restoreProviderPhoto: true });
-      setPhoto(result.photo || user?.photoURL || "");
-      setProfileStatus(user?.photoURL ? "providerPhotoRestored" : "providerPhotoMissing");
+      const providerPhoto = user?.providerData?.find((provider) => provider.providerId !== "password" && provider.photoURL)?.photoURL
+        || user?.photoURL
+        || "";
+      const restoredPhoto = result.photo || providerPhoto;
+      setPhoto(restoredPhoto);
+      setProfileStatus(restoredPhoto ? "providerPhotoRestored" : "providerPhotoMissing");
     } catch (error) { delete status.dataset.profileMessage; status.textContent = error.message || profileText("restorePhotoFailed"); }
   });
   popover.querySelector("[data-profile-delete]").addEventListener("click", async () => {
