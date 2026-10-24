@@ -139,7 +139,8 @@ test("experimental inference has a bounded server-side timeout and actionable ti
   assert.ok(source.includes("Client.connect(targetSpaceId, clientOptions)"));
   assert.ok(source.includes("Timed out connecting to the Hugging Face Space."));
   assert.ok(source.includes('predictWithTimeout(client, "/generate_video"'));
-  assert.ok(source.includes('predictWithTimeout(client, "/generate_text"'));
+  assert.ok(source.includes('"/generate_text"'));
+  assert.ok(source.includes("JSON.stringify(toolset.tools)"));
   assert.ok(source.includes("InferenceTimeoutError"));
   assert.ok(source.includes("status(timedOut ? 504 : 503)"));
 });
@@ -253,8 +254,8 @@ test("account deletion and legal pages disclose Hugging Face provider-side reten
   assert.match(profile, /Prompts and inputs sent to Hugging Face/);
   assert.match(privacy, /does <strong>not automatically delete/);
   assert.match(privacy, /não apaga automaticamente/);
-  assert.match(privacy, /23 de outubro de 2026/);
-  assert.match(privacy, /October 23, 2026/);
+  assert.match(privacy, /24 de outubro de 2026/);
+  assert.match(privacy, /October 24, 2026/);
 });
 
 test("localized interface text is rendered without reinterpreting translations as HTML", () => {
