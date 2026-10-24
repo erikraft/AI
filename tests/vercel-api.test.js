@@ -325,3 +325,14 @@ test("voice cloning detects language from reference speech instead of website lo
   assert.ok(api.includes("UnsupportedReferenceLanguageError"));
   assert.ok(api.includes("VOICE_LANGUAGE_TIMEOUT_MS"));
 });
+
+
+test("custom profile photos persist in MongoDB and take precedence over provider photos", () => {
+  const api = readFileSync(new URL("../api/profile.js", import.meta.url), "utf8");
+  const profile = readFileSync(new URL("../assets/js/profile.js", import.meta.url), "utf8");
+  assert.match(api, /replaceOne\(\{ userId: user\.uid \}, \{ userId: user\.uid, contentType: match\[1\]\.toLowerCase\(\), data, updatedAt: new Date\(\) \}, \{ upsert: true \}\)/);
+  assert.match(api, /if \(record\?\.photoDisabled\)[\s\S]*?if \(record\?\.data\)/);
+  assert.match(api, /record\.data\.toString\("base64"\)/);
+  assert.match(profile, /request\("PUT", \{ photo \}\)/);
+  assert.match(profile, /data\.photoDisabled \? "" : \(data\.photo \|\| providerPhotoFromUser\(user\)\)/);
+});
