@@ -336,3 +336,12 @@ test("custom profile photos persist in MongoDB and take precedence over provider
   assert.match(profile, /request\("PUT", \{ photo \}\)/);
   assert.match(profile, /data\.photoDisabled \? "" : \(data\.photo \|\| providerPhotoFromUser\(user\)\)/);
 });
+
+
+test("voice-cloning integration failures identify the failing upstream phase without mislabeling quota", () => {
+  const source = readFileSync(new URL("../api/generate.js", import.meta.url), "utf8");
+  assert.match(source, /phase === "voice-language-detection" \|\| phase === "space-voice-clone"/);
+  assert.match(source, /voice-cloning Space failed during synthesis/);
+  assert.match(source, /Voice cloning exceeded the provider timeout/);
+  assert.match(source, /This does not confirm quota exhaustion/);
+});
