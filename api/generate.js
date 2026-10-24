@@ -553,6 +553,28 @@ export default async function handler(req, res) {
       });
     }
 
+    if (phase === "voice-language-detection" || phase === "space-voice-clone") {
+      const timedOut = error?.name === "InferenceTimeoutError" || /timed out|timeout|exceeded its server-side time budget/.test(normalized);
+      const languageStep = phase === "voice-language-detection";
+      return res.status(timedOut ? 504 : 502).json({
+        error: timedOut
+          ? localized(req,
+              languageStep
+                ? "A detecção do idioma do áudio de referência demorou demais. Verifique os logs do backend e do Space Whisper; confirme que o Space está ativo antes de tentar novamente."
+                : "A clonagem de voz excedeu o tempo limite do provedor. Verifique os logs do backend e do Space de clonagem; a tarefa pode ainda estar na fila, então aguarde antes de repetir.",
+              languageStep
+                ? "Reference-audio language detection timed out. Check the backend and Whisper Space logs, and confirm the Space is running before retrying."
+                : "Voice cloning exceeded the provider timeout. Check the backend and voice-cloning Space logs; the task may still be queued, so wait before retrying.")
+          : localized(req,
+              languageStep
+                ? "Falha ao detectar o idioma do áudio de referência no Space Whisper. Confira os logs da função /api/generate e do Space Whisper para identificar a causa."
+                : "O Space de clonagem de voz falhou durante a síntese. Confira os logs da função /api/generate e do Space de clonagem para identificar a causa. Isso não confirma cota esgotada.",
+              languageStep
+                ? "The Whisper Space failed to detect the reference-audio language. Check /api/generate function logs and the Whisper Space logs to identify the cause."
+                : "The voice-cloning Space failed during synthesis. Check /api/generate function logs and the voice-cloning Space logs to identify the cause. This does not confirm quota exhaustion.")
+      });
+    }
+
     return res.status(502).json({
       error: localized(req,
         "A geração falhou por um erro do Space ou da integração, sem confirmação de cota esgotada. Confira os logs do backend para /api/generate para identificar a causa.",
