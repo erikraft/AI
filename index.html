@@ -121,6 +121,21 @@
   <p class="small-note" data-i18n="studio_login_note">Até 5 gerações por hora por conta. A disponibilidade do Hugging Face pode variar.</p>
   <p id="studio-auth-error" class="error-text" role="alert" aria-live="polite"></p>
 </div>
+<div id="studio-password-reset-panel" class="panel studio-login-panel password-reset-panel hidden" aria-labelledby="studio-reset-title">
+  <div class="studio-login-symbol" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 7.5A2.5 2.5 0 0 1 6.5 5h11A2.5 2.5 0 0 1 20 7.5v9a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 16.5z"/><path d="m5 7 7 5 7-5"/></svg></div>
+  <p class="eyebrow" data-i18n="studio_login_eyebrow">AUTENTICAÇÃO NECESSÁRIA</p>
+  <h3 id="studio-reset-title" data-i18n="reset_title">Redefinir senha</h3>
+  <p class="muted" data-i18n="reset_desc">Informe seu e-mail para receber o link oficial do Firebase. Você também pode colar abaixo o link ou o código de redefinição.</p>
+  <div class="email-auth-field"><label for="studio-reset-email" data-i18n="reset_email_label">E-mail da conta</label><input id="studio-reset-email" type="email" autocomplete="email" data-i18n-placeholder="email_placeholder" placeholder="voce@exemplo.com" required></div>
+  <div class="email-auth-actions"><button id="studio-reset-send" class="button secondary" type="button" data-i18n="reset_send_link">Enviar link de redefinição</button></div>
+  <form id="studio-reset-form" class="email-auth-form">
+    <div class="email-auth-field"><label for="studio-reset-code" data-i18n="reset_code_label">Link ou código recebido por e-mail</label><input id="studio-reset-code" type="text" autocomplete="off" data-i18n-placeholder="reset_code_placeholder" placeholder="Cole o link completo ou o código oobCode"></div>
+    <div class="email-auth-field"><label for="studio-reset-password" data-i18n="reset_new_password">Nova senha</label><input id="studio-reset-password" type="password" autocomplete="new-password" minlength="6" required></div>
+    <div class="email-auth-field"><label for="studio-reset-password-confirm" data-i18n="reset_confirm_password">Confirmar nova senha</label><input id="studio-reset-password-confirm" type="password" autocomplete="new-password" minlength="6" required></div>
+    <div class="email-auth-actions"><button id="studio-reset-confirm" class="button primary" type="submit" data-i18n="reset_confirm_button">Salvar nova senha</button><button id="studio-reset-back" class="button secondary" type="button" data-i18n="reset_back">Voltar ao login</button></div>
+  </form>
+  <p id="studio-reset-status" class="error-text" role="status" aria-live="polite"></p>
+</div>
 <form id="generator-form" class="panel prompt-panel hidden" aria-hidden="true" inert>
 <label for="prompt" data-i18n="prompt_label">Seu prompt</label><textarea id="prompt" name="prompt" maxlength="1500" data-i18n-placeholder="prompt_placeholder" placeholder="Ex.: Uma estação de trem futurista no meio de uma floresta, luz azul cinematográfica, neblina suave, composição detalhada..." required></textarea>
 <div class="field-footer"><span data-i18n="prompt_help">Descreva o assunto, o ambiente, a luz e o estilo.</span><span id="char-count">0 / 1500</span></div>
