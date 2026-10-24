@@ -1,5 +1,6 @@
 import gc
 import hmac
+import json
 import os
 import shutil
 import tempfile
@@ -366,8 +367,14 @@ def generate_video(prompt: str, api_secret: str):
             torch.cuda.empty_cache()
 
 
-def generate_text(prompt: str, language: str = "pt-BR", api_secret: str = ""):
-    """CPU-only GGUF inference; intentionally has no GPU offload."""
+def generate_text(
+    prompt: str,
+    language: str = "pt-BR",
+    api_secret: str = "",
+    tools_json: str = "[]",
+    messages_json: str = "",
+):
+    """CPU-only GGUF inference with optional, backend-orchestrated tool calling."""
     global qwen_text_model
     prompt = (prompt or "").strip()
     if not ENABLE_QWEN_TEXT:
@@ -377,7 +384,6 @@ def generate_text(prompt: str, language: str = "pt-BR", api_secret: str = ""):
         raise gr.Error("Prompt must contain 1–1500 characters.")
     if not _has_cached_repo("models--0bserverx--Qwen3.8-27B-Heretic-Abliterated-Uncensored-GGUF") and _disk_free_gib() < 11:
         raise gr.Error(f"Qwen needs about 9.1 GB for its selected GGUF plus cache overhead; only {_disk_free_gib():.1f} GiB free disk space is available.")
-    # Release other models before measuring RAM available for the CPU-only Qwen model.
     _clear_models("qwen")
     available_ram = _available_ram_gib()
     if qwen_text_model is None and available_ram < 12:
@@ -389,7 +395,7 @@ def generate_text(prompt: str, language: str = "pt-BR", api_secret: str = ""):
             qwen_text_model = Llama.from_pretrained(
                 repo_id=QWEN_MODEL_ID,
                 filename=QWEN_GGUF_FILE,
-                n_ctx=2048,
+                n_ctx=4096,
                 n_batch=64,
                 n_threads=max(2, min(4, os.cpu_count() or 2)),
                 n_gpu_layers=0,
@@ -404,16 +410,42 @@ def generate_text(prompt: str, language: str = "pt-BR", api_secret: str = ""):
             else "English" if language_value.lower().startswith("en")
             else language_value
         )
-        result = qwen_text_model.create_chat_completion(
-            messages=[
-                {"role": "system", "content": "Answer helpfully in " + language_name + ". You are a third-party model running inside ErikrafT AI; do not claim ErikrafT created you."},
-                {"role": "user", "content": prompt},
-            ],
-            max_tokens=128,
-            temperature=0.7,
-        )
+        try:
+            supplied_messages = json.loads(messages_json) if messages_json else None
+            if not isinstance(supplied_messages, list) or not supplied_messages:
+                supplied_messages = [
+                    {"role": "system", "content": "Answer helpfully in " + language_name + ". You are a third-party model running inside ErikrafT AI; do not claim ErikrafT created you."},
+                    {"role": "user", "content": prompt},
+                ]
+            if len(supplied_messages) > 16:
+                raise ValueError("Too many chat messages.")
+            messages = supplied_messages
+            supplied_tools = json.loads(tools_json or "[]")
+            if not isinstance(supplied_tools, list) or len(supplied_tools) > 50:
+                raise ValueError("Invalid MCP tool list.")
+        except (ValueError, TypeError, json.JSONDecodeError) as exc:
+            raise gr.Error("Invalid chatbot tool or conversation payload.") from exc
+        request = {
+            "messages": messages,
+            "max_tokens": 384,
+            "temperature": 0.7,
+        }
+        if supplied_tools:
+            request["tools"] = supplied_tools
+            request["tool_choice"] = "auto"
+        result = qwen_text_model.create_chat_completion(**request)
         print("[qwen-diagnostics] CPU inference completed", flush=True)
-        answer = result["choices"][0]["message"]["content"].strip()
+        message = result["choices"][0]["message"]
+        tool_calls = message.get("tool_calls") or []
+        if tool_calls:
+            # Tool calls are only proposals. The Vercel backend validates the names,
+            # executes approved calls through the user's configured MCP servers, and
+            # sends the results back to Qwen for a final answer.
+            return json.dumps({
+                "mcp_tool_calls": tool_calls[:8],
+                "assistant_content": str(message.get("content") or "")[:4000],
+            }, ensure_ascii=False)
+        answer = str(message.get("content") or "").strip()
         if not answer:
             raise gr.Error("Qwen returned an empty response.")
         return answer[:12000]
@@ -684,9 +716,11 @@ with gr.Blocks(title="ErikrafT AI — FLUX + Qwythos", delete_cache=(3600, 86400
             value="pt-BR",
             label="Response language",
         )
+        text_tools_json = gr.Textbox(value="[]", visible=False, label="MCP tools JSON")
+        text_messages_json = gr.Textbox(value="", visible=False, label="Chat messages JSON")
         text_button = gr.Button("Ask Qwen")
         text_output = gr.Textbox(label="Qwen response", lines=12, max_lines=24, interactive=False)
-        text_button.click(generate_text, [text_prompt, text_language, experimental_api_secret], text_output, api_name="generate_text")
+        text_button.click(generate_text, [text_prompt, text_language, experimental_api_secret, text_tools_json, text_messages_json], text_output, api_name="generate_text")
 
 demo.queue()
 demo.launch()

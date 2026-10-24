@@ -165,6 +165,47 @@
   <div class="model-selector-meta"><span id="model-task-badge" class="model-task-badge">TEXTO → IMAGEM</span><span id="model-runtime-pill" class="model-runtime-pill">Disponibilidade conforme a configuração do backend</span></div>
   <p id="model-help" class="small-note" data-i18n="model_help">O FLUX transforma texto em imagem. Se quiser usar uma imagem de referência, selecione Qwythos; os campos se adaptam ao modelo escolhido.</p>
   <p id="model-runtime-notice" class="model-runtime-notice" role="status" aria-live="polite">Modo de texto para imagem. Filas e limites do provedor podem variar.</p>
+  <section id="qwen-mcp-panel" class="qwen-mcp-panel hidden" aria-labelledby="qwen-mcp-title" hidden>
+    <div class="qwen-mcp-heading">
+      <div>
+        <h3 id="qwen-mcp-title" data-i18n="mcp_title">Servidores MCP personalizados</h3>
+        <p class="small-note" data-i18n="mcp_intro">Conecte ferramentas MCP privadas à sua conversa com o Qwen. Os servidores são salvos somente na sua conta.</p>
+      </div>
+      <button id="qwen-mcp-add-toggle" class="button secondary small" type="button" data-i18n="mcp_add">Adicionar servidor</button>
+    </div>
+    <div id="qwen-mcp-form" class="qwen-mcp-form hidden" hidden>
+      <label for="qwen-mcp-name" data-i18n="mcp_name_label">Nome</label>
+      <input id="qwen-mcp-name" maxlength="80" autocomplete="off" data-i18n-placeholder="mcp_name_placeholder" placeholder="Ferramenta personalizada">
+      <label for="qwen-mcp-description" data-i18n="mcp_description_label">Descrição (opcional)</label>
+      <textarea id="qwen-mcp-description" rows="2" maxlength="500" data-i18n-placeholder="mcp_description_placeholder" placeholder="Explique em poucas palavras o que ele faz"></textarea>
+      <label for="qwen-mcp-connection" data-i18n="mcp_connection_label">Conexão</label>
+      <select id="qwen-mcp-connection">
+        <option value="url" data-i18n="mcp_connection_url">URL do servidor</option>
+        <option value="tunnel" data-i18n="mcp_connection_tunnel">Túnel HTTPS público</option>
+      </select>
+      <label for="qwen-mcp-url" data-i18n="mcp_url_label">URL do servidor</label>
+      <input id="qwen-mcp-url" type="url" maxlength="2048" autocomplete="url" placeholder="https://example.com/mcp" required>
+      <p id="qwen-mcp-tunnel-note" class="small-note hidden" hidden data-i18n="mcp_tunnel_note">O túnel precisa estar ativo e exposto publicamente; o site não cria nem gerencia túneis.</p>
+      <label for="qwen-mcp-auth" data-i18n="mcp_auth_label">Autenticação</label>
+      <select id="qwen-mcp-auth">
+        <option value="OAUTH" data-i18n="mcp_auth_oauth">OAuth (token de acesso)</option>
+        <option value="NONE" data-i18n="mcp_auth_none">Sem autenticação</option>
+        <option value="MIXED" data-i18n="mcp_auth_mixed">OAuth ou sem autenticação</option>
+      </select>
+      <label for="qwen-mcp-token" data-i18n="mcp_token_label">Token de acesso OAuth (opcional conforme a autenticação)</label>
+      <input id="qwen-mcp-token" type="password" maxlength="4096" autocomplete="off" spellcheck="false" data-i18n-placeholder="mcp_token_placeholder" placeholder="Cole o token de acesso">
+      <p class="small-note" data-i18n="mcp_token_note">O token é criptografado no MongoDB Atlas e nunca é devolvido ao navegador. Esta versão aceita tokens OAuth já obtidos; o fluxo automático de autorização OAuth ainda não está implementado.</p>
+      <label class="qwen-mcp-trust"><input id="qwen-mcp-trust" type="checkbox"><span data-i18n="mcp_trust">Entendo os riscos e confio neste servidor MCP.</span></label>
+      <label class="qwen-mcp-trust"><input id="qwen-mcp-write-trust" type="checkbox"><span data-i18n="mcp_write_tools">Permitir ferramentas que criam, editam ou excluem dados externos.</span></label>
+      <p class="qwen-mcp-warning" data-i18n="mcp_warning">Servidores MCP personalizados podem ler dados enviados ao modelo e executar ações em serviços conectados. Conecte apenas servidores confiáveis. Ferramentas de escrita ou exclusão podem alterar dados externos.</p>
+      <div class="qwen-mcp-actions">
+        <button id="qwen-mcp-save" class="button primary small" type="button" data-i18n="mcp_save">Conectar e salvar</button>
+        <button id="qwen-mcp-cancel" class="button secondary small" type="button" data-i18n="cancel">Cancelar</button>
+      </div>
+    </div>
+    <p id="qwen-mcp-status" class="small-note" role="status" aria-live="polite"></p>
+    <div id="qwen-mcp-list" class="qwen-mcp-list" aria-live="polite"></div>
+  </section>
   <div id="qwythos-image-input" class="field qwythos-image-input hidden">
   <label data-i18n="reference_image_label">Imagem de entrada (obrigatória neste modo)</label>
   <div id="reference-image-dropzone" class="reference-image-dropzone" role="group" tabindex="0" data-i18n-aria-label="reference_drop_title" aria-label="Selecionar ou arrastar uma imagem de referência">

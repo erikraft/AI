@@ -139,7 +139,8 @@ test("experimental inference has a bounded server-side timeout and actionable ti
   assert.ok(source.includes("Client.connect(targetSpaceId, clientOptions)"));
   assert.ok(source.includes("Timed out connecting to the Hugging Face Space."));
   assert.ok(source.includes('predictWithTimeout(client, "/generate_video"'));
-  assert.ok(source.includes('predictWithTimeout(client, "/generate_text"'));
+  assert.ok(source.includes('"/generate_text"'));
+  assert.ok(source.includes("JSON.stringify(toolset.tools)"));
   assert.ok(source.includes("InferenceTimeoutError"));
   assert.ok(source.includes("status(timedOut ? 504 : 503)"));
 });
@@ -253,8 +254,8 @@ test("account deletion and legal pages disclose Hugging Face provider-side reten
   assert.match(profile, /Prompts and inputs sent to Hugging Face/);
   assert.match(privacy, /does <strong>not automatically delete/);
   assert.match(privacy, /não apaga automaticamente/);
-  assert.match(privacy, /23 de outubro de 2026/);
-  assert.match(privacy, /October 23, 2026/);
+  assert.match(privacy, /24 de outubro de 2026/);
+  assert.match(privacy, /October 24, 2026/);
 });
 
 test("localized interface text is rendered without reinterpreting translations as HTML", () => {
@@ -361,7 +362,7 @@ test("multilingual prompts are preserved and text/image-editing models infer the
   const api = readFileSync(new URL("../api/generate.js", import.meta.url), "utf8");
   const space = readFileSync(new URL("../huggingface/app.py", import.meta.url), "utf8");
   assert.match(api, /function detectVoicePromptLanguage\(prompt\)/);
-  assert.match(api, /\[prompt\.trim\(\), "auto", spaceApiSecret\]/);
+  assert.match(api, /\[prompt\.trim\(\), "auto", spaceApiSecret, JSON\.stringify\(toolset\.tools\), JSON\.stringify\(messages\)\]/);
   assert.match(api, /\[prompt\.trim\(\), referenceImageFile, "auto"\]/);
   assert.match(api, /\[prompt\.trim\(\), Number\(width\), Number\(height\), Number\(steps\)\]/);
   assert.match(space, /the same language as the user's instructions \(detect the language automatically\)/);
@@ -376,4 +377,67 @@ test("multilingual voice cloning chooses the requested text language rather than
   assert.match(api, /\[prompt\.trim\(\), voiceAudioFile, voiceLanguage\]/);
   assert.match(api, /O idioma solicitado para a fala/);
   assert.match(api, /The requested speech language/);
+});
+
+
+test("custom MCP server management is authenticated, account-scoped, and requires an explicit trust acknowledgement", () => {
+  const api = readFileSync(new URL("../api/mcp-servers.js", import.meta.url), "utf8");
+  const helper = readFileSync(new URL("../api/_lib/mcp.js", import.meta.url), "utf8");
+  assert.match(api, /verifyIdToken\(match\[1\]\)/);
+  assert.match(api, /req\.body\?\.acknowledged !== true/);
+  assert.match(api, /Allow", "GET, POST, DELETE/);
+  assert.match(helper, /collection\.find\(\{ userId \}/);
+  assert.match(helper, /collection\.deleteOne\(\{ userId, serverId/);
+  assert.match(helper, /qwen_mcp_servers/);
+  assert.match(helper, /MAX_SERVERS_PER_USER = 10/);
+  assert.match(helper, /encryptedToken: 0/);
+});
+
+test("custom MCP clients encrypt OAuth tokens and block unsafe URL targets and redirects", () => {
+  const helper = readFileSync(new URL("../api/_lib/mcp.js", import.meta.url), "utf8");
+  assert.match(helper, /createCipheriv\("aes-256-gcm"/);
+  assert.match(helper, /createDecipheriv\("aes-256-gcm"/);
+  assert.match(helper, /MCP_ENCRYPTION_KEY/);
+  assert.match(helper, /url\.protocol !== "https:"/);
+  assert.match(helper, /privateIp\(entry\.address\)/);
+  assert.match(helper, /redirect: "manual"/);
+  assert.match(helper, /MCP redirects are blocked/);
+  assert.match(helper, /notifications\/initialized/);
+  assert.match(helper, /tools\/list/);
+  assert.match(helper, /tools\/call/);
+});
+
+test("Qwen MCP tool calls require read-only annotations by default and explicit write-tool opt-in", () => {
+  const helper = readFileSync(new URL("../api/_lib/mcp.js", import.meta.url), "utf8");
+  const api = readFileSync(new URL("../api/generate.js", import.meta.url), "utf8");
+  const space = readFileSync(new URL("../huggingface/app.py", import.meta.url), "utf8");
+  assert.match(helper, /tool\.annotations\?\.readOnlyHint === true/);
+  assert.match(helper, /!tool\.readOnlyHint && server\.allowWriteTools !== true/);
+  assert.match(api, /buildUserMcpToolset\(user\.uid\)/);
+  assert.match(api, /callUserMcpTool\(user\.uid/);
+  assert.match(api, /toolset\.toolMap\.has\(functionName\)/);
+  assert.match(api, /toolCallsExecuted >= 8/);
+  assert.match(space, /tools_json: str = "\[\]"/);
+  assert.match(space, /messages_json: str = ""/);
+  assert.match(space, /mcp_tool_calls/);
+  assert.match(space, /request\["tools"\] = supplied_tools/);
+});
+
+test("Qwen custom MCP controls are bilingual and do not render server-supplied text as HTML", () => {
+  const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
+  const app = readFileSync(new URL("../assets/js/app.js", import.meta.url), "utf8");
+  const css = readFileSync(new URL("../assets/css/styles.css", import.meta.url), "utf8");
+  const env = readFileSync(new URL("../.env.example", import.meta.url), "utf8");
+  const readme = readFileSync(new URL("../README.md", import.meta.url), "utf8");
+  assert.match(html, /id="qwen-mcp-panel"/);
+  assert.match(html, /id="qwen-mcp-trust"/);
+  assert.match(html, /id="qwen-mcp-write-trust"/);
+  assert.match(app, /mcp_title:"Servidores MCP personalizados"/);
+  assert.match(app, /mcp_title:"Custom MCP servers"/);
+  assert.match(app, /fetch\("\/api\/mcp-servers"/);
+  assert.equal(app.includes("innerHTML"), false);
+  assert.match(css, /\.qwen-mcp-panel/);
+  assert.match(env, /MCP_ENCRYPTION_KEY=/);
+  assert.match(readme, /MCP Streamable HTTP/);
+  assert.match(readme, /automatic authorization\/redirect flow/);
 });

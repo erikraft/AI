@@ -43,6 +43,7 @@ export default function handler(req, res) {
     hfSpaceIdValid,
     hfTokenConfigured: Boolean(process.env.HF_TOKEN),
     experimentalSecretConfigured,
+    mcpEncryptionKeyConfigured: Boolean(String(process.env.MCP_ENCRYPTION_KEY || "").trim()),
     experimentalModels: {
       cosmosVideo: experimentalSecretConfigured && hfSpaceIdValid && featureEnabled(process.env.ENABLE_COSMOS_VIDEO),
       qwenText: experimentalSecretConfigured && hfSpaceIdValid && featureEnabled(process.env.ENABLE_QWEN_TEXT)

@@ -76,3 +76,18 @@ The website API accepts prompts in their original language for FLUX image genera
 For image editing, the Qwythos stage is instructed to detect the language of the user's instructions and return its image prompt in that same language. The Qwen text assistant is likewise instructed to answer in the language used in the prompt, rather than forcing the website's English or Brazilian Portuguese locale.
 
 Voice cloning chooses the requested spoken-output language from the text to be spoken when it can be detected reliably. Short text falls back to the reference-audio language. The multilingual voice model has a finite supported-language list; it cannot promise arbitrary-language speech.
+
+
+## Custom MCP tools for Qwen / Ferramentas MCP personalizadas para o Qwen
+
+### English
+
+The hidden experimental Qwen endpoint accepts optional tool definitions and conversation messages from the authenticated Vercel backend. The Vercel backend owns MCP server URLs and encrypted access tokens, discovers tools, executes allowed tool calls, and sends tool results back to Qwen for the final response. MCP credentials are not sent to this Space. Tool schemas, conversation prompts, and tool results may be sent here for inference, so do not include secrets or sensitive data in tool results.
+
+Only tools marked with MCP `annotations.readOnlyHint: true` are exposed by default. The website can explicitly enable write-capable tools per configured server. The backend exposes up to six compact tool schemas per request and bounds tool-result size to preserve the model context. Tool calling remains subject to CPU RAM, inference timeout, and provider availability. This feature uses the model's native `llama-cpp-python` tool-calling interface; compatibility depends on the selected GGUF chat template and is not guaranteed until live inference is validated.
+
+### Português (Brasil)
+
+O endpoint experimental oculto do Qwen aceita definições opcionais de ferramentas e mensagens de conversa enviadas pelo backend autenticado da Vercel. O backend da Vercel mantém as URLs dos servidores MCP e os tokens de acesso criptografados, descobre ferramentas, executa chamadas permitidas e devolve os resultados ao Qwen para gerar a resposta final. As credenciais MCP não são enviadas para este Space. Esquemas de ferramentas, prompts da conversa e resultados das ferramentas podem ser enviados para inferência; não inclua segredos ou dados sensíveis nesses resultados.
+
+Por padrão, só são disponibilizadas ferramentas marcadas com `annotations.readOnlyHint: true` do MCP. O site pode habilitar explicitamente ferramentas capazes de escrever dados em cada servidor configurado. O backend expõe até seis esquemas compactos de ferramentas por solicitação e limita o tamanho dos resultados para preservar o contexto do modelo. As chamadas continuam sujeitas à RAM da CPU, ao tempo limite de inferência e à disponibilidade do provedor. O recurso usa a interface nativa de chamadas de ferramentas do `llama-cpp-python`; a compatibilidade depende do template de conversa do GGUF selecionado e não é garantida até que a inferência real seja validada.
