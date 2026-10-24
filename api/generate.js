@@ -421,12 +421,14 @@ export default async function handler(req, res) {
       }
       let answer = "";
       let toolCallsExecuted = 0;
-      for (let round = 0; round < 4; round += 1) {
+      const maxToolRounds = toolset.tools.length ? 2 : 4;
+      const qwenRoundTimeout = toolset.tools.length ? 65_000 : QWEN_INFERENCE_TIMEOUT_MS;
+      for (let round = 0; round < maxToolRounds; round += 1) {
         result = await predictWithTimeout(
           client,
           "/generate_text",
           [prompt.trim(), "auto", spaceApiSecret, JSON.stringify(toolset.tools), JSON.stringify(messages)],
-          QWEN_INFERENCE_TIMEOUT_MS
+          qwenRoundTimeout
         );
         const first = result?.data?.[0];
         const rawAnswer = typeof first === "string" ? first : (first?.text || first?.value || first?.content || "");
@@ -440,7 +442,7 @@ export default async function handler(req, res) {
           answer = rawAnswer;
           break;
         }
-        const calls = toolRequest.mcp_tool_calls.slice(0, 3);
+        const calls = toolRequest.mcp_tool_calls.slice(0, 2);
         messages.push({
           role: "assistant",
           content: toolRequest.assistant_content || null,
@@ -465,7 +467,7 @@ export default async function handler(req, res) {
           }
           messages.push({ role: "tool", tool_call_id: callId, content: String(content).slice(0, 12000) });
         }
-        if (round === 3) {
+        if (round === maxToolRounds - 1) {
           answer = localized(req,
             "O Qwen atingiu o limite de etapas de ferramentas desta resposta. Peça uma pergunta mais específica ou tente novamente.",
             "Qwen reached the tool-step limit for this response. Ask a more specific question or try again.");
