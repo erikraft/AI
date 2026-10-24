@@ -1164,3 +1164,32 @@
 .password-reset-panel #studio-reset-status { margin-top: 14px; }
 .password-reset-panel #studio-reset-status:not(:empty) { padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; }
 @media (prefers-reduced-motion: reduce) { .password-reset-panel .button { transition: none; } }
+
+
+/* Final chatbot-stage overrides: keep the conversation and composer scrollable together. */
+.result-stage.is-chat-result {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  overflow-x: hidden;
+  overflow-y: auto;
+  max-height: min(82vh, 920px);
+}
+.result-stage.is-chat-result .qwen-chat-thread {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 180px;
+  max-height: min(42vh, 460px);
+}
+.result-stage.is-chat-result #generator-form.is-chat-composer {
+  order: 2;
+  flex: 0 0 auto;
+  width: 100%;
+  max-width: none;
+}
+.result-stage:not(.is-chat-result) .qwen-chat-thread { display: none !important; }
+@media (max-width: 720px) {
+  .result-stage.is-chat-result { max-height: 78vh; }
+  .result-stage.is-chat-result .qwen-chat-thread { max-height: 36vh; }
+}
