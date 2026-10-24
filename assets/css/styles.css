@@ -546,3 +546,13 @@
 .yahoo-logo{object-fit:contain;}
 .additional-login-options summary:focus-visible{outline:2px solid var(--blue);outline-offset:-3px;}
 @media(prefers-reduced-motion:reduce){.additional-login-options summary::after{transition:none}}
+
+
+/* Firebase password reset: focused, accessible, and consistent with the sign-in panel. */
+.password-reset-panel .email-auth-field { margin-top: 14px; }
+.password-reset-panel .email-auth-field input { width: 100%; min-width: 0; }
+.password-reset-panel .email-auth-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
+.password-reset-panel .email-auth-actions .button { flex: 1 1 180px; }
+.password-reset-panel #studio-reset-status { margin-top: 14px; }
+.password-reset-panel #studio-reset-status:not(:empty) { padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; }
+@media (prefers-reduced-motion: reduce) { .password-reset-panel .button { transition: none; } }
