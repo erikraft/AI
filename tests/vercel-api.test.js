@@ -241,7 +241,7 @@ test("history supports owner-scoped bulk deletion and hides private history from
   assert.match(app, /new Intl\.DateTimeFormat\(locale, \{ dateStyle: "medium", timeStyle: "short" \}\)/);
   assert.match(css, /\.prompt-panel:not\(\.hidden\) #image-options-row/);
   assert.match(css, /\.prompt-panel:not\(\.hidden\) #generate/);
-  assert.match(css, /#image-options-row\\s*\\{\\s*margin-bottom:\\s*16px;\\s*\\}/);
+  assert.match(css, /#image-options-row\s*\{\s*margin-bottom:\s*16px;\s*\}/);
 });
 
 test("account deletion and legal pages disclose Hugging Face provider-side retention in both languages", () => {
