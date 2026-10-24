@@ -167,3 +167,15 @@ test("voice recording controls enforce duration limits and save audio history", 
   assert.match(historyApi, /\["image", "video", "audio", "text"\]/);
   assert.match(historyApi, /\["image", "video", "audio"\]\.includes\(type\)/);
 });
+
+
+test("Google and GitHub sign-in buttons in the modal are localized in English and Brazilian Portuguese", () => {
+  const html = read("../index.html");
+  const app = read("../assets/js/app.js");
+  assert.match(html, /id="google-login" class="provider-button" data-i18n="google_login_button"/);
+  assert.match(html, /id="github-login" class="provider-button" data-i18n="github_login_button"/);
+  assert.match(app, /google_login_button:"Continue with Google"/);
+  assert.match(app, /github_login_button:"Continue with GitHub"/);
+  assert.match(app, /google_login_button:"Continuar com Google"/);
+  assert.match(app, /github_login_button:"Continuar com GitHub"/);
+});
