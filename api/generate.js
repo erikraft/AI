@@ -30,8 +30,8 @@ const QWEN_MODEL_ID = "0bserverx/Qwen3.8-27B-Heretic-Abliterated-Uncensored-GGUF
 const VOICE_CLONE_MODEL_ID = "tonyassi/voice-clone";
 const VOICE_LANGUAGE_SPACE_ID = "hf-audio/whisper-large-v3";
 const VOICE_CLONE_SPACE_ID = "Nymbo/Voice-Clone-Multilingual";
-const VOICE_LANGUAGE_TIMEOUT_MS = 75_000;
-const VOICE_CLONE_TIMEOUT_MS = 150_000;
+const VOICE_LANGUAGE_TIMEOUT_MS = 45_000;
+const VOICE_CLONE_TIMEOUT_MS = 120_000;
 const VOICE_LANGUAGE_CODES = Object.freeze({
   eng: "en", por: "pt", spa: "es", fra: "fr", fre: "fr", deu: "de", ger: "de",
   ita: "it", pol: "pl", tur: "tr", rus: "ru", nld: "nl", dut: "nl", ces: "cs", cze: "cs",
@@ -221,7 +221,7 @@ export default async function handler(req, res) {
   const match = authorization.match(/^Bearer\s+(.+)$/i);
   if (!match) {
     return res.status(401).json({
-      error: localized(req, "Entre com Google, GitHub ou e-mail e senha com endereço verificado para gerar imagens.", "Sign in with Google, GitHub, or email and password with a verified address to generate images.")
+      error: localized(req, "Entre com Google, GitHub, Yahoo ou e-mail e senha com endereço verificado para gerar conteúdo.", "Sign in with Google, GitHub, Yahoo, or email and password with a verified address to generate content.")
     });
   }
 
@@ -245,9 +245,9 @@ export default async function handler(req, res) {
     if (signInProvider === "password" && user.email_verified !== true) {
       return res.status(403).json({ error: localized(req, "Verifique seu e-mail antes de gerar imagens.", "Verify your email before generating images.") });
     }
-    if (!["google.com", "github.com", "password"].includes(signInProvider)) {
+    if (!["google.com", "github.com", "yahoo.com", "password"].includes(signInProvider)) {
       return res.status(403).json({
-        error: localized(req, "Use Google, GitHub ou e-mail e senha para gerar imagens.", "Use Google, GitHub, or email and password to generate images.")
+        error: localized(req, "Use Google, GitHub, Yahoo ou e-mail e senha para gerar conteúdo.", "Use Google, GitHub, Yahoo, or email and password to generate content.")
       });
     }
 
@@ -648,11 +648,35 @@ export default async function handler(req, res) {
       });
     }
 
-    if (/requested gpu duration|larger than the maximum allowed/.test(normalized)) {
+    const gpuDurationFailure = /requested gpu duration|larger than the maximum allowed|gpu duration.{0,30}(exceed|limit|maximum)|exceed.{0,30}gpu.{0,20}duration|ran for longer than.{0,20}(60|one minute|120|180)/.test(normalized);
+    if (gpuDurationFailure) {
+      const durationMessage = phase === "space-voice-clone"
+        ? localized(req,
+            "O Space de clonagem de voz rejeitou ou excedeu o limite de duração de GPU por solicitação. Isso não significa que a cota da sua conta acabou. Confira os logs do Space Nymbo/Voice-Clone-Multilingual e tente um texto menor.",
+            "The voice-cloning Space rejected or exceeded its per-request GPU duration limit. This does not mean your account quota is exhausted. Check Nymbo/Voice-Clone-Multilingual Space logs and try shorter text.")
+        : phase === "space-interpret"
+          ? localized(req,
+              "O ZeroGPU recusou ou encerrou a etapa de interpretação do Qwythos por limite de duração de GPU. Confira os logs do Space e tente novamente apenas depois de verificar se ele terminou a tarefa anterior.",
+              "ZeroGPU rejected or stopped the Qwythos image-interpretation step because of its GPU duration limit. Check Space logs and retry only after verifying the previous task has finished.")
+          : phase === "space-video"
+            ? localized(req,
+                "O Cosmos excedeu ou não conseguiu reservar a duração de GPU por solicitação. Confira os logs do Space e os limites do ZeroGPU; isso não confirma que sua cota por conta acabou.",
+                "Cosmos exceeded or could not reserve the per-request GPU duration. Check Space logs and ZeroGPU limits; this does not confirm your account quota is exhausted.")
+            : phase === "space-text"
+              ? localized(req,
+                  "A etapa do Qwen foi interrompida por um limite de execução do provedor. Confira os logs do Space e aguarde antes de repetir para evitar trabalho duplicado.",
+                  "The Qwen step was stopped by a provider execution-time limit. Check Space logs and wait before retrying to avoid duplicate work.")
+              : localized(req,
+                  "A geração de imagem excedeu ou não conseguiu reservar a duração de GPU por solicitação do ZeroGPU. Confira os logs do Hugging Face Space; isso não confirma que sua cota por conta acabou.",
+                  "Image generation exceeded or could not reserve the ZeroGPU per-request GPU duration. Check the Hugging Face Space logs; this does not confirm your account quota is exhausted.");
+      return res.status(503).json({ error: durationMessage });
+    }
+
+    if ((phase === "space-generate" || phase === "space-interpret") && /out of memory|cuda.*memory|vram|allocation failed/.test(normalized)) {
       return res.status(503).json({
         error: localized(req,
-          "O ZeroGPU rejeitou a reserva de GPU do Qwythos. O código atualizado limita a duração declarada a 180 segundos; se o erro ainda mencionar 450 s, confira se o Space concluiu o rebuild e está usando o commit mais recente.",
-          "ZeroGPU rejected the Qwythos GPU reservation. The updated code caps its declared duration at 180 seconds; if the error still reports 450s, verify that the Space finished rebuilding and is running the latest commit.")
+          "O Space não tem memória de GPU suficiente para concluir esta geração. Tente 768 × 768, reduza a carga e confira os logs do Hugging Face antes de repetir.",
+          "The Space does not have enough GPU memory to finish this generation. Try 768 × 768, reduce the workload, and check Hugging Face logs before retrying.")
       });
     }
 
@@ -680,19 +704,19 @@ export default async function handler(req, res) {
       });
     }
 
+    if (/\b(?:500|502|503|504)\b|bad gateway|internal server error|upstream.*(?:fail|error)|gateway timeout/.test(normalized)) {
+      return res.status(503).json({
+        error: localized(req,
+          "O Hugging Face Space ou o provedor de inferência retornou um erro temporário. A requisição foi registrada nos logs do backend; verifique também os logs do Space e aguarde antes de repetir para evitar tarefas duplicadas.",
+          "The Hugging Face Space or inference provider returned a temporary server error. The request is recorded in backend logs; check Space logs as well and wait before retrying to avoid duplicate jobs.")
+      });
+    }
+
     if (/sleep|starting|warming|not ready|unavailable|timed out|timeout|econn|fetch failed|\b503\b/.test(normalized)) {
       return res.status(503).json({
         error: localized(req,
           "O Space do Hugging Face está iniciando, ocupado ou temporariamente indisponível. Aguarde um pouco e tente novamente; isso não confirma que a cota foi esgotada.",
           "The Hugging Face Space is starting, busy, or temporarily unavailable. Wait a little and try again; this does not confirm that the quota is exhausted.")
-      });
-    }
-
-    if (phase === "space-voice-clone" && /requested gpu duration|gpu duration.{0,30}(exceed|limit|maximum)|exceed.{0,30}gpu.{0,20}duration|ran for longer than.{0,20}(60|one minute)/.test(normalized)) {
-      return res.status(503).json({
-        error: localized(req,
-          "O Space de clonagem rejeitou ou excedeu o limite de duração de GPU por solicitação. Isso não confirma cota da sua conta esgotada. Verifique os logs do Space Nymbo/Voice-Clone-Multilingual; se a síntese for longa, tente um texto menor e uma amostra de referência mais curta.",
-          "The voice-cloning Space rejected or exceeded its per-request GPU duration limit. This does not confirm that your account quota is exhausted. Check Nymbo/Voice-Clone-Multilingual Space logs; for long synthesis, try shorter text and a shorter reference sample.")
       });
     }
 

@@ -308,7 +308,7 @@ export async function buildUserMcpToolset(userId) {
       });
       toolMap.set(functionName, { serverId: server.serverId, toolName: tool.name });
     }
-    if (tools.length >= 20) break;
+    if (tools.length >= MAX_TOOLS_PER_TURN) break;
   }
   return { tools, toolMap, warnings };
 }

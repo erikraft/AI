@@ -2,7 +2,7 @@ import { initializeApp, cert, getApps } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 import { deleteUserMcpServer, listUserMcpServers, saveUserMcpServer } from "./_lib/mcp.js";
 
-const ALLOWED_PROVIDERS = new Set(["google.com", "github.com", "password"]);
+const ALLOWED_PROVIDERS = new Set(["google.com", "github.com", "yahoo.com", "password"]);
 
 function adminApp() {
   if (getApps().length) return getApps()[0];
