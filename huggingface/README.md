@@ -10,9 +10,9 @@ pinned: false
 This Space provides two image-generation workflows using two model checkpoints:
 
 - **Text-to-image:** `aoxo/flux.1dev-abliterated` via Diffusers at `/generate_image`. Inputs: prompt, width, height, and inference steps. Requested GPU duration: 120 seconds.
-- **Any browser-decodable input image + instructions → image:** the website normalizes the selected image to JPEG (up to 3 MiB) and uploads it through the server-side API to `/generate_image_from_image`. `fluffy12222/Qwythos-9B-Claude-Mythos-5-1M-heretic-abliterated` interprets the actual image and instructions and returns a detailed image prompt; the server invokes `/generate_image` as a separate FLUX GPU request to render the final image. Qwythos declared GPU duration: 180 seconds, lowered after ZeroGPU rejected the previous 300-second setting as a 450-second reservation.
+- **Any browser-decodable input image + instructions → image edit:** the website normalizes the selected image to JPEG (up to 3 MiB) and uploads it through the server-side API to `/generate_image_from_image`. `fluffy12222/Qwythos-9B-Claude-Mythos-5-1M-heretic-abliterated` interprets the actual image and instructions and returns a prompt explicitly prioritizing identity preservation. The server then calls `/generate_image_from_reference`, which uses `FluxImg2ImgPipeline` with the actual uploaded image as the source and a low denoising strength of `0.30`, rather than generating from text alone. This improves continuity of faces, people, clothing, pose, and composition, but cannot guarantee pixel-perfect identity. Qwythos declared GPU duration: 180 seconds; FLUX editing has a separate 120-second GPU request.
 
-The old standalone Qwythos text-only prompt-assistant endpoint (`/generate_prompt`) has been removed. Qwythos is used only when the user supplies a reference image and instructions. It interprets the input but does not generate the final image pixels; FLUX performs that separate stage.
+The old standalone Qwythos text-only prompt-assistant endpoint (`/generate_prompt`) has been removed. Qwythos is used only when the user supplies a reference image and instructions. It interprets the input; FLUX performs the actual image edit using the reference image as its img2img source. Qwythos itself is a multimodal text/vision model, not an image-pixel generator.
 
 ## Why GPU calls are split
 
@@ -70,6 +70,8 @@ This Space includes a metadata catalog for Pedro Nauck's 88 upstream agent skill
 
 
 ## Multilingual prompts
+
+The website applies separate authenticated per-model quotas: up to 15 Qwythos image edits per hour and up to 10 requests per hour for each other model by default. Set `QWYTHOS_MAX_PER_HOUR` (1–30) in Vercel to override the Qwythos allowance. Provider quotas remain independent.
 
 The website API accepts prompts in their original language for FLUX image generation and Cosmos video generation; it does not silently rewrite the user's text. The model's actual quality varies by language and prompt style, so accepting a language is not a guarantee of equal results in every language.
 

@@ -118,7 +118,7 @@
     <div class="email-auth-actions"><button id="studio-email-login" class="button primary" type="submit" data-i18n="email_sign_in">Entrar com e-mail</button><button id="studio-email-create" class="button secondary" type="button" data-i18n="create_account">Criar conta</button></div>
     <button id="studio-email-reset" class="link-button" type="button" data-i18n="forgot_password">Esqueci minha senha</button>
   </form>
-  <p class="small-note" data-i18n="studio_login_note">Até 5 gerações por hora por conta. A disponibilidade do Hugging Face pode variar.</p>
+  <p class="small-note" data-i18n="studio_login_note">Até 15 edições Qwythos por hora e até 10 solicitações por hora em cada outro modelo. A disponibilidade do Hugging Face pode variar.</p>
   <p id="studio-auth-error" class="error-text" role="alert" aria-live="polite"></p>
 </div>
 <div id="studio-password-reset-panel" class="panel studio-login-panel password-reset-panel hidden" aria-labelledby="studio-reset-title">
@@ -156,7 +156,7 @@
   </div>
   <div class="model-select-shell"><select id="model-select" aria-describedby="model-help model-runtime-notice model-filter-status">
     <option value="aoxo/flux.1dev-abliterated" data-task="image" data-search="aoxo flux flux.1-dev imagem image generate image gerar imagens text to image texto para imagem image generation geração de imagem">FLUX.1-dev — texto → imagem</option>
-    <option value="fluffy12222/Qwythos-9B-Claude-Mythos-5-1M-heretic-abliterated" data-task="image" data-search="fluffy12222 qwythos image edit image reference imagem editar imagem referência image to text to image imagem texto imagem edição de imagem">Qwythos — imagem → texto → imagem</option>
+    <option value="fluffy12222/Qwythos-9B-Claude-Mythos-5-1M-heretic-abliterated" data-task="image" data-search="fluffy12222 qwythos image edit image reference imagem editar imagem referência image to text to image imagem texto imagem edição de imagem">Qwythos — editar imagem de referência</option>
     <option value="DuoNeural/Cosmos3-Nano-Abliterated" data-task="video" data-search="duoneural cosmos3 nano video vídeo generate video gerar vídeo text to video texto para vídeo">Cosmos3 Nano — texto → vídeo (experimental)</option>
     <option value="0bserverx/Qwen3.8-27B-Heretic-Abliterated-Uncensored-GGUF" data-task="chatbot" data-search="0bserverx qwen3.8 qwen chatbot chat bot assistant assistente texto text generate text gerar texto conversa conversation ask questions perguntas">Qwen3.8 27B — assistente de texto (experimental)</option>
     <option value="tonyassi/voice-clone" data-task="audio" data-search="xtts multilingual voice clone clonagem de voz áudio audio speech fala text to speech texto para fala">XTTS-v2 — clonagem de voz (áudio → áudio)</option>
@@ -221,7 +221,7 @@
     <input id="reference-image-gallery" class="reference-file-input" type="file" accept="image/*" tabindex="-1" aria-hidden="true">
     <input id="reference-image" class="reference-file-input" name="reference-image" type="file" accept="image/*" tabindex="-1" aria-hidden="true">
   </div>
-  <p class="small-note" data-i18n="reference_image_help">Envie qualquer imagem em um formato compatível com seu navegador (arquivo original de até 12 MB) e descreva a alteração desejada. Ela será convertida para JPEG e enviada ao Qwythos; o FLUX renderiza a imagem final.</p>
+  <p class="small-note" data-i18n="reference_image_help">Envie uma imagem de até 12 MB e descreva as alterações. O Qwythos interpreta as instruções e o FLUX usa a imagem original como base de edição com baixa intensidade para ajudar a preservar rostos e aparência.</p>
   <div class="reference-image-preview-row">
     <img id="reference-image-preview" class="reference-image-preview hidden" alt="" aria-hidden="true">
     <span id="reference-image-status" class="small-note" data-i18n="reference_image_status">Nenhuma imagem selecionada.</span>
@@ -281,8 +281,8 @@
   <div class="quota-grid">
     <article class="quota-item">
       <span class="quota-label" data-i18n="quota_site_label">LIMITES DO ERIKRAFT AI</span>
-      <strong data-i18n="quota_site_value">Até 2 por hora sem login · até 5 com login</strong>
-      <p data-i18n="quota_site_desc">Sem conta, até 2 gerações por hora por IP. Com conta autenticada, até 5 gerações por hora por usuário. Esses limites são aplicados pelo backend do site para reduzir abuso.</p>
+      <strong data-i18n="quota_site_value">Até 15 edições Qwythos por hora · até 10 solicitações por hora nos demais modelos</strong>
+      <p data-i18n="quota_site_desc">A geração requer login. O backend aplica limites separados por modelo: até 15 edições Qwythos por hora e até 10 solicitações por hora em cada outro modelo.</p>
     </article>
     <article class="quota-item">
       <span class="quota-label" data-i18n="quota_gpu_label">HUGGING FACE ZEROGPU · SE APLICÁVEL</span>

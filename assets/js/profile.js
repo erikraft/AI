@@ -11,7 +11,7 @@ if (!config.apiKey || !config.authDomain || !config.projectId || !config.appId) 
     "pt-BR": {
       openProfile:"Abrir perfil", accountProfile:"Perfil da conta", closeProfile:"Fechar perfil",
       freePlan:"Plano Gratuito",
-      profilePhotoAlt:"Foto de perfil", connectedAccount:"Conta conectada", emailUnavailable:"E-mail indisponível", copyAddress:"Copiar o endereço", emailCopied:"Endereço copiado!", emailCopyFailed:"Não foi possível copiar o endereço.",
+      profilePhotoAlt:"Foto de perfil", profileAvatarEmpty:"Avatar sem foto de perfil", connectedAccount:"Conta conectada", emailUnavailable:"E-mail indisponível", copyAddress:"Copiar o endereço", emailCopied:"Endereço copiado!", emailCopyFailed:"Não foi possível copiar o endereço.",
       changePhoto:"Alterar foto", removePhoto:"Remover foto", restoreProviderPhoto:"Restaurar foto do provedor", signOut:"Sair",
       invalidImageType:"Use uma imagem PNG, JPEG ou WebP.", imageTooLarge:"A imagem deve ter no máximo 1 MiB.",
       savingPhoto:"Salvando foto…", photoUpdated:"Foto de perfil atualizada.", readImageFailed:"Não foi possível ler a imagem.",
@@ -25,7 +25,7 @@ if (!config.apiKey || !config.authDomain || !config.projectId || !config.appId) 
     en: {
       openProfile:"Open profile", accountProfile:"Account profile", closeProfile:"Close profile",
       freePlan:"Free Plan",
-      profilePhotoAlt:"Profile photo", connectedAccount:"Connected account", emailUnavailable:"Email unavailable", copyAddress:"Copy address", emailCopied:"Email address copied!", emailCopyFailed:"Could not copy the email address.",
+      profilePhotoAlt:"Profile photo", profileAvatarEmpty:"Profile avatar without a photo", connectedAccount:"Connected account", emailUnavailable:"Email unavailable", copyAddress:"Copy address", emailCopied:"Email address copied!", emailCopyFailed:"Could not copy the email address.",
       changePhoto:"Change photo", removePhoto:"Remove photo", restoreProviderPhoto:"Restore provider photo", signOut:"Sign out",
       invalidImageType:"Choose a PNG, JPEG, or WebP image.", imageTooLarge:"The image must be 1 MiB or smaller.",
       savingPhoto:"Saving photo…", photoUpdated:"Profile photo updated.", readImageFailed:"Could not read the image.",
@@ -42,12 +42,16 @@ if (!config.apiKey || !config.authDomain || !config.projectId || !config.appId) 
   let photoUrl = "";
   const style = document.createElement("style");
   style.textContent = `
-  .profile-trigger{width:36px;height:36px;flex:0 0 36px;padding:0;border:1px solid #4285f4;border-radius:50%;overflow:hidden;background:#111722;display:none;place-items:center;cursor:pointer;color:#dce7fb}
-  .profile-trigger img{width:100%;height:100%;object-fit:cover}.profile-trigger i{font-size:15px}
+  .profile-trigger{position:relative;isolation:isolate;width:36px;height:36px;flex:0 0 36px;padding:0;border:0;border-radius:50%;overflow:visible;background:#111722;display:none;place-items:center;cursor:pointer;color:#dce7fb;outline:none}
+  .profile-trigger::before,.profile-large-avatar::before{content:"";position:absolute;z-index:2;inset:-6px;padding:2px;border-radius:50%;background:linear-gradient(110deg,#a78bfa 0%,#e9d5ff 18%,#8b5cf6 36%,#d8b4fe 52%,#7c3aed 70%,#c4b5fd 86%,#a78bfa 100%);background-size:300% 100%;animation:jarvis-purple-gradient 18s ease-in-out infinite;pointer-events:none;mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);mask-composite:exclude;-webkit-mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);-webkit-mask-composite:xor}
+  .profile-trigger img{position:relative;z-index:1;width:100%;height:100%;border-radius:50%;object-fit:cover}.profile-trigger i{position:relative;z-index:1;font-size:15px}
+  .profile-trigger:focus-visible{outline:2px solid #d8b4fe;outline-offset:9px}
+  .profile-trigger:focus:not(:focus-visible){outline:none}
   .profile-popover{position:fixed;z-index:1000;top:78px;right:18px;width:min(360px,calc(100vw - 28px));max-height:calc(100dvh - 96px);overflow:auto;padding:22px;border:1px solid #30394b;border-radius:24px;background:#141720;box-shadow:0 22px 70px #000b;color:#f0f3fa;text-align:center}
-  .profile-popover[hidden]{display:none}.profile-close{position:absolute;top:10px;right:10px;display:grid;place-items:center;width:34px;height:34px;padding:0;border:1px solid #354158;border-radius:10px;background:#0e1119;color:#e8edf6;cursor:pointer}.profile-close:hover{border-color:#4285f4;background:#1b2230}.profile-close:focus-visible{outline:2px solid #9dc2ff;outline-offset:3px}.profile-close svg{width:14px;height:14px;display:block}.profile-popover .profile-head{flex-direction:column;gap:10px;margin-bottom:18px}.profile-popover .profile-large-avatar{width:76px;height:76px}.profile-popover .profile-email{font-size:13px}.profile-popover .profile-subtitle{font-size:11px}
-  .profile-plan-badge{display:inline-flex;align-items:center;justify-content:center;margin-top:9px;padding:5px 10px;border:1px solid rgba(167,139,250,.38);border-radius:999px;background:linear-gradient(135deg,rgba(124,58,237,.18),rgba(167,139,250,.08));color:#d8c4ff;font:600 10px/1.2 "DM Sans",sans-serif;letter-spacing:.02em}
-  .profile-head{display:flex;align-items:center;gap:13px;margin-bottom:16px}.profile-large-avatar{width:58px;height:58px;border-radius:50%;object-fit:cover;background:#202735;border:1px solid #3b465c;flex:0 0 auto}
+  .profile-popover[hidden]{display:none}.profile-close{position:absolute;top:10px;right:10px;display:grid;place-items:center;width:34px;height:34px;padding:0;border:1px solid #354158;border-radius:10px;background:#0e1119;color:#e8edf6;cursor:pointer}.profile-close:hover{border-color:#4285f4;background:#1b2230}.profile-close:focus-visible{outline:2px solid #9dc2ff;outline-offset:3px}.profile-close svg{width:14px;height:14px;display:block}.profile-popover .profile-head{flex-direction:column;gap:10px;margin-bottom:18px}.profile-popover .profile-large-avatar{width:76px;height:76px}.profile-popover .profile-large-avatar>i{font-size:30px}.profile-popover .profile-email{font-size:13px}.profile-popover .profile-subtitle{font-size:11px}
+  .profile-plan-badge{display:inline-flex;align-items:center;justify-content:center;margin-top:9px;padding:5px 10px;border:1px solid rgba(196,181,253,.48);border-radius:999px;background:linear-gradient(110deg,#7c3aed 0%,#a78bfa 18%,#e9d5ff 36%,#8b5cf6 52%,#d8b4fe 70%,#7c3aed 86%,#a78bfa 100%);background-size:300% 100%;animation:jarvis-purple-gradient 18s ease-in-out infinite;color:#fff;font:600 10px/1.2 "DM Sans",sans-serif;letter-spacing:.02em;box-shadow:0 2px 12px rgba(124,58,237,.16)}
+  @media(prefers-reduced-motion:reduce){.hero-jarvis,.profile-trigger::before,.profile-large-avatar::before,.profile-plan-badge{animation:none!important;background-position:50% 50%!important}}
+  .profile-head{display:flex;align-items:center;gap:13px;margin-bottom:16px}.profile-large-avatar{position:relative;isolation:isolate;display:grid;place-items:center;width:58px;height:58px;border-radius:50%;overflow:visible;background:#111722;border:0;flex:0 0 auto;color:#dce7fb}.profile-large-avatar>i{position:relative;z-index:1;font-size:23px}.profile-large-avatar>img{position:absolute;z-index:1;inset:0;width:100%;height:100%;border-radius:50%;object-fit:cover}.profile-large-avatar.is-empty>img{display:none}
   .profile-email{position:relative;display:inline-block;max-width:100%;padding:2px 0;border:0;background:transparent;color:#d5deed;font:inherit;font-size:12px;line-height:1.5;overflow-wrap:anywhere;text-align:inherit;cursor:pointer;text-decoration:underline;text-decoration-color:transparent;text-underline-offset:3px;transition:text-decoration-color .16s ease}.profile-email:hover,.profile-email:focus-visible{color:#fff;text-decoration-color:#9dc2ff}.profile-email:focus-visible{outline:2px solid #9dc2ff;outline-offset:3px;border-radius:3px}.profile-email-tooltip{position:absolute;z-index:2;left:50%;bottom:calc(100% + 9px);transform:translate(-50%,4px);width:max-content;max-width:min(240px,calc(100vw - 48px));padding:7px 10px;border:1px solid #39445a;border-radius:8px;background:#202634;color:#f0f3fa;font:500 11px/1.35 "DM Sans",sans-serif;box-shadow:0 8px 24px #0007;opacity:0;visibility:hidden;pointer-events:none;transition:opacity .14s ease,transform .14s ease,visibility .14s ease}.profile-email-tooltip:after{content:"";position:absolute;top:100%;left:50%;transform:translateX(-50%);border:5px solid transparent;border-top-color:#39445a}.profile-email:hover .profile-email-tooltip,.profile-email:focus-visible .profile-email-tooltip,.profile-email.is-tooltip-visible .profile-email-tooltip{opacity:1;visibility:visible;transform:translate(-50%,0)}.profile-email:active{transform:scale(.99)}.profile-subtitle{font-size:10px;color:#9ba8bc;margin-top:4px}
   .profile-actions{display:flex;justify-content:center;gap:9px;flex-wrap:wrap}.profile-action svg{width:12px;height:12px;vertical-align:-2px}.profile-action{border:1px solid #354158;background:#0e1119;color:#e8edf6;border-radius:12px;padding:10px 12px;font:600 11px 'DM Sans',sans-serif;cursor:pointer}.profile-action:hover{border-color:#4285f4}.profile-action.danger{color:#ffaaaa}.profile-status{font-size:11px;color:#aab8ce;min-height:18px;margin:12px 0 0}.profile-file{display:none}
   .profile-popover .profile-signout{margin-top:16px;width:100%;justify-content:center}.profile-popover .profile-divider{height:1px;background:#30394b;margin:18px 0 0}
@@ -84,7 +88,7 @@ if (!config.apiKey || !config.authDomain || !config.projectId || !config.appId) 
   popover.className = "profile-popover"; popover.hidden = true; popover.setAttribute("aria-label", profileText("accountProfile"));
   popover.innerHTML = `
     <button class="profile-close" type="button" data-profile-close aria-label="Fechar perfil" title="Fechar perfil"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512" aria-hidden="true" focusable="false"><path fill="currentColor" d="M342.6 150.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0L192 210.7 86.6 105.4c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3L146.7 256 41.4 361.4c-12.5 12.5-12.5 32.8 0 45.3s32.8 12.5 45.3 0L192 301.3l105.4 105.4c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L237.3 256l105.3-105.4z"/></svg></button>
-    <div class="profile-head"><img class="profile-large-avatar" alt="Foto de perfil"><div><button class="profile-email" type="button" aria-describedby="profile-email-tooltip"><span class="profile-email-value"></span><span id="profile-email-tooltip" class="profile-email-tooltip" role="tooltip" aria-hidden="true">Copiar o endereço</span></button><div class="profile-subtitle">Conta conectada</div><span class="profile-plan-badge" data-profile-i18n="freePlan">Plano Gratuito</span></div></div>
+    <div class="profile-head"><div class="profile-large-avatar is-empty" role="img" aria-label="Foto de perfil"><i class="fa-solid fa-user" aria-hidden="true"></i><img alt="" hidden></div><div><button class="profile-email" type="button" aria-describedby="profile-email-tooltip"><span class="profile-email-value"></span><span id="profile-email-tooltip" class="profile-email-tooltip" role="tooltip" aria-hidden="true">Copiar o endereço</span></button><div class="profile-subtitle">Conta conectada</div><span class="profile-plan-badge" data-profile-i18n="freePlan">Plano Gratuito</span></div></div>
     <div class="profile-actions"><button class="profile-action" type="button" data-profile-upload><i class="fa-solid fa-pen" aria-hidden="true"></i> <span data-profile-i18n="changePhoto">Alterar foto</span></button><button class="profile-action danger" type="button" data-profile-delete><i class="fa-solid fa-trash" aria-hidden="true"></i> <span data-profile-i18n="removePhoto">Remover foto</span></button><button class="profile-action" type="button" data-profile-restore title="Restaurar foto do provedor" aria-label="Restaurar foto do provedor"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" aria-hidden="true" focusable="false"><path fill="currentColor" d="M463.5 224l8.5 0c13.3 0 24-10.7 24-24l0-128c0-9.7-5.8-18.5-14.8-22.2s-19.3-1.7-26.2 5.2L413.4 96.6c-87.6-86.5-228.7-86.2-315.8 1c-87.5 87.5-87.5 229.3 0 316.8s229.3 87.5 316.8 0c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0c-62.5 62.5-163.8 62.5-226.3 0s-62.5-163.8 0-226.3c62.2-62.2 162.7-62.5 225.3-1L327 183c-6.9 6.9-8.9 17.2-5.2 26.2s12.5 14.8 22.2 14.8l119.5 0z"/></svg> <span data-profile-i18n="restoreProviderPhoto">Restaurar foto</span></button></div>
     <input class="profile-file" type="file" accept="image/png,image/jpeg,image/webp"><p class="profile-status" role="status" aria-live="polite"></p><div class="profile-divider"></div><button class="button secondary small profile-signout" type="button"><i class="fa-solid fa-right-from-bracket" aria-hidden="true"></i> <span data-profile-i18n="signOut">Sair</span></button>
     <button class="profile-action danger profile-delete-account" type="button" data-profile-delete-account><i class="fa-solid fa-trash" aria-hidden="true"></i> <span data-profile-i18n="deleteAccount">Excluir conta</span></button>`;
@@ -116,7 +120,7 @@ if (!config.apiKey || !config.authDomain || !config.projectId || !config.appId) 
   function updateProfileLanguage() {
     trigger.setAttribute("aria-label", profileText("openProfile"));
     popover.setAttribute("aria-label", profileText("accountProfile"));
-    avatar.alt = profileText("profilePhotoAlt");
+    avatar.setAttribute("aria-label", profileText(avatar.classList.contains("is-empty") ? "profileAvatarEmpty" : "profilePhotoAlt"));
     emailTooltip.textContent = profileText("copyAddress");
     const close = popover.querySelector("[data-profile-close]");
     close.setAttribute("aria-label", profileText("closeProfile"));
@@ -181,11 +185,19 @@ if (!config.apiKey || !config.authDomain || !config.projectId || !config.appId) 
   function setPhoto(url) {
     photoUrl = url || "";
     trigger.innerHTML = photoUrl ? "" : '<i class="fa-solid fa-user" aria-hidden="true"></i>';
+    const avatarImage = avatar.querySelector("img");
     if (photoUrl) {
       const image = document.createElement("img"); image.src = photoUrl; image.alt = "";
-      trigger.append(image); avatar.src = photoUrl; avatar.classList.remove("hidden");
+      trigger.append(image);
+      avatarImage.src = photoUrl;
+      avatarImage.hidden = false;
+      avatar.classList.remove("is-empty");
+      avatar.setAttribute("aria-label", profileText("profilePhotoAlt"));
     } else {
-      avatar.removeAttribute("src"); avatar.classList.add("hidden");
+      avatarImage.removeAttribute("src");
+      avatarImage.hidden = true;
+      avatar.classList.add("is-empty");
+      avatar.setAttribute("aria-label", profileText("profileAvatarEmpty"));
     }
   }
   async function request(method = "GET", body) {

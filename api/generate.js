@@ -10,9 +10,16 @@ const WINDOW_MS = 60 * 60 * 1000;
 // Keep a finite free-tier default; provider limits remain independent.
 const DEFAULT_ACCOUNT_MAX_PER_WINDOW = 10;
 const MAX_CONFIGURABLE_ACCOUNT_MAX_PER_WINDOW = 20;
+const DEFAULT_QWYTHOS_MAX_PER_WINDOW = 15;
+const MAX_CONFIGURABLE_QWYTHOS_MAX_PER_WINDOW = 30;
 function getAccountMaxPerWindow() {
   const configured = Number.parseInt(process.env.GENERATION_MAX_PER_HOUR || "", 10);
   if (!Number.isInteger(configured) || configured < 1 || configured > MAX_CONFIGURABLE_ACCOUNT_MAX_PER_WINDOW) return DEFAULT_ACCOUNT_MAX_PER_WINDOW;
+  return configured;
+}
+function getQwythosMaxPerWindow() {
+  const configured = Number.parseInt(process.env.QWYTHOS_MAX_PER_HOUR || "", 10);
+  if (!Number.isInteger(configured) || configured < 1 || configured > MAX_CONFIGURABLE_QWYTHOS_MAX_PER_WINDOW) return DEFAULT_QWYTHOS_MAX_PER_WINDOW;
   return configured;
 }
 const MAX_PROMPT_LENGTH = 1500;
@@ -303,8 +310,10 @@ export default async function handler(req, res) {
 
     phase = "quota-check";
     db = getFirestore(app);
-    const limit = getAccountMaxPerWindow();
-    quotaRef = db.collection("generation_limits").doc(user.uid);
+    const quotaKey = isQwythos ? "qwythos" : isCosmos ? "cosmos" : isQwen ? "qwen" : isVoiceClone ? "voice" : "flux";
+    const limit = isQwythos ? getQwythosMaxPerWindow() : getAccountMaxPerWindow();
+    // Separate transactional buckets keep the larger Qwythos allowance model-specific.
+    quotaRef = db.collection("generation_limits").doc(`${user.uid}_${quotaKey}`);
     const now = Date.now();
 
     reservation = await db.runTransaction(async (tx) => {
@@ -327,8 +336,8 @@ export default async function handler(req, res) {
     if (!reservation.allowed) {
       return res.status(429).json({
         error: localized(req,
-          "Você atingiu o limite gratuito de gerações por hora nesta conta. Tente novamente depois que a cota for renovada.",
-          "You have reached this account’s free hourly generation limit. Please try again after the quota resets."),
+          "Você atingiu o limite gratuito por hora deste modelo. Tente novamente depois que a cota for renovada.",
+          "You have reached this model’s free hourly limit. Please try again after the quota resets."),
         limit,
         remaining: 0,
         resetAt: reservation.startedAt + WINDOW_MS
@@ -499,8 +508,8 @@ export default async function handler(req, res) {
       // their own GPU duration budget instead of requesting 450 seconds in one call.
       phase = "space-generate";
       result = await client.predict(
-        "/generate_image",
-        [generatedPrompt.trim().slice(0, MAX_PROMPT_LENGTH), Number(width), Number(height), Number(steps)]
+        "/generate_image_from_image_render",
+        [generatedPrompt.trim().slice(0, MAX_PROMPT_LENGTH), referenceImageFile, Number(width), Number(height), Number(steps)]
       );
     } else {
       phase = "space-generate";
@@ -535,7 +544,13 @@ export default async function handler(req, res) {
       limit,
       remaining: Math.max(0, limit - reservation.count),
       tier: "account",
-      message: localized(req, "Limite da conta: 5 gerações por hora.", "Account limit: 5 generations per hour.")
+      message: localized(req,
+        isQwythos
+          ? `Limite Qwythos: ${limit} edições por hora.`
+          : `Limite deste modelo: ${limit} gerações por hora.`,
+        isQwythos
+          ? `Qwythos limit: ${limit} edits per hour.`
+          : `This model's limit: ${limit} generations per hour.`)
     });
   } catch (error) {
     const rawMessage = String(error?.message || error || "Unknown error");

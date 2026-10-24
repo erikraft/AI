@@ -241,6 +241,7 @@ test("history supports owner-scoped bulk deletion and hides private history from
   assert.match(app, /new Intl\.DateTimeFormat\(locale, \{ dateStyle: "medium", timeStyle: "short" \}\)/);
   assert.match(css, /\.prompt-panel:not\(\.hidden\) #image-options-row/);
   assert.match(css, /\.prompt-panel:not\(\.hidden\) #generate/);
+  assert.match(css, /#image-options-row\s*\{\s*margin-bottom:\s*16px;\s*\}/);
 });
 
 test("account deletion and legal pages disclose Hugging Face provider-side retention in both languages", () => {
@@ -365,6 +366,8 @@ test("multilingual prompts are preserved and text/image-editing models infer the
   assert.match(api, /\[prompt\.trim\(\), "auto", spaceApiSecret, JSON\.stringify\(toolset\.tools\), JSON\.stringify\(messages\)\]/);
   assert.match(api, /\[prompt\.trim\(\), referenceImageFile, "auto"\]/);
   assert.match(api, /\[prompt\.trim\(\), Number\(width\), Number\(height\), Number\(steps\)\]/);
+  assert.ok(api.includes('"/generate_image_from_image_render"'));
+  assert.match(space, /api_name="generate_image_from_image_render"/);
   assert.match(space, /the same language as the user's instructions \(detect the language automatically\)/);
   assert.match(space, /the same language as the user's prompt \(detect it automatically\)/);
   assert.match(space, /language_value\.lower\(\) in \{"auto", "detect"\}/);
@@ -440,4 +443,21 @@ test("Qwen custom MCP controls are bilingual and do not render server-supplied t
   assert.match(env, /MCP_ENCRYPTION_KEY=/);
   assert.match(readme, /MCP Streamable HTTP/);
   assert.match(readme, /automatic authorization\/redirect flow/);
+});
+
+test("Qwythos reference editing preserves source dimensions and MCP controls have bilingual translations", () => {
+  const space = readFileSync(new URL("../huggingface/app.py", import.meta.url), "utf8");
+  const app = readFileSync(new URL("../assets/js/app.js", import.meta.url), "utf8");
+  assert.match(space, /image=source,[\s\S]*?width=safe_width,[\s\S]*?height=safe_height,/);
+  const keys = [
+    "mcp_auth_required", "mcp_load_error", "mcp_empty", "mcp_connection_tunnel",
+    "mcp_connection_url", "mcp_auth_oauth", "mcp_auth_mixed", "mcp_auth_none",
+    "mcp_write_enabled", "mcp_read_only_enabled", "mcp_delete", "mcp_delete_confirm",
+    "mcp_deleted", "mcp_name_required", "mcp_url_required", "mcp_trust_required",
+    "mcp_token_label", "mcp_connecting", "mcp_connected"
+  ];
+  for (const key of keys) {
+    assert.match(app, new RegExp(key + ":"));
+    assert.ok((app.match(new RegExp(key + ":", "g")) || []).length >= 2, key + " must be translated in both locales");
+  }
 });
