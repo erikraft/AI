@@ -64,11 +64,14 @@ export default async function handler(req, res) {
     const message = String(error?.message || error || "MCP server operation failed");
     console.error("[mcp-servers]", message);
     const status = /not found for this account/i.test(message) ? 404
-      : /up to 10 MCP servers|must contain|enter a name|provide an OAuth|remove the access token|MCP_ENCRYPTION_KEY|HTTPS URL|private|reserved|hostname|valid MCP server URL|redirects are blocked|authentication failed|HTTP \d+|JSON-RPC|invalid JSON|could not be resolved/i.test(message) ? 400 : 502;
+      : /MCP_ENCRYPTION_KEY|MONGODB_URI is not configured/i.test(message) ? 503
+      : /up to 10 MCP servers|must contain|enter a name|provide an OAuth|remove the access token|HTTPS URL|private|reserved|hostname|valid MCP server URL|redirects are blocked|authentication failed|HTTP \\d+|JSON-RPC|invalid JSON|could not be resolved/i.test(message) ? 400 : 502;
     return res.status(status).json({
-      error: status === 502
-        ? "Could not connect to the MCP server or discover its tools. Check its endpoint, authentication, and availability."
-        : message
+      error: status === 503 && /MCP_ENCRYPTION_KEY/.test(message)
+        ? "Configure MCP_ENCRYPTION_KEY as a 32-byte hex or base64 Vercel environment secret before saving OAuth tokens."
+        : status === 502
+          ? "Could not connect to the MCP server or discover its tools. Check its endpoint, authentication, and availability."
+          : message
     });
   }
 }
