@@ -153,7 +153,8 @@ function cleanToolSchema(tool) {
   return {
     name: tool.name,
     description: String(tool.description || "MCP tool").slice(0, 1000),
-    inputSchema: schema
+    inputSchema: schema,
+    readOnlyHint: tool.annotations?.readOnlyHint === true
   };
 }
 
@@ -190,6 +191,7 @@ export async function saveUserMcpServer(userId, input) {
     url: (await validateMcpUrl(input.url)).href,
     connection: input.connection === "tunnel" ? "tunnel" : "url",
     authMode: ["OAUTH", "NONE", "MIXED"].includes(input.authMode) ? input.authMode : "NONE",
+    allowWriteTools: input.allowWriteTools === true,
     encryptedToken: input.token ? encryptMcpToken(input.token) : null,
     updatedAt: new Date()
   };
@@ -227,7 +229,8 @@ export async function buildUserMcpToolset(userId) {
     try {
       const discovered = await discoverTools(server);
       for (const tool of discovered) {
-        if (tools.length >= 50) break;
+        if (!tool.readOnlyHint && server.allowWriteTools !== true) continue;
+        if (tools.length >= 20) break;
         const functionName = ("mcp_" + server.serverId.slice(-8) + "_" + tool.name).replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 64);
         if (toolMap.has(functionName)) continue;
         tools.push({
