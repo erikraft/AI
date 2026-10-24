@@ -24,7 +24,7 @@ else:
         f"cuda_available={torch.cuda.is_available()}"
     )
 
-from diffusers import DiffusionPipeline
+from diffusers import DiffusionPipeline, FluxImg2ImgPipeline
 from PIL import Image
 from transformers import AutoModelForImageTextToText, AutoProcessor
 
@@ -40,6 +40,7 @@ QWEN_GGUF_FILE = "RVN-IQ2_XS.gguf"
 MAX_QWYTHOS_GPU_SECONDS = 180
 
 pipe = None
+pipe_mode = None
 qwythos_vision_model = None
 qwythos_processor = None
 cosmos_pipe = None
@@ -57,10 +58,11 @@ def _authorize_experimental_api(candidate: str):
 
 def _clear_models(except_model: str):
     """Unload every model except the selected one to limit shared RAM/VRAM pressure."""
-    global pipe, qwythos_vision_model, qwythos_processor, cosmos_pipe, qwen_text_model
-    if except_model != "flux" and pipe is not None:
+    global pipe, pipe_mode, qwythos_vision_model, qwythos_processor, cosmos_pipe, qwen_text_model
+    if except_model not in {"flux", "flux-img2img"} and pipe is not None:
         del pipe
         pipe = None
+        pipe_mode = None
     if except_model != "qwythos":
         if qwythos_vision_model is not None:
             del qwythos_vision_model
@@ -117,14 +119,25 @@ def _has_cached_repo(repo_cache_name: str, minimum_bytes: int = 1_000_000_000) -
     return _cached_repo_size_gib(repo_cache_name) * (1024 ** 3) >= minimum_bytes
 
 
-def _load_flux():
-    global pipe
-    _clear_models("flux")
+def _load_flux(image_to_image: bool = False):
+    """Load one FLUX pipeline variant at a time to avoid duplicate weights in RAM."""
+    global pipe, pipe_mode
+    requested_mode = "img2img" if image_to_image else "text2img"
+    if pipe is not None and pipe_mode != requested_mode:
+        del pipe
+        pipe = None
+        pipe_mode = None
+        gc.collect()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+    _clear_models("flux-img2img" if image_to_image else "flux")
     if pipe is None:
-        pipe = DiffusionPipeline.from_pretrained(
+        pipeline_class = FluxImg2ImgPipeline if image_to_image else DiffusionPipeline
+        pipe = pipeline_class.from_pretrained(
             FLUX_MODEL_ID,
             torch_dtype=torch.bfloat16,
         )
+        pipe_mode = requested_mode
     return pipe
 
 
@@ -222,10 +235,13 @@ def generate_image_from_image(
                 {
                     "type": "text",
                     "text": (
-                        "Use the reference image and user instructions to write a detailed image-generation prompt. "
-                        "Describe the subject, composition, colors, lighting, setting, and style, and incorporate the "
-                        "requested changes. Return only the final prompt in " + language_name + ". "
-                        "Do not claim that an image has already been generated.\n\n"
+                        "Use the reference image and user instructions to write a concise image-edit prompt. "
+                        "The uploaded image is the source image to EDIT, not merely visual inspiration. Preserve the "
+                        "same people and recognizable identities: facial structure, eyes, nose, mouth, skin tone, age, "
+                        "hairstyle, body proportions, clothing, pose, and positions. Do not replace, beautify, redesign, "
+                        "or invent faces. Change only what the user explicitly requests; preserve all other visible "
+                        "details, framing, and background. Return only the final prompt in " + language_name + ". "
+                        "Do not claim an image has already been generated.\n\n"
                         "User instructions: " + prompt
                     ),
                 },
@@ -253,6 +269,12 @@ def generate_image_from_image(
         )[0].strip()
         if not generated_prompt:
             raise gr.Error("Qwythos did not return a usable image prompt.")
+        identity_preservation = (
+            "Preserve the same recognizable people and facial identities from the reference image; "
+            "do not change faces, skin tone, age, hairstyle, body proportions, clothing, pose, or positions. "
+            "Apply only the requested edits and keep all other details unchanged."
+        )
+        generated_prompt = generated_prompt.rstrip(" .") + ". " + identity_preservation
         return generated_prompt[:1500]
     except gr.Error:
         raise
@@ -274,6 +296,58 @@ def generate_image_from_image(
                 qwythos_vision_model.to("cpu")
             except Exception:
                 pass
+        gc.collect()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+
+
+@spaces.GPU(duration=120)
+def generate_image_from_reference(
+    prompt: str,
+    reference_image: Image.Image,
+    width: int = 768,
+    height: int = 768,
+    steps: int = 20,
+):
+    """Edit the actual source image instead of regenerating from text alone."""
+    if not isinstance(reference_image, Image.Image):
+        raise gr.Error("Upload a valid reference image.")
+    prompt = (prompt or "").strip()
+    if not prompt or len(prompt) > 1500:
+        raise gr.Error("Prompt must contain 1–1500 characters.")
+    if (int(width), int(height)) not in {(768, 768), (1024, 768), (768, 1024)}:
+        raise gr.Error("Unsupported image dimensions.")
+    if int(steps) not in {20, 28}:
+        raise gr.Error("Unsupported inference step count.")
+    image_pipe = _load_flux(image_to_image=True)
+    try:
+        image_pipe.to("cuda")
+        # Preserve the whole source image and aspect ratio; do not crop people to force a canvas ratio.
+        source = reference_image.convert("RGB")
+        source.thumbnail((1024, 1024), Image.Resampling.LANCZOS)
+        safe_width = max(16, (source.width // 16) * 16)
+        safe_height = max(16, (source.height // 16) * 16)
+        if source.size != (safe_width, safe_height):
+            source = source.resize((safe_width, safe_height), Image.Resampling.LANCZOS)
+        result = image_pipe(
+            prompt=prompt,
+            image=source,
+            strength=0.30,
+            num_inference_steps=int(steps),
+            guidance_scale=3.5,
+        )
+        return result.images[0]
+    except torch.cuda.OutOfMemoryError as exc:
+        raise gr.Error("FLUX image editing ran out of GPU memory. Try a smaller reference image or use hardware with more memory.") from exc
+    except gr.Error:
+        raise
+    except Exception as exc:
+        raise gr.Error("FLUX could not edit the reference image. Check Diffusers compatibility and Space logs: " + str(exc)[:240]) from exc
+    finally:
+        try:
+            image_pipe.to("cpu")
+        except Exception:
+            pass
         gc.collect()
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
@@ -574,7 +648,7 @@ with gr.Blocks(title="ErikrafT AI — FLUX + Qwythos", delete_cache=(3600, 86400
     gr.Markdown(
         "# ErikrafT AI — Image + Text to Image\n"
         "Choose FLUX for text-to-image generation, or upload a reference image and instructions "
-        "to let Qwythos interpret the request before FLUX renders the result. "
+        "to let Qwythos interpret the request before FLUX edits the actual source image at low strength. "
         "Each model runs in a separate GPU request to stay within the provider's duration limit."
     )
     gr.Markdown(
@@ -627,8 +701,8 @@ with gr.Blocks(title="ErikrafT AI — FLUX + Qwythos", delete_cache=(3600, 86400
             interpreted_prompt,
             api_name="generate_image_from_image",
         ).then(
-            generate_image,
-            [interpreted_prompt, image_width, image_height, image_steps],
+            generate_image_from_reference,
+            [interpreted_prompt, reference_image, image_width, image_height, image_steps],
             image_output,
             api_name="generate_image_from_image_render",
         )
