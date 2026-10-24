@@ -533,3 +533,16 @@
 .hero-jarvis{display:inline-block;color:#c4a1ff;background:linear-gradient(110deg,#a78bfa 0%,#e9d5ff 18%,#8b5cf6 36%,#d8b4fe 52%,#7c3aed 70%,#c4b5fd 86%,#a78bfa 100%);background-size:300% 100%;background-clip:text;-webkit-background-clip:text;-webkit-text-fill-color:transparent;animation:jarvis-purple-gradient 18s ease-in-out infinite}
 @keyframes jarvis-purple-gradient{0%,100%{background-position:0% 50%}50%{background-position:100% 50%}}
 @media(prefers-reduced-motion:reduce){.hero-jarvis{animation:none;background-position:50% 50%}}
+
+
+/* Additional identity providers */
+.additional-login-options{margin-top:12px;border:1px solid var(--border);border-radius:11px;background:#0b0e15;overflow:hidden;}
+.additional-login-options summary{display:flex;align-items:center;justify-content:center;gap:10px;min-height:46px;padding:12px 14px;color:var(--text);font-size:12px;font-weight:700;cursor:pointer;list-style:none;}
+.additional-login-options summary::-webkit-details-marker{display:none;}
+.additional-login-options summary::after{content:"";width:7px;height:7px;border-right:1.5px solid currentColor;border-bottom:1.5px solid currentColor;transform:rotate(45deg) translateY(-2px);transition:transform .18s ease;}
+.additional-login-options[open] summary::after{transform:rotate(225deg) translate(-1px,-1px);}
+.additional-login-menu{padding:0 12px 12px;}
+.additional-login-menu .provider-button{margin-top:0;min-height:48px;}
+.yahoo-logo{object-fit:contain;}
+.additional-login-options summary:focus-visible{outline:2px solid var(--blue);outline-offset:-3px;}
+@media(prefers-reduced-motion:reduce){.additional-login-options summary::after{transition:none}}
