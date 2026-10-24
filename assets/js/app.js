@@ -6,6 +6,8 @@ const configured = Boolean(firebaseConfig.apiKey && firebaseConfig.authDomain &&
 const $ = (id) => document.getElementById(id);
 let auth = null;
 let currentUser = null;
+let mcpLoadedUserUid = null;
+let mcpLoadPromise = null;
 let accountUser = null;
 let imageUrl = "";
 let videoUrl = "";
@@ -294,6 +296,8 @@ if (configured) {
     $("login-open").classList.toggle("hidden", Boolean(currentUser));
     $("logout").classList.toggle("hidden", !user);
     updateStudioAccess(currentUser);
+    mcpLoadedUserUid = null;
+    if (modelSelect.value === QWEN_MODEL) void loadMcpServers(true);
     void loadHistory();
     if (user && !currentUser) {
       $("studio-auth-error").textContent = languageText("email_verification_required");
@@ -560,6 +564,13 @@ function updateModelSelection() {
   const isCosmos = task === "video";
   const isQwen = task === "text";
   const isVoice = task === "voice";
+  const mcpPanel = $("qwen-mcp-panel");
+  if (mcpPanel) {
+    mcpPanel.hidden = !isQwen;
+    mcpPanel.classList.toggle("hidden", !isQwen);
+    mcpPanel.setAttribute("aria-hidden", String(!isQwen));
+  }
+  if (isQwen && currentUser) void loadMcpServers();
   const studioGrid = $("studio-grid");
   studioGrid.classList.toggle("is-chatbot", isQwen);
   const resultStage = $("result-stage");
@@ -671,6 +682,177 @@ function filterModels() {
   const status = $("model-filter-status");
   if (status) status.textContent = matches ? String(matches) + " " + languageText("model_filter_count") : languageText("model_filter_empty");
 }
+function mcpStatus(message, kind = "") {
+  const status = $("qwen-mcp-status");
+  if (!status) return;
+  status.textContent = message;
+  status.className = "small-note qwen-mcp-status" + (kind ? " is-" + kind : "");
+}
+
+async function mcpRequest(method, body = null, query = "") {
+  if (!currentUser) throw new Error(languageText("mcp_auth_required"));
+  const headers = { Authorization: "Bearer " + await currentUser.getIdToken() };
+  if (body) headers["Content-Type"] = "application/json";
+  const response = await fetch("/api/mcp-servers" + query, {
+    method,
+    headers,
+    ...(body ? { body: JSON.stringify(body) } : {}),
+    cache: "no-store"
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error || languageText("mcp_load_error"));
+  return data;
+}
+
+function renderMcpServers(servers) {
+  const list = $("qwen-mcp-list");
+  if (!list) return;
+  list.replaceChildren();
+  if (!servers.length) {
+    const empty = document.createElement("p");
+    empty.className = "small-note";
+    empty.textContent = languageText("mcp_empty");
+    list.appendChild(empty);
+    return;
+  }
+  for (const server of servers) {
+    const card = document.createElement("article");
+    card.className = "qwen-mcp-server";
+    const copy = document.createElement("div");
+    copy.className = "qwen-mcp-server-copy";
+    const title = document.createElement("strong");
+    title.textContent = server.name;
+    const description = document.createElement("p");
+    description.textContent = server.description || (document.documentElement.lang === "en" ? "Custom MCP server" : "Servidor MCP personalizado");
+    const url = document.createElement("p");
+    url.className = "qwen-mcp-server-url";
+    url.textContent = server.url;
+    const metadata = document.createElement("p");
+    metadata.textContent = (server.connection === "tunnel" ? languageText("mcp_connection_tunnel") : languageText("mcp_connection_url"))
+      + " · " + (server.authMode === "OAUTH" ? languageText("mcp_auth_oauth") : server.authMode === "MIXED" ? languageText("mcp_auth_mixed") : languageText("mcp_auth_none"))
+      + " · " + (server.allowWriteTools ? languageText("mcp_write_enabled") : languageText("mcp_read_only_enabled"));
+    copy.append(title, description, url, metadata);
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "qwen-mcp-delete";
+    remove.textContent = languageText("mcp_delete");
+    remove.addEventListener("click", async () => {
+      if (!window.confirm(languageText("mcp_delete_confirm"))) return;
+      remove.disabled = true;
+      try {
+        await mcpRequest("DELETE", { id: server.id }, "?id=" + encodeURIComponent(server.id));
+        mcpStatus(languageText("mcp_deleted"), "success");
+        await loadMcpServers(true);
+      } catch (error) {
+        mcpStatus(error?.message || languageText("mcp_load_error"), "error");
+        remove.disabled = false;
+      }
+    });
+    card.append(copy, remove);
+    list.appendChild(card);
+  }
+}
+
+async function loadMcpServers(force = false) {
+  if (!currentUser) {
+    $("qwen-mcp-list")?.replaceChildren();
+    mcpLoadedUserUid = null;
+    return;
+  }
+  if (!force && mcpLoadedUserUid === currentUser.uid) return;
+  if (mcpLoadPromise) return mcpLoadPromise;
+  const uid = currentUser.uid;
+  mcpLoadPromise = (async () => {
+    try {
+      const data = await mcpRequest("GET");
+      if (currentUser?.uid !== uid) return;
+      renderMcpServers(Array.isArray(data.servers) ? data.servers : []);
+      mcpLoadedUserUid = uid;
+    } catch (error) {
+      mcpStatus(error?.message || languageText("mcp_load_error"), "error");
+    } finally {
+      mcpLoadPromise = null;
+    }
+  })();
+  return mcpLoadPromise;
+}
+
+$("qwen-mcp-add-toggle")?.addEventListener("click", () => {
+  const form = $("qwen-mcp-form");
+  const opening = form.hidden;
+  form.hidden = !opening;
+  form.classList.toggle("hidden", !opening);
+  if (opening) $("qwen-mcp-name").focus();
+});
+$("qwen-mcp-cancel")?.addEventListener("click", () => {
+  $("qwen-mcp-form").hidden = true;
+  $("qwen-mcp-form").classList.add("hidden");
+  $("qwen-mcp-token").value = "";
+  $("qwen-mcp-trust").checked = false;
+  $("qwen-mcp-write-trust").checked = false;
+  mcpStatus("");
+});
+function updateMcpTunnelNote() {
+  const note = $("qwen-mcp-tunnel-note");
+  const active = $("qwen-mcp-connection")?.value === "tunnel";
+  if (!note) return;
+  note.hidden = !active;
+  note.classList.toggle("hidden", !active);
+}
+$("qwen-mcp-connection")?.addEventListener("change", updateMcpTunnelNote);
+
+$("qwen-mcp-auth")?.addEventListener("change", () => {
+  const mode = $("qwen-mcp-auth").value;
+  const token = $("qwen-mcp-token");
+  token.disabled = mode === "NONE";
+  token.required = mode === "OAUTH";
+  if (mode === "NONE") token.value = "";
+});
+$("qwen-mcp-save")?.addEventListener("click", async () => {
+  const name = $("qwen-mcp-name").value.trim();
+  const url = $("qwen-mcp-url").value.trim();
+  const authMode = $("qwen-mcp-auth").value;
+  const token = $("qwen-mcp-token").value.trim();
+  if (!name) return mcpStatus(languageText("mcp_name_required"), "error");
+  if (!url) return mcpStatus(languageText("mcp_url_required"), "error");
+  if (!$("qwen-mcp-trust").checked) return mcpStatus(languageText("mcp_trust_required"), "error");
+  if (authMode === "OAUTH" && !token) return mcpStatus(languageText("mcp_token_label"), "error");
+  const save = $("qwen-mcp-save");
+  save.disabled = true;
+  mcpStatus(languageText("mcp_connecting"));
+  try {
+    await mcpRequest("POST", {
+      name,
+      description: $("qwen-mcp-description").value.trim(),
+      connection: $("qwen-mcp-connection").value,
+      url,
+      authMode,
+      token: authMode === "NONE" ? "" : token,
+      allowWriteTools: $("qwen-mcp-write-trust").checked,
+      acknowledged: true
+    });
+    $("qwen-mcp-name").value = "";
+    $("qwen-mcp-description").value = "";
+    $("qwen-mcp-connection").value = "url";
+    updateMcpTunnelNote();
+    $("qwen-mcp-url").value = "";
+    $("qwen-mcp-auth").value = "OAUTH";
+    $("qwen-mcp-form").hidden = true;
+    $("qwen-mcp-form").classList.add("hidden");
+    $("qwen-mcp-token").value = "";
+    $("qwen-mcp-trust").checked = false;
+    $("qwen-mcp-write-trust").checked = false;
+    $("qwen-mcp-token").disabled = false;
+    mcpStatus(languageText("mcp_connected"), "success");
+    mcpLoadedUserUid = null;
+    await loadMcpServers(true);
+  } catch (error) {
+    mcpStatus(error?.message || languageText("mcp_load_error"), "error");
+  } finally {
+    save.disabled = false;
+  }
+});
+
 modelSelect.addEventListener("change", updateModelSelection);
 $("model-search")?.addEventListener("input", filterModels);
 $("model-task-filter")?.addEventListener("change", filterModels);
@@ -1125,7 +1307,7 @@ $("generator-form").addEventListener("submit", async (event) => {
   const requestController = new AbortController();
   // Qwen runs on CPU and has its own server-side budget; this is a final UI
   // safeguard for transport failures that would otherwise leave "Thinking…" visible.
-  const requestTimeoutMs = isQwenRequest ? 180_000 : 285_000;
+  const requestTimeoutMs = isQwenRequest ? 285_000 : 285_000;
   const requestTimeoutId = window.setTimeout(() => requestController.abort(), requestTimeoutMs);
   try {
     const headers = { "Content-Type": "application/json", Authorization: "Bearer " + await currentUser.getIdToken() };

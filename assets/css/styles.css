@@ -1193,3 +1193,33 @@
   .result-stage.is-chat-result { max-height: 78vh; }
   .result-stage.is-chat-result .qwen-chat-thread { max-height: 36vh; }
 }
+
+
+/* Custom MCP server management for the experimental Qwen chatbot. */
+.qwen-mcp-panel{margin:16px 0 18px;padding:16px;border:1px solid #393640;border-radius:14px;background:linear-gradient(145deg,rgba(134,125,108,.09),rgba(12,11,14,.75));min-width:0}
+.qwen-mcp-panel[hidden],.qwen-mcp-form[hidden]{display:none!important}
+.qwen-mcp-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:14px}
+.qwen-mcp-heading h3{margin:0;font-size:14px;line-height:1.5}
+.qwen-mcp-heading .small-note{margin:5px 0 0;max-width:540px}
+.qwen-mcp-form{display:grid;gap:8px;margin-top:16px;padding-top:15px;border-top:1px solid var(--border)}
+.qwen-mcp-form>label:not(.qwen-mcp-trust){font-size:11px;font-weight:700;margin:5px 0 0}
+.qwen-mcp-form input:not([type=checkbox]),.qwen-mcp-form textarea,.qwen-mcp-form select{display:block;width:100%;min-width:0;padding:10px 11px;border:1px solid #393640;border-radius:9px;background:#0b0a0d;color:var(--text);font:12px/1.6 var(--sans);outline:none}
+.qwen-mcp-form input:focus,.qwen-mcp-form textarea:focus,.qwen-mcp-form select:focus{border-color:#9c9280;box-shadow:0 0 0 3px rgba(156,146,128,.14)}
+.qwen-mcp-form input::placeholder,.qwen-mcp-form textarea::placeholder{color:#88828b}
+.qwen-mcp-form textarea{resize:vertical;min-height:62px}
+.qwen-mcp-trust{display:flex;align-items:flex-start;gap:10px;margin-top:9px;font-size:11px;line-height:1.7}
+.qwen-mcp-trust input{flex:0 0 auto;margin-top:4px;accent-color:#a79a83}
+.qwen-mcp-warning{margin:0;padding:11px 12px;border:1px solid rgba(226,161,61,.3);border-radius:9px;background:rgba(226,161,61,.06);color:#d8c9ad;font-size:10px;line-height:1.75}
+.qwen-mcp-actions{display:flex;flex-wrap:wrap;gap:9px;margin-top:6px}
+.qwen-mcp-list{display:grid;gap:9px;margin-top:10px}
+.qwen-mcp-server{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:12px;border:1px solid #393640;border-radius:10px;background:rgba(8,8,10,.6);min-width:0}
+.qwen-mcp-server-copy{min-width:0;overflow-wrap:anywhere}
+.qwen-mcp-server-copy strong{display:block;font-size:12px}
+.qwen-mcp-server-copy p{margin:3px 0 0;color:var(--muted);font-size:10px;line-height:1.65;overflow-wrap:anywhere}
+.qwen-mcp-server-copy .qwen-mcp-server-url{color:#b7b0a5}
+.qwen-mcp-delete{flex:0 0 auto;padding:7px 9px;border:1px solid #633a3a;border-radius:8px;background:#271719;color:#ffb5b5;font-size:10px;cursor:pointer}
+.qwen-mcp-delete:disabled,.qwen-mcp-actions button:disabled{opacity:.5;cursor:wait}
+.qwen-mcp-status:not(:empty){margin:10px 0 0;padding:8px 10px;border:1px solid #393640;border-radius:8px;overflow-wrap:anywhere}
+.qwen-mcp-status.is-error{border-color:#82434a;color:#ffb5b5}
+.qwen-mcp-status.is-success{border-color:#42674d;color:#b4e2bf}
+@media(max-width:520px){.qwen-mcp-panel{padding:12px}.qwen-mcp-heading{flex-direction:column}.qwen-mcp-heading .button{width:100%}.qwen-mcp-server{gap:8px}.qwen-mcp-actions{flex-direction:column}.qwen-mcp-actions .button{width:100%}}
