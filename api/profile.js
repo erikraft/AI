@@ -43,8 +43,24 @@ export default async function handler(req, res) {
     const photos = await collection();
     if (req.method === "GET") {
       const record = await photos.findOne({ userId: user.uid }, { projection: { _id: 0, userId: 0 } });
+      // An explicit removal must always override provider/Firebase fallback photos.
       if (record?.photoDisabled) return res.status(200).json({ photo: null, photoDisabled: true });
-      return res.status(200).json(record?.data ? { photo: `data:${record.contentType};base64,${record.data.toString("base64")}`, photoDisabled: false } : { photo: null, photoDisabled: false });
+      if (record?.data) {
+        return res.status(200).json({ photo: `data:${record.contentType};base64,${record.data.toString("base64")}`, photoDisabled: false });
+      }
+
+      // Firebase ID-token claims do not always include the provider's photo URL.
+      // Resolve the linked provider photo server-side so it is available on every sign-in.
+      let providerPhoto = user.picture || null;
+      try {
+        const firebaseUser = await getAuth(adminApp()).getUser(user.uid);
+        providerPhoto = firebaseUser.providerData.find((provider) => provider.providerId !== "password" && provider.photoURL)?.photoURL
+          || firebaseUser.photoURL
+          || providerPhoto;
+      } catch (error) {
+        console.warn("[profile-api] Could not read provider profile photo:", error?.message || error);
+      }
+      return res.status(200).json({ photo: providerPhoto || null, photoDisabled: false });
     }
     if (req.method === "PUT") {
       if (req.body?.restoreProviderPhoto === true) {
