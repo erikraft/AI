@@ -238,6 +238,9 @@ test("Qwen runtime documentation matches the implemented limits and model invent
   assert.match(hfReadme, /235 seconds for a Qwen inference call/);
   assert.match(hfReadme, /65-second budget/);
   assert.match(hfReadme, /285 seconds/);
+  assert.match(app, /qwen_timeout:"O Qwen não respondeu dentro do limite de 285 segundos/);
+  assert.match(app, /qwen_timeout:"Qwen did not respond within this request’s 285-second timeout/);
+  assert.doesNotMatch(app, /3-minute limit|3 minutos/);
   assert.doesNotMatch(hfReadme, /128 tokens|135-second inference budget|3-minute fallback/);
   assert.match(readme, /returns five selectable model identifiers/);
   assert.match(readme, /supports five model workflows/);
@@ -487,6 +490,7 @@ test("Qwen MCP tool calls require read-only annotations by default and explicit 
   assert.match(api, /callUserMcpTool\(user\.uid/);
   assert.match(api, /toolset\.toolMap\.has\(functionName\)/);
   assert.match(api, /toolCallsExecuted >= 8/);
+  assert.match(helper, /if \(tools\.length >= MAX_TOOLS_PER_TURN\) break;/);
   assert.match(space, /tools_json: str = "\[\]"/);
   assert.match(space, /messages_json: str = ""/);
   assert.match(space, /mcp_tool_calls/);
