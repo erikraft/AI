@@ -334,6 +334,7 @@ export default async function handler(req, res) {
       try {
         voiceLanguage = await detectVoiceReferenceLanguage(voiceAudioFile, clientOptions);
       } catch (error) {
+        console.error("[image-generation:voice-language-detection]", error?.stack || error?.message || error);
         await releaseGenerationReservation(db, quotaRef, reservation);
         reservation = null;
         const unsupported = error?.name === "UnsupportedReferenceLanguageError";
