@@ -518,6 +518,7 @@ $("modal-email-reset").addEventListener("click", () => showPasswordReset($("moda
 
 $("google-login").addEventListener("click", () => login(new GoogleAuthProvider()));
 $("github-login").addEventListener("click", () => login(new GithubAuthProvider()));
+$("modal-yahoo-login").addEventListener("click", () => login(new OAuthProvider("yahoo.com")));
 $("studio-google-login").addEventListener("click", () => login(new GoogleAuthProvider(), "studio-auth-error"));
 $("studio-github-login").addEventListener("click", () => login(new GithubAuthProvider(), "studio-auth-error"));
 $("studio-yahoo-login").addEventListener("click", () => login(new OAuthProvider("yahoo.com"), "studio-auth-error"));
