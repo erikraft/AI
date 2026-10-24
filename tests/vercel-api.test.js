@@ -222,6 +222,22 @@ test("upstream inference failures are localized by phase instead of misreported 
   assert.match(api, /bad gateway|internal server error|upstream/);
 });
 
+test("Qwen runtime documentation matches the implemented limits and model inventory", () => {
+  const space = readFileSync(new URL("../huggingface/app.py", import.meta.url), "utf8");
+  const hfReadme = readFileSync(new URL("../huggingface/README.md", import.meta.url), "utf8");
+  const readme = readFileSync(new URL("../README.md", import.meta.url), "utf8");
+  const app = readFileSync(new URL("../assets/js/app.js", import.meta.url), "utf8");
+  assert.match(space, /"max_tokens": 384/);
+  assert.match(hfReadme, /caps responses at 384 tokens/);
+  assert.match(hfReadme, /235 seconds for a Qwen inference call/);
+  assert.match(hfReadme, /65-second budget/);
+  assert.match(hfReadme, /285 seconds/);
+  assert.doesNotMatch(hfReadme, /128 tokens|135-second inference budget|3-minute fallback/);
+  assert.match(readme, /returns five selectable model identifiers/);
+  assert.match(readme, /supports five model workflows/);
+  assert.match(app, /const requestTimeoutMs = 285_000/);
+});
+
 test("model discovery supports bilingual search terms and task filters", () => {
   const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
   const app = readFileSync(new URL("../assets/js/app.js", import.meta.url), "utf8");
