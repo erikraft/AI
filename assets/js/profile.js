@@ -195,8 +195,14 @@ if (!config.apiKey || !config.authDomain || !config.projectId || !config.appId) 
     if (!response.ok) throw new Error(data.error || profileText("profileUpdateFailed"));
     return data;
   }
+  function providerPhotoFromUser(currentUser) {
+    return currentUser?.providerData?.find((provider) => provider.providerId !== "password" && provider.photoURL)?.photoURL
+      || currentUser?.photoURL
+      || "";
+  }
   async function loadPhoto() {
-    const data = await request(); setPhoto(data.photoDisabled ? "" : (data.photo || user.photoURL || ""));
+    const data = await request();
+    setPhoto(data.photoDisabled ? "" : (data.photo || providerPhotoFromUser(user)));
   }
   function closePopover() {
     popover.hidden = true;
@@ -327,6 +333,6 @@ if (!config.apiKey || !config.authDomain || !config.projectId || !config.appId) 
     emailButton.setAttribute("aria-label", user.email ? `${profileText("copyAddress")}: ${user.email}` : profileText("emailUnavailable"));
     popover.querySelector(".profile-subtitle").textContent = user.displayName || profileText("connectedAccount");
     status.textContent = ""; delete status.dataset.profileMessage;
-    try { await loadPhoto(); } catch (error) { setPhoto(user.photoURL || ""); status.textContent = error.message; }
+    try { await loadPhoto(); } catch (error) { setPhoto(providerPhotoFromUser(user)); status.textContent = error.message; }
   });
 }
