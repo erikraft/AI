@@ -274,7 +274,8 @@ def generate_image_from_image(
             "do not change faces, skin tone, age, hairstyle, body proportions, clothing, pose, or positions. "
             "Apply only the requested edits and keep all other details unchanged."
         )
-        generated_prompt = generated_prompt.rstrip(" .") + ". " + identity_preservation
+        # Reserve space for the preservation constraints so truncation cannot remove them.
+        generated_prompt = generated_prompt[:700].rstrip(" .") + ". " + identity_preservation
         return generated_prompt[:1500]
     except gr.Error:
         raise
