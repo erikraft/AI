@@ -153,7 +153,7 @@ test("voice recording controls enforce duration limits and save audio history", 
   assert.match(html, /id="voice-record-timer"/);
   assert.match(html, /id="voice-audio-remove"/);
   assert.match(html, /id="usage-notice"/);
-  assert.match(html, /viewBox="0 0 384 512"/);
+  assert.match(html, /viewBox="0 0 640 640"/);
   assert.match(app, /MIN_VOICE_RECORDING_SECONDS = 10/);
   assert.match(app, /MAX_VOICE_RECORDING_SECONDS = 60/);
   assert.match(app, /recordedDuration < 10/);
