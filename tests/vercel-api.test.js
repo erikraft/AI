@@ -171,10 +171,52 @@ test("account deletion removes user-owned MongoDB records and deletes Firebase A
   const source = readFileSync(new URL("../api/account.js", import.meta.url), "utf8");
   assert.match(source, /listCollections\(\{\}\)/);
   assert.match(source, /deleteMany\(\{ userId: uid \}\)/);
-  assert.match(source, /getFirestore\(adminApp\(\)\)\.collection\("generation_limits"\)\.doc\(user\.uid\)\.delete\(\)/);
+  assert.match(source, /const quotaKeys = \["flux", "qwythos", "cosmos", "qwen", "voice"\]/);\n  assert.match(source, /quotaKeys\.map\(\(key\) => `\$\{user\.uid\}_\$\{key\}`\)/);\n  assert.match(source, /quotaBatch\.commit\(\)/);\n  assert.match(source, /generation_limits[\s\S]*quotaKeys[\s\S]*deleteUser\(user\.uid\)/);
   assert.match(source, /deleteMongoUserData\(db, user\.uid\);[\s\S]*generation_limits[\s\S]*deleteUser\(user\.uid\)/);
   assert.match(source, /RECENT_AUTH_SECONDS = 5 \* 60/);
   assert.match(source, /verifyIdToken\(match\[1\], true\)/);
+});
+
+test("Yahoo sign-in is accepted consistently by all authenticated account endpoints", () => {
+  const generation = readFileSync(new URL("../api/generate.js", import.meta.url), "utf8");
+  const history = readFileSync(new URL("../api/history.js", import.meta.url), "utf8");
+  const profile = readFileSync(new URL("../api/profile.js", import.meta.url), "utf8");
+  const mcp = readFileSync(new URL("../api/mcp-servers.js", import.meta.url), "utf8");
+  const account = readFileSync(new URL("../api/account.js", import.meta.url), "utf8");
+  assert.match(generation, /"yahoo\.com"/);
+  assert.match(history, /"yahoo\.com"/);
+  assert.match(mcp, /"yahoo\.com"/);
+  assert.match(account, /"yahoo\.com"/);
+  assert.match(generation, /Google, GitHub, Yahoo/);
+  assert.match(generation, /Google, GitHub, Yahoo/);
+  assert.ok(profile.includes('verifyIdToken(match[1])'), "profile API should continue to use authenticated Firebase identity");
+});
+
+test("Vercel validation workflow uses the same Node major version as the application runtime", () => {
+  const workflow = readFileSync(new URL("../.github/workflows/validate.yml", import.meta.url), "utf8");
+  const pkg = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
+  assert.match(workflow, new RegExp('node-version: "' + pkg.engines.node.replace(/\.x$/, '') + '"'));
+});
+
+test("voice-cloning timeout budgets fit inside the browser and Vercel request windows", () => {
+  const api = readFileSync(new URL("../api/generate.js", import.meta.url), "utf8");
+  const app = readFileSync(new URL("../assets/js/app.js", import.meta.url), "utf8");
+  assert.match(api, /VOICE_LANGUAGE_TIMEOUT_MS = 45_000/);
+  assert.match(api, /VOICE_CLONE_TIMEOUT_MS = 120_000/);
+  assert.match(api, /SPACE_CONNECT_TIMEOUT_MS = 30_000/);
+  const maximumVoiceProviderBudgetMs = (3 * 30_000) + 45_000 + 120_000;
+  assert.ok(maximumVoiceProviderBudgetMs < 285_000, "voice workflow must return before the frontend's 285-second deadline");
+  assert.match(app, /const requestTimeoutMs = 285_000/);
+});
+
+test("upstream inference failures are localized by phase instead of misreported as Qwythos duration failures", () => {
+  const api = readFileSync(new URL("../api/generate.js", import.meta.url), "utf8");
+  assert.match(api, /phase === "space-voice-clone"[\s\S]*voice-cloning Space rejected or exceeded its per-request GPU duration limit/);
+  assert.match(api, /phase === "space-interpret"[\s\S]*Qwythos image-interpretation step/);
+  assert.match(api, /phase === "space-video"[\s\S]*Cosmos exceeded or could not reserve the per-request GPU duration/);
+  assert.match(api, /phase === "space-text"[\s\S]*Qwen step was stopped by a provider execution-time limit/);
+  assert.match(api, /phase === "space-generate"[\s\S]*The Space does not have enough GPU memory/);
+  assert.match(api, /bad gateway\|internal server error\|upstream/);
 });
 
 test("model discovery supports bilingual search terms and task filters", () => {
