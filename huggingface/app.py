@@ -334,6 +334,8 @@ def generate_image_from_reference(
         result = image_pipe(
             prompt=prompt,
             image=source,
+            width=safe_width,
+            height=safe_height,
             strength=0.30,
             num_inference_steps=int(steps),
             guidance_scale=3.5,
