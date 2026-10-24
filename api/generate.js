@@ -440,7 +440,7 @@ export default async function handler(req, res) {
           answer = rawAnswer;
           break;
         }
-        const calls = toolRequest.mcp_tool_calls.slice(0, 4);
+        const calls = toolRequest.mcp_tool_calls.slice(0, 3);
         messages.push({
           role: "assistant",
           content: toolRequest.assistant_content || null,
