@@ -7,7 +7,7 @@ const DATABASE_NAME = process.env.MONGODB_DATABASE || "ErikrafTAI";
 const COLLECTION_NAME = "qwen_mcp_servers";
 const MAX_SERVERS_PER_USER = 10;
 const MAX_TOOLS_PER_SERVER = 20;
-const MAX_TOOL_RESULT_CHARS = 12000;
+const MAX_TOOL_RESULT_CHARS = 4000;
 let clientPromise;
 let requestId = 0;
 
@@ -203,7 +203,8 @@ export async function saveUserMcpServer(userId, input) {
   const probe = { ...record };
   probe._token = input.token || "";
   probe._protocolVersion = "2025-03-26";
-  await discoverTools(probe);
+  const discoveredTools = await discoverTools(probe);
+  if (!discoveredTools.length) throw new Error("No valid MCP tools were discovered at this endpoint.");
   if (serverId) {
     const result = await collection.updateOne({ userId, serverId }, { $set: { ...record, userId, serverId }, $setOnInsert: { createdAt: new Date() } }, { upsert: false });
     if (!result.matchedCount) throw new Error("MCP server not found for this account.");
