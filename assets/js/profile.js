@@ -333,6 +333,6 @@ if (!config.apiKey || !config.authDomain || !config.projectId || !config.appId) 
     emailButton.setAttribute("aria-label", user.email ? `${profileText("copyAddress")}: ${user.email}` : profileText("emailUnavailable"));
     popover.querySelector(".profile-subtitle").textContent = user.displayName || profileText("connectedAccount");
     status.textContent = ""; delete status.dataset.profileMessage;
-    try { await loadPhoto(); } catch (error) { setPhoto(providerPhotoFromUser(user)); status.textContent = error.message; }
+    try { await loadPhoto(); } catch (error) { setPhoto(""); status.textContent = error.message; }
   });
 }
