@@ -92,6 +92,36 @@ export async function validateMcpUrl(value) {
   return url;
 }
 
+async function readBoundedResponseText(response, maximumBytes = 1_000_000) {
+  const declaredLength = Number(response.headers.get("content-length") || 0);
+  if (declaredLength > maximumBytes) throw new Error("MCP response exceeded the 1 MB safety limit.");
+  const reader = response.body?.getReader();
+  if (!reader) return "";
+  const decoder = new TextDecoder();
+  let text = "";
+  let totalBytes = 0;
+  try {
+    while (true) {
+      const { value, done } = await reader.read();
+      if (value) {
+        totalBytes += value.byteLength;
+        if (totalBytes > maximumBytes) {
+          try { await reader.cancel(); } catch {}
+          throw new Error("MCP response exceeded the 1 MB safety limit.");
+        }
+        text += decoder.decode(value, { stream: !done });
+      }
+      if (done) {
+        text += decoder.decode();
+        break;
+      }
+    }
+  } finally {
+    try { reader.releaseLock(); } catch {}
+  }
+  return text;
+}
+
 async function rpc(server, method, params = {}, { notification = false } = {}) {
   const url = await validateMcpUrl(server.url);
   const headers = { "content-type": "application/json", accept: "application/json, text/event-stream" };
@@ -128,6 +158,7 @@ async function rpc(server, method, params = {}, { notification = false } = {}) {
       while (true) {
         const { value, done } = await reader.read();
         buffer += decoder.decode(value || new Uint8Array(), { stream: !done });
+        if (buffer.length > 1_000_000) throw new Error("MCP event stream exceeded the 1 MB safety limit.");
         let boundary;
         while ((boundary = buffer.search(/\r?\n\r?\n/)) >= 0) {
           const event = buffer.slice(0, boundary);
@@ -146,7 +177,7 @@ async function rpc(server, method, params = {}, { notification = false } = {}) {
       try { await reader.cancel(); } catch {}
     }
   } else {
-    const text = await response.text();
+    const text = await readBoundedResponseText(response);
     if (text.trim()) { try { payload = JSON.parse(text); } catch { throw new Error("MCP server returned an invalid JSON-RPC response."); } }
   }
   if (payload?.error) throw new Error(String(payload.error.message || "MCP JSON-RPC error").slice(0, 300));
