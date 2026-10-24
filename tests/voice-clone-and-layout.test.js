@@ -192,6 +192,6 @@ test("hidden Qwen MCP URL validation does not block image generation", () => {
   const urlInput = html.match(/<input id="qwen-mcp-url"[^>]*>/)?.[0];
 
   assert.ok(urlInput, "Qwen MCP URL input should exist");
-  assert.doesNotMatch(urlInput, /\\brequired\\b/, "hidden MCP URL must not participate in native form validation");
-  assert.match(app, /const urlInput = \\$\("qwen-mcp-url"\);[\\s\\S]*?if \\(!urlInput\\.checkValidity\\(\\)\\) \\{\\s*urlInput\\.reportValidity\\(\\);/);
+  assert.doesNotMatch(urlInput, /\brequired\b/, "hidden MCP URL must not participate in native form validation");
+  assert.match(app, /const urlInput = \$\("qwen-mcp-url"\);[\s\S]*?if \(!urlInput\.checkValidity\(\)\) \{\s*urlInput\.reportValidity\(\);/);
 });
