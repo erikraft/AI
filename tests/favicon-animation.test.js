@@ -11,7 +11,7 @@ test("animated browser favicon uses both ICO frames and leaves the PWA icon sepa
 
   assert.match(html, /<link rel="icon" href="\/favicon\.ico" type="image\/x-icon">/);
   assert.doesNotMatch(html, /<link rel="icon" href="\/assets\/icons\/erikraft-ai\.svg"/);
-  assert.equal((html.match(/<script src="\\/assets\\/js\\/favicon-animation\\.js" defer><\\/script>/g) || []).length, 1);
+  assert.equal(html.split('<script src="/assets/js/favicon-animation.js" defer></script>').length - 1, 1);
   assert.match(animation, /document\.querySelector\('link\[rel~="icon"\]\[href="\/favicon\.ico"\]'\)/);
   assert.match(animation, /const icon1 = '\/favicon\.ico'/);
   assert.match(animation, /const icon2 = '\/favicon2\.ico'/);
