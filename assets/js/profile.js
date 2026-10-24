@@ -11,7 +11,7 @@ if (!config.apiKey || !config.authDomain || !config.projectId || !config.appId) 
     "pt-BR": {
       openProfile:"Abrir perfil", accountProfile:"Perfil da conta", closeProfile:"Fechar perfil",
       freePlan:"Plano Gratuito",
-      profilePhotoAlt:"Foto de perfil", connectedAccount:"Conta conectada", emailUnavailable:"E-mail indisponível", copyAddress:"Copiar o endereço", emailCopied:"Endereço copiado!", emailCopyFailed:"Não foi possível copiar o endereço.",
+      profilePhotoAlt:"Foto de perfil", profileAvatarEmpty:"Avatar sem foto de perfil", connectedAccount:"Conta conectada", emailUnavailable:"E-mail indisponível", copyAddress:"Copiar o endereço", emailCopied:"Endereço copiado!", emailCopyFailed:"Não foi possível copiar o endereço.",
       changePhoto:"Alterar foto", removePhoto:"Remover foto", restoreProviderPhoto:"Restaurar foto do provedor", signOut:"Sair",
       invalidImageType:"Use uma imagem PNG, JPEG ou WebP.", imageTooLarge:"A imagem deve ter no máximo 1 MiB.",
       savingPhoto:"Salvando foto…", photoUpdated:"Foto de perfil atualizada.", readImageFailed:"Não foi possível ler a imagem.",
@@ -25,7 +25,7 @@ if (!config.apiKey || !config.authDomain || !config.projectId || !config.appId) 
     en: {
       openProfile:"Open profile", accountProfile:"Account profile", closeProfile:"Close profile",
       freePlan:"Free Plan",
-      profilePhotoAlt:"Profile photo", connectedAccount:"Connected account", emailUnavailable:"Email unavailable", copyAddress:"Copy address", emailCopied:"Email address copied!", emailCopyFailed:"Could not copy the email address.",
+      profilePhotoAlt:"Profile photo", profileAvatarEmpty:"Profile avatar without a photo", connectedAccount:"Connected account", emailUnavailable:"Email unavailable", copyAddress:"Copy address", emailCopied:"Email address copied!", emailCopyFailed:"Could not copy the email address.",
       changePhoto:"Change photo", removePhoto:"Remove photo", restoreProviderPhoto:"Restore provider photo", signOut:"Sign out",
       invalidImageType:"Choose a PNG, JPEG, or WebP image.", imageTooLarge:"The image must be 1 MiB or smaller.",
       savingPhoto:"Saving photo…", photoUpdated:"Profile photo updated.", readImageFailed:"Could not read the image.",
@@ -117,7 +117,7 @@ if (!config.apiKey || !config.authDomain || !config.projectId || !config.appId) 
   function updateProfileLanguage() {
     trigger.setAttribute("aria-label", profileText("openProfile"));
     popover.setAttribute("aria-label", profileText("accountProfile"));
-    avatar.setAttribute("aria-label", profileText("profilePhotoAlt"));
+    avatar.setAttribute("aria-label", profileText(avatar.classList.contains("is-empty") ? "profileAvatarEmpty" : "profilePhotoAlt"));
     emailTooltip.textContent = profileText("copyAddress");
     const close = popover.querySelector("[data-profile-close]");
     close.setAttribute("aria-label", profileText("closeProfile"));
@@ -189,10 +189,12 @@ if (!config.apiKey || !config.authDomain || !config.projectId || !config.appId) 
       avatarImage.src = photoUrl;
       avatarImage.hidden = false;
       avatar.classList.remove("is-empty");
+      avatar.setAttribute("aria-label", profileText("profilePhotoAlt"));
     } else {
       avatarImage.removeAttribute("src");
       avatarImage.hidden = true;
       avatar.classList.add("is-empty");
+      avatar.setAttribute("aria-label", profileText("profileAvatarEmpty"));
     }
   }
   async function request(method = "GET", body) {
