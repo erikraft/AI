@@ -183,3 +183,32 @@ MongoDB creates the database and collection when the configured history API firs
 ## Multilingual model inputs
 
 All model routes accept the prompt as entered, including non-English text; FLUX and Cosmos receive the original prompt without silent translation, although quality varies by model and language. Qwythos image-edit instructions and Qwen chatbot responses are asked to follow the language of the user's prompt rather than the website UI locale. Voice cloning selects the language of the requested speech text when detectable, falling back to the reference-audio language for very short text. The voice model has a finite supported-language list, so this does not imply support for every language in speech synthesis.
+
+
+## Custom MCP servers for Qwen / Servidores MCP personalizados para o Qwen
+
+### Português (Brasil)
+
+O chatbot experimental Qwen pode usar ferramentas de servidores MCP personalizados configurados pelo usuário. No seletor de modelos, escolha **Qwen3.8 27B — Chatbot (experimental)** e abra **Servidores MCP personalizados**.
+
+- A configuração é vinculada ao UID da conta autenticada e armazenada na coleção MongoDB Atlas `qwen_mcp_servers`; cada conta pode salvar até 10 servidores.
+- O transporte suportado é **MCP Streamable HTTP** em URL HTTPS pública. Um túnel precisa fornecer um endpoint HTTPS publicamente acessível; servidores `stdio`, hosts locais e endpoints HTTP simples não são aceitos.
+- Os modos de autenticação são **OAuth (token de acesso)**, **sem autenticação** e **OAuth ou sem autenticação**. Nesta versão, o token OAuth é fornecido manualmente; a descoberta de metadados OAuth e o fluxo automático de autorização/redirecionamento ainda não estão implementados.
+- Tokens são criptografados com AES-256-GCM antes de serem gravados no MongoDB. Configure `MCP_ENCRYPTION_KEY` como **Secret** no Vercel: um segredo aleatório de 32 bytes, em hexadecimal (64 caracteres) ou Base64. Exemplo para gerar uma chave hexadecimal: `openssl rand -hex 32`. Mantenha-a estável; a rotação da chave torna tokens existentes ilegíveis até serem configurados novamente.
+- Por padrão, só são disponibilizadas ferramentas que o servidor MCP marca explicitamente com `annotations.readOnlyHint: true`. Marque **Permitir ferramentas que criam, editam ou excluem dados externos** somente se aceitar o risco de ações externas.
+- URLs são verificadas para HTTPS, nomes reservados, endereços IP privados e DNS antes de salvar e novamente durante as chamadas; redirecionamentos são bloqueados. Essas medidas reduzem SSRF, mas não substituem a confiança no servidor.
+- O Qwen recebe as definições das ferramentas, pode solicitar chamadas e recebe os resultados para gerar a resposta final. Há limites por solicitação para etapas e quantidade de chamadas; a inferência continua limitada pela RAM, CPU, timeout e disponibilidade do Hugging Face.
+- Não conecte servidores que não controla ou em que não confia. Saídas das ferramentas são tratadas como dados não confiáveis, mas o modelo pode ainda interpretar resultados de forma incorreta.
+
+### English
+
+The experimental Qwen chatbot can use custom MCP server tools configured by the signed-in user. Select **Qwen3.8 27B — Chatbot (experimental)** and open **Custom MCP servers**.
+
+- Configurations are scoped to the authenticated account UID and stored in the MongoDB Atlas `qwen_mcp_servers` collection; each account can save up to 10 servers.
+- Supported transport is **MCP Streamable HTTP** at a public HTTPS URL. A tunnel must expose a publicly reachable HTTPS endpoint; `stdio`, local hosts, and plain HTTP endpoints are not supported.
+- Authentication modes are **OAuth (access token)**, **no authentication**, and **OAuth or no authentication**. In this version, OAuth tokens are pasted manually; OAuth metadata discovery and the automatic authorization/redirect flow are not implemented yet.
+- Tokens are encrypted with AES-256-GCM before being stored in MongoDB. Configure `MCP_ENCRYPTION_KEY` as a Vercel **Secret**: a random 32-byte key encoded as hexadecimal (64 characters) or Base64. Generate a hex key with `openssl rand -hex 32`. Keep it stable; rotating the key makes existing tokens unreadable until they are configured again.
+- By default, only tools explicitly marked by the MCP server with `annotations.readOnlyHint: true` are exposed. Enable **Allow tools that create, edit, or delete external data** only if you accept the risk of external actions.
+- URLs are checked for HTTPS, reserved names, private IP addresses, and DNS before saving and again during calls; redirects are blocked. These controls reduce SSRF risk but do not replace trusting the server.
+- Qwen receives tool definitions, can request tool calls, and receives the results to produce a final answer. Per-request tool-call and step limits apply; inference remains subject to RAM, CPU, timeout, and Hugging Face availability.
+- Do not connect servers you do not control or trust. Tool output is treated as untrusted data, but the model may still misinterpret results.
