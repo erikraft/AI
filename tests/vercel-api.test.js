@@ -171,7 +171,10 @@ test("account deletion removes user-owned MongoDB records and deletes Firebase A
   const source = readFileSync(new URL("../api/account.js", import.meta.url), "utf8");
   assert.match(source, /listCollections\(\{\}\)/);
   assert.match(source, /deleteMany\(\{ userId: uid \}\)/);
-  assert.match(source, /const quotaKeys = \["flux", "qwythos", "cosmos", "qwen", "voice"\]/);\n  assert.match(source, /quotaKeys\.map\(\(key\) => `\$\{user\.uid\}_\$\{key\}`\)/);\n  assert.match(source, /quotaBatch\.commit\(\)/);\n  assert.match(source, /generation_limits[\s\S]*quotaKeys[\s\S]*deleteUser\(user\.uid\)/);
+  assert.match(source, /const quotaKeys = \["flux", "qwythos", "cosmos", "qwen", "voice"\]/);
+  assert.match(source, /quotaKeys\.map\(\(key\) => `\$\{user\.uid\}_\$\{key\}`\)/);
+  assert.match(source, /quotaBatch\.commit\(\)/);
+  assert.match(source, /generation_limits[\s\S]*quotaKeys[\s\S]*deleteUser\(user\.uid\)/);
   assert.match(source, /deleteMongoUserData\(db, user\.uid\);[\s\S]*generation_limits[\s\S]*deleteUser\(user\.uid\)/);
   assert.match(source, /RECENT_AUTH_SECONDS = 5 \* 60/);
   assert.match(source, /verifyIdToken\(match\[1\], true\)/);
@@ -216,7 +219,7 @@ test("upstream inference failures are localized by phase instead of misreported 
   assert.match(api, /phase === "space-video"[\s\S]*Cosmos exceeded or could not reserve the per-request GPU duration/);
   assert.match(api, /phase === "space-text"[\s\S]*Qwen step was stopped by a provider execution-time limit/);
   assert.match(api, /phase === "space-generate"[\s\S]*The Space does not have enough GPU memory/);
-  assert.match(api, /bad gateway\|internal server error\|upstream/);
+  assert.match(api, /bad gateway|internal server error|upstream/);
 });
 
 test("model discovery supports bilingual search terms and task filters", () => {
