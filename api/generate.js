@@ -457,8 +457,8 @@ export default async function handler(req, res) {
             try {
               let args = call.function.arguments || {};
               if (typeof args === "string") args = JSON.parse(args || "{}");
-              content = await callUserMcpTool(user.uid, toolset.toolMap.get(functionName), args);
               toolCallsExecuted += 1;
+              content = await callUserMcpTool(user.uid, toolset.toolMap.get(functionName), args);
             } catch (toolError) {
               content = JSON.stringify({ error: String(toolError?.message || toolError).slice(0, 500) });
             }
