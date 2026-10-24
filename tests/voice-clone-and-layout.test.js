@@ -36,6 +36,7 @@ test("profile popover remains fixed and layered above the footer", () => {
 
 test("result stage has responsive desktop, tablet, and mobile rules", () => {
   const css = read("../assets/css/styles.css");
+  const app = read("../assets/js/app.js");
   assert.match(css, /@media \(min-width:1100px\)/);
   assert.match(css, /@media \(max-width:900px\)/);
   assert.match(css, /@media \(max-width:600px\)/);
