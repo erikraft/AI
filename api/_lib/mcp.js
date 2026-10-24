@@ -6,8 +6,9 @@ import { isIP } from "node:net";
 const DATABASE_NAME = process.env.MONGODB_DATABASE || "ErikrafTAI";
 const COLLECTION_NAME = "qwen_mcp_servers";
 const MAX_SERVERS_PER_USER = 10;
-const MAX_TOOLS_PER_SERVER = 20;
-const MAX_TOOL_RESULT_CHARS = 4000;
+const MAX_TOOLS_PER_SERVER = 12;
+const MAX_TOOLS_PER_TURN = 6;
+const MAX_TOOL_RESULT_CHARS = 1000;
 const MCP_RPC_TIMEOUT_MS = 5000;
 let clientPromise;
 let requestId = 0;
@@ -201,10 +202,10 @@ function cleanToolSchema(tool) {
   if (!tool || typeof tool.name !== "string" || !/^[a-zA-Z0-9_.-]{1,96}$/.test(tool.name)) return null;
   const schema = tool.inputSchema && typeof tool.inputSchema === "object" ? tool.inputSchema : { type: "object", properties: {} };
   const serialized = JSON.stringify(schema);
-  if (serialized.length > 16000) return null;
+  if (serialized.length > 900) return null;
   return {
     name: tool.name,
-    description: String(tool.description || "MCP tool").slice(0, 1000),
+    description: String(tool.description || "MCP tool").slice(0, 350),
     inputSchema: schema,
     readOnlyHint: tool.annotations?.readOnlyHint === true
   };
@@ -294,7 +295,7 @@ export async function buildUserMcpToolset(userId) {
     }
     for (const tool of discovered) {
       if (!tool.readOnlyHint && server.allowWriteTools !== true) continue;
-      if (tools.length >= 20) break;
+      if (tools.length >= MAX_TOOLS_PER_TURN) break;
       const functionName = ("mcp_" + server.serverId.slice(-8) + "_" + tool.name).replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 64);
       if (toolMap.has(functionName)) continue;
       tools.push({
