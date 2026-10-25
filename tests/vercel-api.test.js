@@ -507,7 +507,7 @@ test("custom MCP clients encrypt OAuth tokens and block unsafe URL targets and r
   assert.match(network, /url\.protocol !== "https:"/);
   assert.match(network, /BLOCKED_IP_RANGES = new BlockList\(\)/);
   assert.match(network, /lookup\(hostname, \{ all: true, verbatim: true \}\)/);
-  assert.match(network, /requestPinnedMcp\(target, headers, JSON\.stringify\(body\)\)/);
+  assert.match(helper, /requestPinnedMcp\(target, headers, JSON\.stringify\(body\)\)/);
   assert.match(network, /lookup: ipLookup/);
   assert.match(network, /MCP redirects are blocked/);
   assert.doesNotMatch(network, /fetch\(url,\s*\{/);
