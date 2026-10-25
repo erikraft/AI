@@ -170,14 +170,16 @@ const tools = [
     title: "ErikrafT AI backend status",
     description: "Check backend configuration flags. This does not prove that model inference or the MongoDB connection is operational.",
     inputSchema: { type: "object", properties: {}, additionalProperties: false },
-    annotations: { readOnlyHint: true }
+    _meta: { "openai/widgetAccessible": true },
+    annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false, idempotentHint: true }
   },
   {
     name: "erikraft_ai_list_models",
     title: "List ErikrafT AI models",
     description: "List models exposed by ErikrafT AI™ and their configuration flags. Experimental model availability requires live inference tests.",
     inputSchema: { type: "object", properties: {}, additionalProperties: false },
-    annotations: { readOnlyHint: true }
+    _meta: { "openai/widgetAccessible": true },
+    annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false, idempotentHint: true }
   },
   {
     name: "erikraft_ai_generate",
