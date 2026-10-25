@@ -619,5 +619,8 @@ test("Qwen Image 2.1 Turbo is wired to a protected, separate CUDA generation rou
   assert.match(space, /"--steps", "8"/);
   assert.match(space, /with gr\.Tab\("Qwen Image 2\.1 Turbo", visible=False\)/);
   assert.match(hfReadme, /AtomicChat\/Qwen-Image-2\.1-Turbo-GGUF/);
-  assert.match(workflow, /DSD_CUDA=ON|DSD_CUDA/);
+  assert.match(workflow, /-DSD_CUDA=ON/);
+  assert.match(workflow, /sd-cli-linux-cuda\.tar\.gz/);
+  assert.match(space, /sd-cli-linux-cuda\.tar\.gz/);
+  assert.match(space, /tarfile\.open\(archive_path, "r:gz"\)/);
 });
