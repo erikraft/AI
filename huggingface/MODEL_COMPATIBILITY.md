@@ -41,3 +41,15 @@ The lower Qwythos duration is intended to prevent the invalid 450-second reserva
 - Task/API: `/generate_text`; `llama-cpp-python`, `RVN-IQ2_XS.gguf` (~9.1 GB) and CPU-only inference (`n_gpu_layers=0`).
 - Requires approximately 12 GiB free RAM and 11 GiB free disk space for a cold load. This low-bit quantization prioritizes memory over quality and CPU generation may be slow. It does not consume the CUDA model budget, but host RAM/disk remain bottlenecks.
 - `huggingface/requirements.txt` installs `torchvision==0.28.0` (the matching torchvision line for PyTorch 2.13) for the Qwen3VLVideoProcessor required by Qwythos. It also requests the project's prebuilt Linux CPU wheel `llama-cpp-python==0.3.36` so Qwen does not depend on a local C++ compilation. `ENABLE_QWEN_TEXT` now defaults to enabled when no explicit Space environment override exists. A successful Space rebuild plus a real inference call is still required to confirm the selected wheel, memory and runtime work together.
+
+## Qwen Image 2.1 Turbo — experimental text-to-image
+
+- User-selected model/encoder: [AtomicChat/Qwen-Image-2.1-Turbo-Uncensored-GGUF](https://huggingface.co/AtomicChat/Qwen-Image-2.1-Turbo-Uncensored-GGUF), file `Qwen-Image-2.1-Turbo-Uncensored-AD-Q4_K.gguf`.
+- Matching Turbo denoiser: [AtomicChat/Qwen-Image-2.1-Turbo-GGUF](https://huggingface.co/AtomicChat/Qwen-Image-2.1-Turbo-GGUF), file `Qwen-Image-2.1-Turbo-AD-Q4_K.gguf`.
+- VAE: [Comfy-Org/Qwen-Image-2.1](https://huggingface.co/Comfy-Org/Qwen-Image-2.1), file `vae/qwen_image_2.1_vae_bf16.safetensors`.
+- Engine: CUDA-enabled `stable-diffusion.cpp`, built from the exact revision in `huggingface/qwen-image-engine.lock` and published by `.github/workflows/build-qwen-image-engine.yml` as the `qwen-image-engine` GitHub release.
+- Endpoint: `/generate_qwen_image`; hidden from the public Space UI and requires `HF_SPACE_API_SECRET` from the server-side Vercel caller.
+- Turbo sampling is pinned to the upstream `qwen-image-2.1-turbo` sigma schedule, 8 steps, Euler sampling, and CFG 1.0. The website offers 768×768, 1024×768, or 768×1024 output.
+- The handler downloads model assets before requesting a ZeroGPU reservation, verifies the engine archive's SHA-256, and fails closed when the secret or feature flag is missing. It refuses to run unless CUDA is available, with at least 24 GiB total / 20 GiB free VRAM, and checks model-cache disk capacity before cold downloads. These thresholds are safeguards, not guarantees; actual driver compatibility, build success, queue availability, and image inference still require live validation after deployment.
+
+The specified AtomicChat repository contains the uncensored GGUF text encoder, not a self-contained Diffusers pipeline. The paired Turbo denoiser, the Qwen Image 2.1 VAE, and a compatible CUDA inference engine are mandatory; the app must not route this model through the existing FLUX endpoint.
