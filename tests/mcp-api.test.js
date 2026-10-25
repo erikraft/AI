@@ -73,6 +73,8 @@ test("studio resource contains Qwen Image and account-photo controls", async () 
   assert.match(html, /AtomicChat\/Qwen-Image-2\.1-Turbo-Uncensored-GGUF/);
   assert.match(html, /profile-save/);
   assert.match(html, /profile-delete/);
+  assert.match(html, /function unpackToolResult\(raw\)/);
+  assert.match(html, /const data=unpackToolResult\(raw\)/);
   assert.match(html, /textOnly=m\.includes\("0bserverx\/Qwen3\.8"\)/);
 });
 
