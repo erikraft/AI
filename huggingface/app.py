@@ -1,10 +1,14 @@
 import gc
+import hashlib
 import hmac
 import json
 import os
 import shutil
+import subprocess
 import tempfile
+import urllib.request
 import wave
+import tarfile
 
 import gradio as gr
 from gradio_client import Client, handle_file
@@ -33,6 +37,13 @@ FLUX_MODEL_ID = "aoxo/flux.1dev-abliterated"
 QWYTHOS_MODEL_ID = "fluffy12222/Qwythos-9B-Claude-Mythos-5-1M-heretic-abliterated"
 COSMOS_MODEL_ID = "DuoNeural/Cosmos3-Nano-Abliterated"
 QWEN_MODEL_ID = "0bserverx/Qwen3.8-27B-Heretic-Abliterated-Uncensored-GGUF"
+QWEN_IMAGE_MODEL_ID = "AtomicChat/Qwen-Image-2.1-Turbo-Uncensored-GGUF"
+QWEN_IMAGE_DENOISER_REPO_ID = "AtomicChat/Qwen-Image-2.1-Turbo-GGUF"
+QWEN_IMAGE_DENOISER_FILE = "Qwen-Image-2.1-Turbo-AD-Q4_K.gguf"
+QWEN_IMAGE_ENCODER_FILE = "Qwen-Image-2.1-Turbo-Uncensored-AD-Q4_K.gguf"
+QWEN_IMAGE_VAE_REPO_ID = "Comfy-Org/Qwen-Image-2.1"
+QWEN_IMAGE_VAE_FILE = "vae/qwen_image_2.1_vae_bf16.safetensors"
+ENABLE_QWEN_IMAGE = os.getenv("ENABLE_QWEN_IMAGE", "true").strip().lower() in {"1", "true", "yes"}
 ENABLE_COSMOS_VIDEO = os.getenv("ENABLE_COSMOS_VIDEO", "true").strip().lower() in {"1", "true", "yes"}
 ENABLE_QWEN_TEXT = os.getenv("ENABLE_QWEN_TEXT", "true").strip().lower() in {"1", "true", "yes"}
 QWEN_GGUF_FILE = "RVN-IQ2_XS.gguf"
@@ -355,6 +366,216 @@ def generate_image_from_reference(
         gc.collect()
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
+
+
+def _qwen_image_engine_revision() -> str:
+    lock_path = os.path.join(os.path.dirname(__file__), "qwen-image-engine.lock")
+    try:
+        with open(lock_path, "r", encoding="utf-8") as lock_file:
+            revision = lock_file.read().strip()
+    except OSError as exc:
+        raise gr.Error("Qwen Image engine lock file is missing. Rebuild the Hugging Face Space from the repository's main branch.") from exc
+    if len(revision) != 40 or any(character not in "0123456789abcdef" for character in revision):
+        raise gr.Error("Qwen Image engine lock file contains an invalid stable-diffusion.cpp revision.")
+    return revision
+
+
+def _ensure_qwen_image_engine() -> str:
+    """Download and checksum the CUDA CLI bundle published by this repository's build workflow."""
+    revision = _qwen_image_engine_revision()
+    cache_root = os.path.expanduser(os.path.join("~", ".cache", "erikraft-ai", "qwen-image-engine-" + revision[:12]))
+    cli_path = os.path.join(cache_root, "sd-cli")
+    if os.path.isfile(cli_path) and os.access(cli_path, os.X_OK):
+        return cli_path
+
+    if _disk_free_gib() < 1.5:
+        raise gr.Error("Qwen Image needs at least 1.5 GiB of free disk to install its CUDA engine bundle.")
+    parent = os.path.dirname(cache_root)
+    os.makedirs(parent, exist_ok=True)
+    archive_url = "https://github.com/erikraft/AI/releases/download/qwen-image-engine/sd-cli-linux-cuda.tar.gz"
+    checksum_url = archive_url + ".sha256"
+    try:
+        with tempfile.TemporaryDirectory(prefix=".qwen-image-engine-", dir=parent) as temporary:
+            archive_path = os.path.join(temporary, "sd-cli-linux-cuda.tar.gz")
+            checksum_path = os.path.join(temporary, "sd-cli-linux-cuda.tar.gz.sha256")
+            urllib.request.urlretrieve(archive_url, archive_path)
+            urllib.request.urlretrieve(checksum_url, checksum_path)
+            with open(checksum_path, "r", encoding="utf-8") as checksum_file:
+                expected_sha256 = checksum_file.read().strip().split()[0].lower()
+            digest = hashlib.sha256()
+            with open(archive_path, "rb") as archive_file:
+                for chunk in iter(lambda: archive_file.read(1024 * 1024), b""):
+                    digest.update(chunk)
+            if len(expected_sha256) != 64 or not hmac.compare_digest(digest.hexdigest(), expected_sha256):
+                raise ValueError("engine archive SHA-256 verification failed")
+
+            extracted_path = os.path.join(temporary, "bundle")
+            os.makedirs(extracted_path, exist_ok=True)
+            with tarfile.open(archive_path, "r:gz") as archive:
+                members = archive.getmembers()
+                for member in members:
+                    member_path = os.path.normpath(member.name)
+                    if member_path == "." and member.isdir():
+                        continue
+                    if os.path.isabs(member_path) or member_path == ".." or member_path.startswith(".." + os.sep):
+                        raise ValueError("engine bundle contains an unsafe archive path")
+                    if member.issym() or member.islnk():
+                        target = member.linkname
+                        resolved_target = os.path.normpath(os.path.join(os.path.dirname(member_path), target))
+                        if os.path.isabs(target) or resolved_target == ".." or resolved_target.startswith(".." + os.sep):
+                            raise ValueError("engine bundle contains an unsafe symbolic-link target")
+                archive.extractall(extracted_path, members=members)
+            extracted_cli = os.path.join(extracted_path, "sd-cli")
+            if not os.path.isfile(extracted_cli):
+                raise FileNotFoundError("sd-cli executable was not present in the verified engine bundle")
+            os.chmod(extracted_cli, 0o755)
+            if os.path.exists(cache_root):
+                shutil.rmtree(cache_root)
+            os.replace(extracted_path, cache_root)
+    except Exception as exc:
+        print(f"[qwen-image-engine] setup failed: {type(exc).__name__}: {str(exc)[:240]}", flush=True)
+        raise gr.Error(
+            "The Qwen Image CUDA engine is not ready. Wait for the repository's "
+            "Build Qwen Image CUDA engine workflow to publish its release asset, then retry."
+        ) from exc
+    return cli_path
+
+
+def _prepare_qwen_image_assets() -> dict:
+    """Download required model files and the engine before ZeroGPU reserves its GPU window."""
+    from huggingface_hub import hf_hub_download
+
+    cache_sizes = {
+        "encoder": _cached_repo_size_gib("models--AtomicChat--Qwen-Image-2.1-Turbo-Uncensored-GGUF"),
+        "denoiser": _cached_repo_size_gib("models--AtomicChat--Qwen-Image-2.1-Turbo-GGUF"),
+        "vae": _cached_repo_size_gib("models--Comfy-Org--Qwen-Image-2.1"),
+    }
+    missing_weights = (
+        cache_sizes["encoder"] < 4.8
+        or cache_sizes["denoiser"] < 3.8
+        or cache_sizes["vae"] < 0.5
+    )
+    if missing_weights and _disk_free_gib() < 14:
+        raise gr.Error(
+            f"Qwen Image needs about 10.2 GiB for its GGUF weights and VAE plus cache overhead. "
+            f"Only {_disk_free_gib():.1f} GiB of free disk space is available."
+        )
+    try:
+        encoder_path = hf_hub_download(
+            repo_id=QWEN_IMAGE_MODEL_ID,
+            filename=QWEN_IMAGE_ENCODER_FILE,
+        )
+        denoiser_path = hf_hub_download(
+            repo_id=QWEN_IMAGE_DENOISER_REPO_ID,
+            filename=QWEN_IMAGE_DENOISER_FILE,
+        )
+        vae_path = hf_hub_download(
+            repo_id=QWEN_IMAGE_VAE_REPO_ID,
+            filename=QWEN_IMAGE_VAE_FILE,
+        )
+        cli_path = _ensure_qwen_image_engine()
+    except gr.Error:
+        raise
+    except Exception as exc:
+        print(f"[qwen-image-assets] setup failed: {type(exc).__name__}: {str(exc)[:240]}", flush=True)
+        raise gr.Error(
+            "Qwen Image model files could not be prepared. Check Hugging Face repository access "
+            "and the Space's free disk capacity, then review the Space logs."
+        ) from exc
+    return {
+        "encoder": encoder_path,
+        "denoiser": denoiser_path,
+        "vae": vae_path,
+        "cli": cli_path,
+    }
+
+
+def _authorize_qwen_image_request(
+    prompt: str,
+    width: int = 768,
+    height: int = 768,
+    api_secret: str = "",
+    *args,
+    **kwargs,
+) -> int:
+    """Authorize and fetch large files before ZeroGPU reserves a GPU execution window."""
+    _authorize_experimental_api(api_secret)
+    if not ENABLE_QWEN_IMAGE:
+        raise gr.Error("Qwen Image is disabled. Set ENABLE_QWEN_IMAGE=true only after validating GPU and disk capacity.")
+    prompt = (prompt or "").strip()
+    if not prompt or len(prompt) > 1500:
+        raise gr.Error("Prompt must contain 1–1500 characters.")
+    if (int(width), int(height)) not in {(768, 768), (1024, 768), (768, 1024)}:
+        raise gr.Error("Qwen Image supports 768×768, 1024×768, or 768×1024 output sizes.")
+    _prepare_qwen_image_assets()
+    return 120
+
+
+@spaces.GPU(duration=_authorize_qwen_image_request)
+def generate_qwen_image(prompt: str, width: int = 768, height: int = 768, api_secret: str = ""):
+    """Render Qwen Image 2.1 Turbo through the pinned CUDA-enabled stable-diffusion.cpp CLI."""
+    prompt = (prompt or "").strip()
+    _authorize_experimental_api(api_secret)
+    if not ENABLE_QWEN_IMAGE:
+        raise gr.Error("Qwen Image is disabled. Set ENABLE_QWEN_IMAGE=true to enable generation.")
+    if not prompt or len(prompt) > 1500:
+        raise gr.Error("Prompt must contain 1–1500 characters.")
+    if (int(width), int(height)) not in {(768, 768), (1024, 768), (768, 1024)}:
+        raise gr.Error("Qwen Image supports 768×768, 1024×768, or 768×1024 output sizes.")
+    if not torch.cuda.is_available():
+        raise gr.Error("Qwen Image requires a compatible CUDA GPU; the current Space runtime has no CUDA device.")
+
+    _clear_models("qwen-image")
+    total_gib = torch.cuda.get_device_properties(0).total_memory / (1024 ** 3)
+    free_gib = torch.cuda.mem_get_info()[0] / (1024 ** 3)
+    if total_gib < 24 or free_gib < 20:
+        raise gr.Error(
+            f"Qwen Image needs a CUDA GPU with at least 24 GiB total and 20 GiB free VRAM for this quantization. "
+            f"This runtime reports {total_gib:.1f} GiB total and {free_gib:.1f} GiB free."
+        )
+
+    assets = _prepare_qwen_image_assets()
+    binary_dir = os.path.dirname(assets["cli"])
+    environment = os.environ.copy()
+    environment["LD_LIBRARY_PATH"] = binary_dir + os.pathsep + environment.get("LD_LIBRARY_PATH", "")
+    with tempfile.TemporaryDirectory(prefix="erikraft-qwen-image-") as work_dir:
+        output_path = os.path.join(work_dir, "qwen-image.png")
+        command = [
+            assets["cli"],
+            "--diffusion-model", assets["denoiser"],
+            "--llm", assets["encoder"],
+            "--vae", assets["vae"],
+            "-p", prompt,
+            "-W", str(int(width)),
+            "-H", str(int(height)),
+            "--cfg-scale", "1.0",
+            "--sampling-method", "euler",
+            "--sigmas", "qwen-image-2.1-turbo",
+            "--steps", "8",
+            "--flash-attn", "auto",
+            "--output", output_path,
+        ]
+        try:
+            completed = subprocess.run(
+                command,
+                check=False,
+                capture_output=True,
+                text=True,
+                timeout=105,
+                env=environment,
+            )
+        except subprocess.TimeoutExpired as exc:
+            raise gr.Error("Qwen Image inference exceeded the 105-second execution budget. Wait before retrying to avoid duplicate jobs.") from exc
+        if completed.returncode != 0 or not os.path.isfile(output_path) or os.path.getsize(output_path) == 0:
+            print(f"[qwen-image-runtime] sd-cli exited with code {completed.returncode}; output_file={os.path.isfile(output_path)}", flush=True)
+            raise gr.Error(
+                "Qwen Image generation failed in the CUDA engine. Review recent Hugging Face Space logs for model, CUDA, or memory errors."
+            )
+        try:
+            with Image.open(output_path) as generated:
+                return generated.convert("RGB").copy()
+        except Exception as exc:
+            raise gr.Error("Qwen Image produced a file that could not be decoded as an image.") from exc
 
 
 def _authorize_video_request_duration(prompt: str, api_secret: str, *args, **kwargs) -> int:
@@ -799,6 +1020,26 @@ with gr.Blocks(title="ErikrafT AI — FLUX + Qwythos", delete_cache=(3600, 86400
         text_button = gr.Button("Ask Qwen")
         text_output = gr.Textbox(label="Qwen response", lines=12, max_lines=24, interactive=False)
         text_button.click(generate_text, [text_prompt, text_language, experimental_api_secret, text_tools_json, text_messages_json], text_output, api_name="generate_text")
+
+    with gr.Tab("Qwen Image 2.1 Turbo", visible=False):
+        gr.Markdown(
+            "Protected text-to-image inference using the AtomicChat uncensored Qwen3-VL GGUF encoder, "
+            "the paired Qwen Image 2.1 Turbo GGUF denoiser, and the official Qwen Image 2.1 VAE. "
+            "The endpoint is intended for the authenticated ErikrafT AI website and requires the shared server secret. "
+            "Turbo sampling uses the fixed 8-step sigma schedule."
+        )
+        qwen_image_prompt = gr.Textbox(label="Image prompt", lines=4, max_lines=8, max_length=1500)
+        qwen_image_width = gr.Number(value=768, precision=0, visible=False, label="Image width")
+        qwen_image_height = gr.Number(value=768, precision=0, visible=False, label="Image height")
+        qwen_image_api_secret = gr.Textbox(value="", visible=False, label="Internal API credential")
+        qwen_image_button = gr.Button("Generate image")
+        qwen_image_output = gr.Image(type="pil", label="Generated Qwen Image")
+        qwen_image_button.click(
+            generate_qwen_image,
+            [qwen_image_prompt, qwen_image_width, qwen_image_height, qwen_image_api_secret],
+            qwen_image_output,
+            api_name="generate_qwen_image",
+        )
 
 demo.queue()
 demo.launch()

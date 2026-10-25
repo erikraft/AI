@@ -15,7 +15,8 @@ let resultType = "image";
 const FLUX_MODEL = "aoxo/flux.1dev-abliterated";
 const COSMOS_MODEL = "DuoNeural/Cosmos3-Nano-Abliterated";
 const QWEN_MODEL = "0bserverx/Qwen3.8-27B-Heretic-Abliterated-Uncensored-GGUF";
-const MODEL_AVAILABILITY = { cosmosVideo: false, qwenText: false };
+const QWEN_IMAGE_MODEL = "AtomicChat/Qwen-Image-2.1-Turbo-Uncensored-GGUF";
+const MODEL_AVAILABILITY = { cosmosVideo: false, qwenText: false, qwenImage: false };
 
 function canUseStudio(user) {
   const hasPasswordProvider = Boolean(user?.providerData?.some(({ providerId }) => providerId === "password"));
@@ -563,6 +564,7 @@ function updateModelSelection() {
   const isQwythos = task === "image-edit";
   const isCosmos = task === "video";
   const isQwen = task === "text";
+  const isQwenImage = model === QWEN_IMAGE_MODEL;
   const isVoice = task === "voice";
   const mcpPanel = $("qwen-mcp-panel");
   if (mcpPanel) {
@@ -595,11 +597,13 @@ function updateModelSelection() {
     [QWYTHOS_MODEL]: english ? "Qwythos — Image editing" : "Qwythos — Editar imagens",
     [COSMOS_MODEL]: english ? "Cosmos3 Nano — Video generation (experimental)" : "Cosmos3 Nano — Gerar vídeos (experimental)",
     [QWEN_MODEL]: english ? "Qwen3.8 27B — Chatbot (experimental)" : "Qwen3.8 27B — Chatbot (experimental)",
+    [QWEN_IMAGE_MODEL]: english ? "Qwen Image 2.1 Turbo — Image generation (experimental)" : "Qwen Image 2.1 Turbo — Gerar imagens (experimental)",
     [VOICE_CLONE_MODEL]: english ? "XTTS-v2 — Voice / audio" : "XTTS-v2 — Voz / áudio"
   };
   for (const option of modelSelect.options) if (labels[option.value]) option.textContent = labels[option.value];
   $("selected-model-label").textContent = labels[model] || model;
   $("image-options-row").classList.toggle("hidden", isCosmos || isQwen || isVoice);
+  $("quality")?.closest(".field")?.classList.toggle("hidden", isQwenImage);
   $("prompt").previousElementSibling.textContent = isVoice ? (english ? "Text to speak" : "Texto para falar") : languageText("prompt_label");
   $("prompt").placeholder = isVoice ? (english ? "Write the text for the cloned voice to speak..." : "Escreva o texto que a voz clonada deverá falar...") : languageText("prompt_placeholder");
   $("prompt").setAttribute("aria-label", isVoice ? (english ? "Text to speak" : "Texto para falar") : languageText("prompt_label"));
@@ -625,15 +629,19 @@ function updateModelSelection() {
       ? (english ? "Cosmos3 Nano generates a short video from text. The Space limits the first attempt to 16 frames at 256×256 and checks VRAM/disk before loading." : "Cosmos3 Nano cria um vídeo curto a partir do texto. O Space limita a tentativa a 16 quadros em 256×256 e verifica VRAM/disco antes de carregar.")
       : isQwen
         ? (english ? "Qwen3.8 is a third-party 27B text model. It uses a low-memory GGUF quantization on CPU only to avoid GPU OOM; responses can be slow and quality is reduced." : "Qwen3.8 é um modelo de texto de terceiros com 27B parâmetros. Usa uma quantização GGUF de menor memória somente na CPU para evitar falta de VRAM; respostas podem ser lentas e a qualidade é reduzida.")
-        : languageText("model_help");
-  const enabled = isCosmos ? MODEL_AVAILABILITY.cosmosVideo : isQwen ? MODEL_AVAILABILITY.qwenText : true;
+        : isQwenImage
+          ? (english ? "Qwen Image 2.1 Turbo uses the linked uncensored Qwen3-VL GGUF text encoder with the matching Turbo denoiser and Qwen Image 2.1 VAE. Turbo sampling is fixed at 8 steps; CUDA and available GPU memory are required." : "Qwen Image 2.1 Turbo usa o encoder de texto Qwen3-VL GGUF do repositório indicado, junto do denoiser Turbo correspondente e do VAE Qwen Image 2.1. A amostragem Turbo é fixa em 8 passos; exige CUDA e memória de GPU disponível.")
+          : languageText("model_help");
+  const enabled = isCosmos ? MODEL_AVAILABILITY.cosmosVideo : isQwen ? MODEL_AVAILABILITY.qwenText : isQwenImage ? MODEL_AVAILABILITY.qwenImage : true;
   $("model-runtime-pill").textContent = isVoice
     ? "Hugging Face Space · XTTS-v2"
     : isCosmos
     ? (enabled ? (english ? "Configured · runtime checks apply" : "Configurado · sujeito às verificações do runtime") : (english ? "Unavailable · backend secret required" : "Indisponível · requer segredo do backend"))
     : isQwen
       ? (enabled ? (english ? "Configured · runtime checks apply" : "Configurado · sujeito às verificações do runtime") : (english ? "Unavailable · backend secret required" : "Indisponível · requer segredo do backend"))
-      : (english ? "Available · provider limits apply" : "Disponível · sujeito aos limites do provedor");
+      : isQwenImage
+        ? (enabled ? (english ? "Configured · CUDA/runtime checks apply" : "Configurado · sujeito às verificações de CUDA/runtime") : (english ? "Unavailable · backend/engine configuration required" : "Indisponível · requer configuração do backend/mecanismo"))
+        : (english ? "Available · provider limits apply" : "Disponível · sujeito aos limites do provedor");
   $("model-runtime-notice").textContent = isVoice
     ? (english ? "Uses Whisper to detect the spoken language in your reference audio, then multilingual XTTS-v2 to synthesize in that language—not the website language. Availability and queue time depend on Hugging Face; only clone voices you have permission to use." : "Usa o Whisper para detectar o idioma falado no áudio de referência e o XTTS-v2 multilíngue para sintetizar nesse idioma — não no idioma do site. A fila e a disponibilidade dependem do Hugging Face; clone apenas vozes que você tem autorização para usar.")
     : isCosmos
@@ -645,6 +653,10 @@ function updateModelSelection() {
           ? (enabled ? "The backend is configured to call Qwen. The Space still checks its feature flag, CPU runtime, available RAM and disk before inference; responses may be slow." : "Unavailable until the backend API secret is configured. The Space also requires its Qwen feature flag, CPU runtime, enough RAM and disk.")
           : (enabled ? "O backend está configurado para chamar o Qwen. O Space ainda verifica a flag do modelo, o runtime de CPU, a RAM e o disco antes de inferir; as respostas podem demorar." : "Indisponível até configurar o segredo da API no backend. O Space também exige a flag do Qwen, runtime de CPU, RAM e disco suficientes.")
         )
+      : isQwenImage
+        ? (english
+            ? (enabled ? "Qwen Image uses a CUDA-enabled stable-diffusion.cpp engine and about 10 GiB of model weights. Free GPU memory, cache disk, model downloads, and the Hugging Face queue can delay or prevent a run." : "Unavailable until the backend shared secret and Qwen Image feature flag are configured. The Space also needs its CUDA engine, enough GPU memory, and cache disk.")
+            : (enabled ? "Qwen Image usa o mecanismo stable-diffusion.cpp com CUDA e cerca de 10 GiB de pesos. A memória livre da GPU, o disco de cache, os downloads do modelo e a fila do Hugging Face podem atrasar ou impedir a execução." : "Indisponível até configurar o segredo compartilhado do backend e a flag Qwen Image. O Space também precisa do mecanismo CUDA, memória de GPU e disco de cache suficientes."))
       : isQwythos
       ? languageText("qwythos_runtime_notice")
       : languageText("model_runtime_notice");
@@ -869,9 +881,11 @@ async function loadModelAvailability() {
     const data = await response.json();
     MODEL_AVAILABILITY.cosmosVideo = data?.models?.[COSMOS_MODEL] === true;
     MODEL_AVAILABILITY.qwenText = data?.models?.[QWEN_MODEL] === true;
+    MODEL_AVAILABILITY.qwenImage = data?.models?.[QWEN_IMAGE_MODEL] === true;
   } catch {
     MODEL_AVAILABILITY.cosmosVideo = false;
     MODEL_AVAILABILITY.qwenText = false;
+    MODEL_AVAILABILITY.qwenImage = false;
   }
   const cosmosOption = [...modelSelect.options].find((o) => o.value === COSMOS_MODEL);
   const qwenOption = [...modelSelect.options].find((o) => o.value === QWEN_MODEL);

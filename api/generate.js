@@ -27,6 +27,7 @@ const FLUX_MODEL_ID = "aoxo/flux.1dev-abliterated";
 const QWYTHOS_MODEL_ID = "fluffy12222/Qwythos-9B-Claude-Mythos-5-1M-heretic-abliterated";
 const COSMOS_MODEL_ID = "DuoNeural/Cosmos3-Nano-Abliterated";
 const QWEN_MODEL_ID = "0bserverx/Qwen3.8-27B-Heretic-Abliterated-Uncensored-GGUF";
+const QWEN_IMAGE_MODEL_ID = "AtomicChat/Qwen-Image-2.1-Turbo-Uncensored-GGUF";
 const VOICE_CLONE_MODEL_ID = "tonyassi/voice-clone";
 const VOICE_LANGUAGE_SPACE_ID = "hf-audio/whisper-large-v3";
 const VOICE_CLONE_SPACE_ID = "Nymbo/Voice-Clone-Multilingual";
@@ -260,14 +261,16 @@ export default async function handler(req, res) {
       });
     }
 
-    const allowedModels = new Set([FLUX_MODEL_ID, QWYTHOS_MODEL_ID, COSMOS_MODEL_ID, QWEN_MODEL_ID, VOICE_CLONE_MODEL_ID]);
+    const allowedModels = new Set([FLUX_MODEL_ID, QWYTHOS_MODEL_ID, COSMOS_MODEL_ID, QWEN_MODEL_ID, QWEN_IMAGE_MODEL_ID, VOICE_CLONE_MODEL_ID]);
     const isQwythos = model === QWYTHOS_MODEL_ID;
     const isCosmos = model === COSMOS_MODEL_ID;
     const isQwen = model === QWEN_MODEL_ID;
+    const isQwenImage = model === QWEN_IMAGE_MODEL_ID;
     const isVoiceClone = model === VOICE_CLONE_MODEL_ID;
     if (!allowedModels.has(model)) return res.status(400).json({ error: localized(req, "O modelo selecionado não é compatível.", "The selected model is not supported.") });
     if (isCosmos && !envEnabled(process.env.ENABLE_COSMOS_VIDEO)) return res.status(503).json({ error: localized(req, "O modo de vídeo Cosmos foi desativado pela configuração ENABLE_COSMOS_VIDEO. Defina-a como true para permitir a tentativa real; o Space continuará verificando GPU e disco.", "Cosmos video is disabled by ENABLE_COSMOS_VIDEO. Set it to true to allow a real attempt; the Space will still check GPU and disk resources.") });
     if (isQwen && !envEnabled(process.env.ENABLE_QWEN_TEXT)) return res.status(503).json({ error: localized(req, "O modo de texto Qwen foi desativado pela configuração ENABLE_QWEN_TEXT. Defina-a como true para permitir a tentativa real; o Space continuará verificando RAM e disco.", "Qwen text is disabled by ENABLE_QWEN_TEXT. Set it to true to allow a real attempt; the Space will still check RAM and disk.") });
+    if (isQwenImage && !envEnabled(process.env.ENABLE_QWEN_IMAGE)) return res.status(503).json({ error: localized(req, "O modo Qwen Image está desativado por ENABLE_QWEN_IMAGE. Defina como true para permitir uma tentativa real; o Space ainda verificará o mecanismo CUDA, a GPU e o espaço em disco.", "Qwen Image is disabled by ENABLE_QWEN_IMAGE. Set it to true to allow a real attempt; the Space will still check the CUDA engine, GPU, and disk space.") });
     if (isQwythos && !referenceImage) {
       return res.status(400).json({
         error: localized(req, "Envie uma imagem de referência para usar Qwythos com instruções.", "Upload a reference image to use Qwythos with instructions.")
@@ -292,7 +295,7 @@ export default async function handler(req, res) {
       catch { return res.status(400).json({ error: localized(req, "Não foi possível preparar o áudio. Escolha um arquivo de áudio válido, com 10 a 60 segundos, e tente novamente.", "Could not prepare the audio. Choose a valid 10–60 second audio file and try again.") }); }
     }
     const allowedSizes = new Set(["768x768", "1024x768", "768x1024"]);
-    if (!isCosmos && !isQwen && !isVoiceClone && (!allowedSizes.has(width + "x" + height) || ![20, 28].includes(Number(steps)))) {
+    if (!isCosmos && !isQwen && !isVoiceClone && (!allowedSizes.has(width + "x" + height) || (!isQwenImage && ![20, 28].includes(Number(steps))))) {
       return res.status(400).json({
         error: localized(req, "A configuração da imagem é inválida.", "The image settings are invalid.")
       });
@@ -310,13 +313,13 @@ export default async function handler(req, res) {
       });
     }
     const spaceApiSecret = String(process.env.HF_SPACE_API_SECRET || "").trim();
-    if ((isCosmos || isQwen) && spaceApiSecret.length < 32) {
+    if ((isCosmos || isQwen || isQwenImage) && spaceApiSecret.length < 32) {
       return res.status(503).json({ error: localized(req, "Os modelos experimentais exigem HF_SPACE_API_SECRET como segredo no backend Vercel e no Space do Hugging Face.", "Experimental models require HF_SPACE_API_SECRET as a secret in both the Vercel backend and the Hugging Face Space.") });
     }
 
     phase = "quota-check";
     db = getFirestore(app);
-    const quotaKey = isQwythos ? "qwythos" : isCosmos ? "cosmos" : isQwen ? "qwen" : isVoiceClone ? "voice" : "flux";
+    const quotaKey = isQwythos ? "qwythos" : isCosmos ? "cosmos" : isQwen ? "qwen" : isQwenImage ? "qwen-image" : isVoiceClone ? "voice" : "flux";
     const limit = isQwythos ? getQwythosMaxPerWindow() : getAccountMaxPerWindow();
     // Separate transactional buckets keep the larger Qwythos allowance model-specific.
     quotaRef = db.collection("generation_limits").doc(`${user.uid}_${quotaKey}`);
@@ -498,6 +501,15 @@ export default async function handler(req, res) {
         remaining: Math.max(0, limit - reservation.count),
         tier: "account"
       });
+    } else if (isQwenImage) {
+      phase = "space-qwen-image";
+      result = await predictWithTimeout(
+        client,
+        "/generate_qwen_image",
+        [prompt.trim(), Number(width), Number(height), spaceApiSecret],
+        IMAGE_INFERENCE_TIMEOUT_MS,
+        localized(req, "A geração Qwen Image excedeu o limite de tempo. Aguarde antes de tentar novamente para evitar solicitações duplicadas.", "Qwen Image generation exceeded the server time budget. Wait before retrying to avoid duplicate jobs.")
+      );
     } else if (isQwythos) {
       phase = "space-interpret";
       const interpretation = await predictWithTimeout(
@@ -542,7 +554,7 @@ export default async function handler(req, res) {
       : (first?.url || first?.path || first?.image?.url);
 
     if (!imageUrl) {
-      console.error("[image-generation:space-generate] Space returned an unexpected Gradio result shape.", {
+      console.error("[image-generation:" + phase + "] Space returned an unexpected Gradio result shape.", {
         dataIsArray: Array.isArray(result?.data),
         dataLength: Array.isArray(result?.data) ? result.data.length : null,
         firstResultKeys: first && typeof first === "object" ? Object.keys(first) : []
@@ -589,6 +601,21 @@ export default async function handler(req, res) {
             "Image generation exceeded the server time budget. Wait before retrying to avoid duplicate jobs; if it persists, check the Hugging Face Space logs.")
         });
       }
+    }
+
+    if (phase === "space-qwen-image") {
+      const timedOut = error?.name === "InferenceTimeoutError" || /exceeded its server-side time budget/.test(normalized);
+      const diskFailure = /disk|no space left|not enough space|cache.*space/.test(normalized);
+      const memoryFailure = /out of memory|cuda.*memory|vram|free ram|available.*ram|system ram|requires.*gpu|cuda.*device/i.test(normalized);
+      return res.status(timedOut ? 504 : 503).json({
+        error: timedOut
+          ? localized(req, "A geração Qwen Image demorou além do limite da API. Aguarde antes de repetir e confira os logs do Hugging Face Space.", "Qwen Image exceeded the API time budget. Wait before retrying and check Hugging Face Space logs.")
+          : diskFailure
+            ? localized(req, "O Space não tem espaço de cache suficiente para o mecanismo e os pesos Qwen Image. Confira o disco disponível e os logs.", "The Space has insufficient cache disk space for the Qwen Image engine and weights. Check free disk space and logs.")
+            : memoryFailure
+              ? localized(req, "Qwen Image precisa de uma GPU CUDA compatível com memória livre suficiente. O hardware gratuito pode não atender; confira os logs do Space.", "Qwen Image needs a compatible CUDA GPU with enough free memory. Free-tier hardware may not meet this requirement; check Space logs.")
+              : localized(req, "Qwen Image não concluiu a geração. Confira os logs do Hugging Face Space para verificar o mecanismo CUDA, o cache dos modelos e a disponibilidade de GPU.", "Qwen Image could not complete generation. Check Hugging Face Space logs for the CUDA engine, model cache, and GPU availability.")
+      });
     }
 
     if (phase === "space-video" || phase === "space-text") {

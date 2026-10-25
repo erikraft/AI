@@ -1,6 +1,6 @@
 # ErikrafT AI
 
-ErikrafT AI is an open-source AI model hub with a responsive dark interface and Portuguese (Brazil)/English UI. This repository uses **Vercel static hosting + Node.js Functions**. **`aoxo/flux.1dev-abliterated`** generates images from text. In the experimental **image-editing** workflow, Qwythos (`fluffy12222/Qwythos-9B-Claude-Mythos-5-1M-heretic-abliterated`) interprets a reference image and instructions; `FluxImg2ImgPipeline` then edits the actual source image at low denoising strength to better preserve faces and composition. Exact identity preservation is not guaranteed. Cosmos (`DuoNeural/Cosmos3-Nano-Abliterated`) generates video, Qwen (`0bserverx/Qwen3.8-27B-Heretic-Abliterated-Uncensored-GGUF`) generates text, and XTTS-v2 clones a voice from a reference audio sample: the API detects the requested speech text's language when possible and uses the reference-audio language only as a fallback for very short text. The Vercel API validates Firebase identity and per-account Firestore quotas before calling Hugging Face. Provider capacity, quotas, cold starts, and successful inference are not guaranteed.
+ErikrafT AI is an open-source AI model hub with a responsive dark interface and Portuguese (Brazil)/English UI. This repository uses **Vercel static hosting + Node.js Functions**. **`aoxo/flux.1dev-abliterated`** generates images from text. In the experimental **image-editing** workflow, Qwythos (`fluffy12222/Qwythos-9B-Claude-Mythos-5-1M-heretic-abliterated`) interprets a reference image and instructions; `FluxImg2ImgPipeline` then edits the actual source image at low denoising strength to better preserve faces and composition. Exact identity preservation is not guaranteed. Cosmos (`DuoNeural/Cosmos3-Nano-Abliterated`) generates video, Qwen (`0bserverx/Qwen3.8-27B-Heretic-Abliterated-Uncensored-GGUF`) generates text, and Qwen Image 2.1 Turbo (`AtomicChat/Qwen-Image-2.1-Turbo-Uncensored-GGUF`) provides an additional experimental text-to-image route through a CUDA-enabled `stable-diffusion.cpp` engine and its paired denoiser/VAE. XTTS-v2 clones a voice from a reference audio sample: the API detects the requested speech text's language when possible and uses the reference-audio language only as a fallback for very short text. The Vercel API validates Firebase identity and per-account Firestore quotas before calling Hugging Face. Provider capacity, quotas, cold starts, and successful inference are not guaranteed.
 
 - **Frontend:** static HTML/CSS/JavaScript hosted on Vercel.
 - **Authentication:** Firebase Authentication with Google, GitHub, Yahoo, and email/password; email/password accounts must verify their address before generating images.
@@ -49,9 +49,10 @@ Configure these in **Vercel → Project → Settings → Environment Variables**
 | `FIREBASE_SERVICE_ACCOUNT_JSON` | Sensitive/Secret | Full Firebase service-account JSON for `erikraft-account`; used only by the Node.js API |
 | `HF_SPACE_ID` | Plain | `ErikrafT/erikraft-ai` |
 | `HF_TOKEN` | Sensitive/Secret, optional | Only if the Hugging Face Space requires authenticated access |
-| `HF_SPACE_API_SECRET` | Sensitive/Secret | Same random secret (at least 32 characters) as in Hugging Face Space Settings; required for Cosmos/Qwen |
+| `HF_SPACE_API_SECRET` | Sensitive/Secret | Same random secret (at least 32 characters) as in Hugging Face Space Settings; required for Cosmos and the Qwen text/image models |
 | `ENABLE_COSMOS_VIDEO` | Plain, optional | Defaults to enabled; set explicitly to `false` only to disable video |
 | `ENABLE_QWEN_TEXT` | Plain, optional | Defaults to enabled; set explicitly to `false` only to disable text inference |
+| `ENABLE_QWEN_IMAGE` | Plain, optional | Defaults to enabled; set explicitly to `false` only to disable experimental Qwen Image generation |
 
 Never commit actual values from the first, third, or fourth variables. `.env.example` contains placeholders only. The public Firebase **Web** configuration in `assets/js/firebase-config.js` is separate from the server-side Firebase service account.
 
@@ -60,7 +61,7 @@ After assigning the Vercel deployment domain, add that exact domain under **Fire
 ### Routes and diagnostics
 
 - `GET /api/health` — returns configuration booleans only; it does not test credentials against Google or execute a model.
-- `GET /api/models` — returns five selectable model identifiers and marks Cosmos/Qwen configured only when `HF_SPACE_ID` and the protected API secret are present.
+- `GET /api/models` — returns six selectable model identifiers and marks Cosmos/Qwen models configured only when `HF_SPACE_ID` and the protected API secret are present.
 - `POST /api/generate` — validates the Firebase ID token, applies the configurable per-account hourly quota, then calls the selected Hugging Face task.
 
 Vercel Functions have a **4.5 MB request/response body limit**. The current Qwythos browser flow compresses its image to at most 3 MiB so the base64 JSON request fits below this ceiling. The Hobby plan's Fluid Compute maximum is **300 seconds**; Cosmos and especially the sequential Qwythos→FLUX path may still hit that deadline if provider queueing or cold model loads take too long. Qwen runs in the Hugging Face Space, not inside Vercel, but its CPU inference can also be slow. These are provider/runtime constraints—not reasons to change or remove any model. Test real calls and check both Vercel Function logs and Space logs before calling a deployment production-ready.

@@ -87,7 +87,7 @@ export default async function handler(req, res) {
     // A single batch keeps these cleanup writes consistent and retryable.
     const firestore = getFirestore(adminApp());
     const generationLimits = firestore.collection("generation_limits");
-    const quotaKeys = ["flux", "qwythos", "cosmos", "qwen", "voice"];
+    const quotaKeys = ["flux", "qwythos", "cosmos", "qwen", "qwen-image", "voice"];
     const quotaBatch = firestore.batch();
     for (const documentId of [user.uid, ...quotaKeys.map((key) => `${user.uid}_${key}`)]) {
       quotaBatch.delete(generationLimits.doc(documentId));
