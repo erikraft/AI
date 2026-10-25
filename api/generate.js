@@ -554,7 +554,7 @@ export default async function handler(req, res) {
       : (first?.url || first?.path || first?.image?.url);
 
     if (!imageUrl) {
-      console.error("[image-generation:space-generate] Space returned an unexpected Gradio result shape.", {
+      console.error("[image-generation:" + phase + "] Space returned an unexpected Gradio result shape.", {
         dataIsArray: Array.isArray(result?.data),
         dataLength: Array.isArray(result?.data) ? result.data.length : null,
         firstResultKeys: first && typeof first === "object" ? Object.keys(first) : []
@@ -592,7 +592,7 @@ export default async function handler(req, res) {
 
     console.error("[image-generation:" + phase + "]", error?.stack || rawMessage);
 
-    if (phase === "space-generate" || phase === "space-interpret" || phase === "space-qwen-image") {
+    if (phase === "space-generate" || phase === "space-interpret") {
       const timedOut = error?.name === "InferenceTimeoutError" || /exceeded its server-side time budget/.test(normalized);
       if (timedOut) {
         return res.status(504).json({
