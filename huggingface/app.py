@@ -8,7 +8,7 @@ import subprocess
 import tempfile
 import urllib.request
 import wave
-import zipfile
+import tarfile
 
 import gradio as gr
 from gradio_client import Client, handle_file
@@ -392,12 +392,12 @@ def _ensure_qwen_image_engine() -> str:
         raise gr.Error("Qwen Image needs at least 1.5 GiB of free disk to install its CUDA engine bundle.")
     parent = os.path.dirname(cache_root)
     os.makedirs(parent, exist_ok=True)
-    archive_url = "https://github.com/erikraft/AI/releases/download/qwen-image-engine/sd-cli-linux-cuda.zip"
+    archive_url = "https://github.com/erikraft/AI/releases/download/qwen-image-engine/sd-cli-linux-cuda.tar.gz"
     checksum_url = archive_url + ".sha256"
     try:
         with tempfile.TemporaryDirectory(prefix=".qwen-image-engine-", dir=parent) as temporary:
-            archive_path = os.path.join(temporary, "sd-cli-linux-cuda.zip")
-            checksum_path = os.path.join(temporary, "sd-cli-linux-cuda.zip.sha256")
+            archive_path = os.path.join(temporary, "sd-cli-linux-cuda.tar.gz")
+            checksum_path = os.path.join(temporary, "sd-cli-linux-cuda.tar.gz.sha256")
             urllib.request.urlretrieve(archive_url, archive_path)
             urllib.request.urlretrieve(checksum_url, checksum_path)
             with open(checksum_path, "r", encoding="utf-8") as checksum_file:
@@ -411,12 +411,20 @@ def _ensure_qwen_image_engine() -> str:
 
             extracted_path = os.path.join(temporary, "bundle")
             os.makedirs(extracted_path, exist_ok=True)
-            with zipfile.ZipFile(archive_path, "r") as archive:
-                for member in archive.infolist():
-                    member_path = os.path.normpath(member.filename)
+            with tarfile.open(archive_path, "r:gz") as archive:
+                members = archive.getmembers()
+                for member in members:
+                    member_path = os.path.normpath(member.name)
+                    if member_path == "." and member.isdir():
+                        continue
                     if os.path.isabs(member_path) or member_path == ".." or member_path.startswith(".." + os.sep):
                         raise ValueError("engine bundle contains an unsafe archive path")
-                archive.extractall(extracted_path)
+                    if member.issym() or member.islnk():
+                        target = member.linkname
+                        resolved_target = os.path.normpath(os.path.join(os.path.dirname(member_path), target))
+                        if os.path.isabs(target) or resolved_target == ".." or resolved_target.startswith(".." + os.sep):
+                            raise ValueError("engine bundle contains an unsafe symbolic-link target")
+                archive.extractall(extracted_path, members=members)
             extracted_cli = os.path.join(extracted_path, "sd-cli")
             if not os.path.isfile(extracted_cli):
                 raise FileNotFoundError("sd-cli executable was not present in the verified engine bundle")
