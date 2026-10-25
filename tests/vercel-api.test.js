@@ -254,7 +254,7 @@ test("Qwen runtime documentation matches the implemented limits and model invent
   assert.match(app, /qwen_timeout:"Qwen did not respond within this request’s 285-second timeout/);
   assert.doesNotMatch(app, /3-minute limit|3 minutos/);
   assert.doesNotMatch(hfReadme, /128 tokens|135-second inference budget|3-minute fallback/);
-  assert.match(readme, /returns five selectable model identifiers/);
+  assert.match(readme, /returns six selectable model identifiers/);
   assert.match(readme, /supports five model workflows/);
   assert.match(app, /const requestTimeoutMs = 285_000/);
 });
