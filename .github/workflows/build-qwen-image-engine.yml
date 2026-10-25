@@ -78,15 +78,16 @@ jobs:
           BUNDLE="$RUNNER_TEMP/qwen-image-engine"
           mkdir -p "$BUNDLE"
           cp -a stable-diffusion.cpp/build/bin/. "$BUNDLE/"
-          find /usr/local/cuda -type f -o -type l | grep -E '/lib(cuda|cublas|cublasLt|nvrtc|nvrtc-builtins|nvJitLink|cusparse|curand|cufft|cusolver|culibos|nvToolsExt)[^/]*\.so([.]|$)' | while read -r lib; do
+          find /usr/local/cuda \( -type f -o -type l \) ! -path '*/stubs/*' -print | grep -E '/lib(cudart|cublas|cublasLt|nvrtc|nvrtc-builtins|nvJitLink|cusparse|curand|cufft|cusolver|culibos|nvToolsExt)[^/]*\.so([.]|$)' | while read -r lib; do
             name="$(basename "$lib")"
             cp -L "$lib" "$BUNDLE/$name"
           done
           cp stable-diffusion.cpp/LICENSE "$BUNDLE/stable-diffusion.cpp.LICENSE"
           cp stable-diffusion.cpp/ggml/LICENSE "$BUNDLE/ggml.LICENSE"
-          if ldd "$BUNDLE/sd-cli" | grep -q "not found"; then
-            ldd "$BUNDLE/sd-cli" | grep "not found"
-            echo "Bundled CLI has unresolved shared-library dependencies" >&2
+          MISSING="$(ldd "$BUNDLE/sd-cli" | awk '/not found/ && $1 != "libcuda.so.1" { print }')"
+          if [[ -n "$MISSING" ]]; then
+            printf '%s\n' "$MISSING"
+            echo "Bundled CLI has unresolved shared-library dependencies (the host-provided NVIDIA driver is intentionally not bundled)." >&2
             exit 1
           fi
           (cd "$BUNDLE" && zip -q -r "$GITHUB_WORKSPACE/sd-cli-linux-cuda.zip" .)
