@@ -158,7 +158,7 @@ async function detectVoiceReferenceLanguage(audioFile, clientOptions) {
 
 
 async function voiceAudioToGradioFile(dataUrl) {
-  const match = /^data:(audio\x2f(?:wav|x-wav|mpeg|mp3|ogg|webm|mp4|x-m4a));base64,([A-Za-z0-9+/]+={0,2})$/i.exec(dataUrl);
+  const match = /^data:(audio\x2f(?:wav|x-wav));base64,([A-Za-z0-9+/]+={0,2})$/i.exec(dataUrl);
   if (!match) throw new Error("Invalid voice reference audio data URL.");
   const mimeType = match[1].toLowerCase();
   const bytes = Buffer.from(match[2], "base64");
@@ -173,8 +173,8 @@ async function voiceAudioToGradioFile(dataUrl) {
   if (!Number.isFinite(duration) || duration < MIN_VOICE_AUDIO_DURATION_SECONDS) {
     throw new Error("Voice reference audio must be at least 10 seconds long.");
   }
-  const extension = mimeType.includes("wav") ? "wav" : mimeType.includes("mpeg") || mimeType.includes("mp3") ? "mp3" : mimeType.includes("ogg") ? "ogg" : mimeType.includes("mp4") || mimeType.includes("m4a") ? "m4a" : "webm";
-  return handle_file(new File([bytes], "voice-reference." + extension, { type: mimeType }));
+  if (!mimeType.includes("wav")) throw new Error("Voice audio must be normalized to WAV PCM before inference.");
+  return handle_file(new File([bytes], "voice-reference.wav", { type: "audio/wav" }));
 }
 
 function referenceImageToGradioFile(dataUrl) {
@@ -271,7 +271,7 @@ export default async function handler(req, res) {
         error: localized(req, "Envie uma imagem de referência para usar Qwythos com instruções.", "Upload a reference image to use Qwythos with instructions.")
       });
     }
-    if (isVoiceClone && (!voiceAudio || typeof voiceAudio !== "string" || !/^data:audio\x2f(?:wav|x-wav|mpeg|mp3|ogg|webm|mp4|x-m4a);base64,[A-Za-z0-9+/]+={0,2}$/i.test(voiceAudio) || voiceAudio.length > 4_200_000)) return res.status(400).json({ error: localized(req, "Envie um áudio de referência válido de até 3 MiB e com pelo menos 10 segundos.", "Upload a valid voice reference audio file up to 3 MiB and at least 10 seconds long.") });
+    if (isVoiceClone && (!voiceAudio || typeof voiceAudio !== "string" || !/^data:audio\x2f(?:wav|x-wav);base64,[A-Za-z0-9+/]+={0,2}$/i.test(voiceAudio) || voiceAudio.length > 4_200_000)) return res.status(400).json({ error: localized(req, "Envie um áudio que o navegador consiga decodificar, com 10 a 60 segundos; ele será convertido para WAV antes do envio.", "Upload audio that your browser can decode, between 10 and 60 seconds; it will be converted to WAV before upload.") });
     if (!isVoiceClone && voiceAudio !== null) return res.status(400).json({ error: localized(req, "O áudio de referência só é aceito no modelo de clonagem de voz.", "Voice reference audio is only accepted for the voice-cloning model.") });
     if (referenceImage !== null && (!isQwythos || typeof referenceImage !== "string" || !/^data:image\/(?:png|jpeg|webp);base64,[A-Za-z0-9+/]+={0,2}$/i.test(referenceImage) || referenceImage.length > 4_200_000)) {
       return res.status(400).json({ error: localized(req, "Imagem inválida ou grande demais. Envie uma imagem compatível; a versão preparada para inferência pode ter até 3 MB.", "Invalid or oversized image. Upload a supported image; the prepared inference image may be up to 3 MB.") });
@@ -287,7 +287,7 @@ export default async function handler(req, res) {
     let voiceAudioFile = null;
     if (isVoiceClone) {
       try { voiceAudioFile = await voiceAudioToGradioFile(voiceAudio); }
-      catch { return res.status(400).json({ error: localized(req, "Não foi possível preparar o áudio. Use WAV, MP3, OGG, WebM ou M4A de até 3 MiB e com pelo menos 10 segundos.", "Could not prepare the audio. Use WAV, MP3, OGG, WebM, or M4A up to 3 MiB and at least 10 seconds long.") }); }
+      catch { return res.status(400).json({ error: localized(req, "Não foi possível preparar o áudio. Escolha um arquivo de áudio válido, com 10 a 60 segundos, e tente novamente.", "Could not prepare the audio. Choose a valid 10–60 second audio file and try again.") }); }
     }
     const allowedSizes = new Set(["768x768", "1024x768", "768x1024"]);
     if (!isCosmos && !isQwen && !isVoiceClone && (!allowedSizes.has(width + "x" + height) || ![20, 28].includes(Number(steps)))) {
