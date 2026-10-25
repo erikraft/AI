@@ -43,6 +43,8 @@ test("initialize negotiates a supported client protocol version", async () => {
   assert.equal(response.statusCode, 200);
   assert.equal(response.body.result.protocolVersion, "2025-06-18");
   assert.equal(response.body.result.serverInfo.name, "erikraft-ai");
+  assert.match(response.body.result.instructions, /Never ask the user to reveal or paste a Firebase ID token into chat/);
+  assert.match(response.body.result.instructions, /native OAuth\/PKCE sign-in is not implemented/);
 });
 
 test("tools list includes the complete current model catalog without exposing auth tools to the model", async () => {
