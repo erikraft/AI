@@ -162,6 +162,6 @@ export default async function handler(req, res) {
     return oauthError(res, 404, "not_found", "Unknown OAuth endpoint.");
   } catch (error) {
     console.error("[mcp-oauth]", error?.message || error);
-    return oauthError(res, 503, "server_error", "OAuth is temporarily unavailable. Check Firebase Admin and Firestore configuration.");
+    return oauthError(res, 503, "server_error", "OAuth is temporarily unavailable. Check Firebase Admin, MongoDB Atlas connectivity, and required environment variables.");
   }
 }
