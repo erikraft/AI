@@ -23,7 +23,7 @@ jobs:
       - name: Install build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential cmake ninja-build git zip libcurl4-openssl-dev libssl-dev
+          sudo apt-get install -y build-essential cmake ninja-build git libcurl4-openssl-dev libssl-dev
 
       - name: Install CUDA toolkit
         uses: Jimver/cuda-toolkit@v0.2.22
@@ -101,10 +101,10 @@ jobs:
             [[ -f "$candidate" && ! -L "$candidate" ]] || continue
             check_shared_dependencies "$candidate"
           done
-          (cd "$BUNDLE" && zip -q -r "$GITHUB_WORKSPACE/sd-cli-linux-cuda.zip" .)
+          tar -czf "$GITHUB_WORKSPACE/sd-cli-linux-cuda.tar.gz" -C "$BUNDLE" .
           cd "$GITHUB_WORKSPACE"
-          sha256sum sd-cli-linux-cuda.zip > sd-cli-linux-cuda.zip.sha256
-          ls -lh sd-cli-linux-cuda.zip sd-cli-linux-cuda.zip.sha256
+          sha256sum sd-cli-linux-cuda.tar.gz > sd-cli-linux-cuda.tar.gz.sha256
+          ls -lh sd-cli-linux-cuda.tar.gz sd-cli-linux-cuda.tar.gz.sha256
 
       - name: Publish pinned engine release asset
         env:
@@ -113,9 +113,9 @@ jobs:
         run: |
           set -euo pipefail
           if gh release view qwen-image-engine --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
-            gh release upload qwen-image-engine sd-cli-linux-cuda.zip sd-cli-linux-cuda.zip.sha256 --repo "${GITHUB_REPOSITORY}" --clobber
+            gh release upload qwen-image-engine sd-cli-linux-cuda.tar.gz sd-cli-linux-cuda.tar.gz.sha256 --repo "${GITHUB_REPOSITORY}" --clobber
           else
-            gh release create qwen-image-engine sd-cli-linux-cuda.zip sd-cli-linux-cuda.zip.sha256 \
+            gh release create qwen-image-engine sd-cli-linux-cuda.tar.gz sd-cli-linux-cuda.tar.gz.sha256 \
               --repo "${GITHUB_REPOSITORY}" \
               --title "Qwen Image CUDA engine (stable-diffusion.cpp)" \
               --notes "CUDA-enabled stable-diffusion.cpp CLI built from the revision pinned in huggingface/qwen-image-engine.lock. This asset is used by the Hugging Face Space for Qwen Image 2.1 Turbo inference." \
