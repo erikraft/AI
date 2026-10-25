@@ -1,12 +1,12 @@
-/* Animated selection feedback for mouse, touch and keyboard text selection. */
+/* Infinite RGB rainbow feedback while text is selected. */
 ::selection {
-  color: #fffdf8;
-  background: rgba(134, 125, 108, 0.62);
-  text-shadow: 0 0 8px rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+  background: rgba(255, 0, 128, 0.42);
+  text-shadow: 0 0 8px rgba(255, 255, 255, 0.35);
 }
 ::-moz-selection {
-  color: #fffdf8;
-  background: rgba(134, 125, 108, 0.62);
+  color: #ffffff;
+  background: rgba(255, 0, 128, 0.42);
 }
 .text-selection-effects {
   position: fixed;
@@ -19,18 +19,36 @@
 .text-selection-effect {
   position: fixed;
   display: block;
-  border: 1px dashed rgba(134, 125, 108, 0.95);
+  border: 2px dashed #ff0080;
   border-radius: 3px;
-  outline: 1px solid rgba(134, 125, 108, 0.18);
+  outline: 1px solid rgba(255, 0, 128, 0.24);
   outline-offset: 2px;
-  background: rgba(134, 125, 108, 0.08);
-  box-shadow: 0 0 12px rgba(134, 125, 108, 0.42);
+  background: linear-gradient(
+    90deg,
+    rgba(255, 0, 0, 0.18),
+    rgba(255, 128, 0, 0.18),
+    rgba(255, 255, 0, 0.18),
+    rgba(0, 255, 0, 0.18),
+    rgba(0, 220, 255, 0.18),
+    rgba(40, 70, 255, 0.18),
+    rgba(190, 0, 255, 0.18),
+    rgba(255, 0, 128, 0.18)
+  );
+  box-shadow: 0 0 12px rgba(255, 0, 128, 0.68);
   transform-origin: center;
-  animation: erikraft-selection-pulse 1.15s ease-in-out infinite alternate;
+  animation: erikraft-selection-rgb-rainbow 3s linear infinite;
 }
-@keyframes erikraft-selection-pulse {
-  from { transform: scale(1); filter: hue-rotate(0deg); opacity: 0.65; }
-  to { transform: scale(1.012); filter: hue-rotate(32deg); opacity: 1; }
+@keyframes erikraft-selection-rgb-rainbow {
+  from {
+    filter: hue-rotate(0deg);
+    border-color: #ff003c;
+    box-shadow: 0 0 12px rgba(255, 0, 60, 0.72);
+  }
+  to {
+    filter: hue-rotate(360deg);
+    border-color: #ff003c;
+    box-shadow: 0 0 12px rgba(255, 0, 60, 0.72);
+  }
 }
 @media (prefers-reduced-motion: reduce) {
   .text-selection-effect { animation: none; }
