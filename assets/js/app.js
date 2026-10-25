@@ -905,62 +905,96 @@ async function getVoiceAudioDuration(file) {
   const audio = new Audio();
   audio.preload = "metadata";
   try {
-    const duration = await new Promise((resolve, reject) => {
+    return await new Promise((resolve, reject) => {
       audio.onloadedmetadata = () => resolve(audio.duration);
       audio.onerror = () => reject(new Error(document.documentElement.lang === "en" ? "Could not read the audio duration. Use a valid audio file." : "Não foi possível ler a duração do áudio. Use um arquivo de áudio válido."));
       audio.src = url;
     });
-    return duration;
   } finally {
     audio.removeAttribute("src");
     audio.load();
     URL.revokeObjectURL(url);
   }
 }
-async function readVoiceAudio(file, knownDuration = null) {
-  if (!file) return;
-  const mimeType = typeof file.type === "string" ? file.type.split(";")[0].trim().toLowerCase() : "";
-  const unsupportedType = document.documentElement.lang === "en"
-    ? "Choose a supported audio file."
-    : "Escolha um formato de áudio compatível.";
-  if (!SUPPORTED_VOICE_AUDIO_TYPES.has(mimeType)) throw new Error(unsupportedType);
-  if (file.size > MAX_VOICE_AUDIO_BYTES) throw new Error(document.documentElement.lang === "en" ? "Audio must be 3 MiB or smaller." : "O áudio deve ter no máximo 3 MiB.");
-  const duration = Number.isFinite(knownDuration) ? knownDuration : await getVoiceAudioDuration(file);
+const VOICE_AUDIO_TARGET_SAMPLE_RATE = 16000;
+const MAX_VOICE_INPUT_BYTES = 12 * 1024 * 1024;
+const MAX_VOICE_DURATION_SECONDS = 60;
+async function normalizeVoiceAudioToWav(file) {
+  const duration = await getVoiceAudioDuration(file);
   if (!Number.isFinite(duration) || duration < 10) {
     throw new Error(document.documentElement.lang === "en" ? "Voice samples must be at least 10 seconds long." : "As amostras de voz devem ter pelo menos 10 segundos.");
   }
-  return new Promise((resolve, reject) => {
+  if (duration > MAX_VOICE_DURATION_SECONDS) {
+    throw new Error(document.documentElement.lang === "en" ? "Voice samples must be 60 seconds or shorter." : "As amostras de voz devem ter no máximo 60 segundos.");
+  }
+  const AudioContextType = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContextType) throw new Error(document.documentElement.lang === "en" ? "Audio conversion is not supported in this browser. Try another browser." : "Este navegador não oferece suporte à conversão de áudio. Tente outro navegador.");
+  const audioContext = new AudioContextType();
+  let decoded;
+  try {
+    decoded = await audioContext.decodeAudioData(await file.arrayBuffer());
+  } finally {
+    try { await audioContext.close(); } catch {}
+  }
+  if (!Number.isFinite(decoded.duration) || decoded.duration < 10 || decoded.duration > MAX_VOICE_DURATION_SECONDS) {
+    throw new Error(document.documentElement.lang === "en" ? "Voice samples must be between 10 and 60 seconds." : "As amostras de voz devem ter entre 10 e 60 segundos.");
+  }
+  const targetFrames = Math.ceil(decoded.length * VOICE_AUDIO_TARGET_SAMPLE_RATE / decoded.sampleRate);
+  const dataBytes = targetFrames * 2;
+  if (!targetFrames || dataBytes + 44 > MAX_VOICE_AUDIO_BYTES) {
+    throw new Error(document.documentElement.lang === "en" ? "Converted audio exceeds the 3 MiB upload limit." : "O áudio convertido excede o limite de 3 MiB.");
+  }
+  const wav = new ArrayBuffer(44 + dataBytes);
+  const view = new DataView(wav);
+  const writeAscii = (offset, value) => { for (let i = 0; i < value.length; i += 1) view.setUint8(offset + i, value.charCodeAt(i)); };
+  writeAscii(0, "RIFF"); view.setUint32(4, 36 + dataBytes, true); writeAscii(8, "WAVE");
+  writeAscii(12, "fmt "); view.setUint32(16, 16, true); view.setUint16(20, 1, true);
+  view.setUint16(22, 1, true); view.setUint32(24, VOICE_AUDIO_TARGET_SAMPLE_RATE, true);
+  view.setUint32(28, VOICE_AUDIO_TARGET_SAMPLE_RATE * 2, true); view.setUint16(32, 2, true);
+  view.setUint16(34, 16, true); writeAscii(36, "data"); view.setUint32(40, dataBytes, true);
+  const channels = Array.from({ length: decoded.numberOfChannels }, (_, index) => decoded.getChannelData(index));
+  const ratio = decoded.sampleRate / VOICE_AUDIO_TARGET_SAMPLE_RATE;
+  for (let frame = 0; frame < targetFrames; frame += 1) {
+    const position = frame * ratio;
+    const left = Math.min(decoded.length - 1, Math.floor(position));
+    const right = Math.min(decoded.length - 1, left + 1);
+    const fraction = position - left;
+    let sample = 0;
+    for (const channel of channels) sample += channel[left] + (channel[right] - channel[left]) * fraction;
+    sample /= channels.length;
+    sample = Math.max(-1, Math.min(1, sample));
+    view.setInt16(44 + frame * 2, sample < 0 ? sample * 0x8000 : sample * 0x7fff, true);
+  }
+  return new Blob([wav], { type: "audio/wav" });
+}
+async function readVoiceAudio(file) {
+  if (!file) return;
+  const mimeType = typeof file.type === "string" ? file.type.split(";")[0].trim().toLowerCase() : "";
+  if (!SUPPORTED_VOICE_AUDIO_TYPES.has(mimeType)) {
+    throw new Error(document.documentElement.lang === "en" ? "Choose a supported audio file." : "Escolha um formato de áudio compatível.");
+  }
+  if (file.size > MAX_VOICE_INPUT_BYTES) {
+    throw new Error(document.documentElement.lang === "en" ? "Original audio files must be 12 MiB or smaller." : "O áudio original deve ter no máximo 12 MiB.");
+  }
+  const normalizedBlob = await normalizeVoiceAudioToWav(file);
+  const dataUrl = await new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onload = () => {
-      const dataUrl = typeof reader.result === "string"
-        ? /^data:audio\/[a-z0-9.+-]+(?:;[^,]*)?;base64,([A-Za-z0-9+/]*={0,2})$/i.exec(reader.result)
-        : null;
-      if (!dataUrl) {
-        reject(new Error(document.documentElement.lang === "en" ? "Could not read the audio file." : "Não foi possível ler o áudio."));
-        return;
-      }
-      // Normalize optional codec parameters to the explicit allowlisted MIME type
-      // expected by the server; never use the raw data URL as a DOM HTML value.
-      voiceAudioDataUrl = `data:${mimeType};base64,${dataUrl[1]}`;
-      if (voiceAudioObjectUrl) URL.revokeObjectURL(voiceAudioObjectUrl);
-      const previewBlob = new Blob([file], { type: mimeType });
-      const previewUrl = URL.createObjectURL(previewBlob);
-      if (!previewUrl.startsWith("blob:")) {
-        URL.revokeObjectURL(previewUrl);
-        reject(new Error(document.documentElement.lang === "en" ? "Could not prepare the audio preview." : "Não foi possível preparar a prévia do áudio."));
-        return;
-      }
-      voiceAudioObjectUrl = previewUrl;
-      voiceAudioPreview.src = previewUrl;
-      voiceAudioPreview.classList.remove("hidden");
-      if (voiceAudioPlayer) voiceAudioPlayer.hidden = false;
-      $("voice-audio-status").textContent = document.documentElement.lang === "en" ? "Voice sample ready." : "Amostra de voz pronta.";
-      $("voice-audio-remove").classList.remove("hidden");
-      resolve();
-    };
-    reader.onerror = () => reject(new Error(document.documentElement.lang === "en" ? "Could not read the audio file." : "Não foi possível ler o áudio."));
-    reader.readAsDataURL(file);
+    reader.onload = () => typeof reader.result === "string" ? resolve(reader.result) : reject(new Error(document.documentElement.lang === "en" ? "Could not read the converted audio." : "Não foi possível ler o áudio convertido."));
+    reader.onerror = () => reject(new Error(document.documentElement.lang === "en" ? "Could not read the converted audio." : "Não foi possível ler o áudio convertido."));
+    reader.readAsDataURL(normalizedBlob);
   });
+  const match = /^data:audio\/wav;base64,([A-Za-z0-9+/]+={0,2})$/i.exec(dataUrl);
+  if (!match || normalizedBlob.size > MAX_VOICE_AUDIO_BYTES) {
+    throw new Error(document.documentElement.lang === "en" ? "Could not prepare a valid WAV sample under 3 MiB." : "Não foi possível preparar uma amostra WAV válida com menos de 3 MiB.");
+  }
+  voiceAudioDataUrl = "data:audio/wav;base64," + match[1];
+  if (voiceAudioObjectUrl) URL.revokeObjectURL(voiceAudioObjectUrl);
+  voiceAudioObjectUrl = URL.createObjectURL(normalizedBlob);
+  voiceAudioPreview.src = voiceAudioObjectUrl;
+  voiceAudioPreview.classList.remove("hidden");
+  if (voiceAudioPlayer) voiceAudioPlayer.hidden = false;
+  $("voice-audio-status").textContent = document.documentElement.lang === "en" ? "Voice sample converted to WAV and ready." : "Amostra convertida para WAV e pronta.";
+  $("voice-audio-remove").classList.remove("hidden");
 }
 voiceAudioInput.addEventListener("change", async () => {
   const file = voiceAudioInput.files?.[0];
@@ -1013,11 +1047,11 @@ $("voice-record-start").addEventListener("click", async () => {
       $("voice-record-stop").disabled = true;
       try {
         if (recordedDuration < 10) throw new Error(document.documentElement.lang === "en" ? "Recording must be at least 10 seconds. Record again for longer." : "A gravação deve ter pelo menos 10 segundos. Grave novamente por mais tempo.");
-        if (blob.size > MAX_VOICE_AUDIO_BYTES) throw new Error(document.documentElement.lang === "en" ? "Recording exceeds 3 MiB. Record a shorter sample." : "A gravação excede 3 MiB. Grave uma amostra mais curta.");
+        if (blob.size > MAX_VOICE_INPUT_BYTES) throw new Error(document.documentElement.lang === "en" ? "Recording exceeds 12 MiB. Record a shorter sample." : "A gravação excede 12 MiB. Grave uma amostra mais curta.");
         const mimeType = (blob.type || "audio/webm").split(";")[0];
         const file = new File([blob], "voice-reference." + (mimeType.includes("mp4") ? "m4a" : "webm"), { type: mimeType });
         voiceAudioInput.value = "";
-        await readVoiceAudio(file, recordedDuration);
+        await readVoiceAudio(file);
       } catch (error) { clearVoiceAudio(); $("voice-audio-status").textContent = error.message; }
     }, { once: true });
     voiceRecordingStartedAt = Date.now();
