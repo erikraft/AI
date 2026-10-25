@@ -6,6 +6,9 @@
     "api/generate.js": {
       "maxDuration": 300
     },
+    "api/mcp.js": {
+      "maxDuration": 300
+    },
     "api/mcp-servers.js": {
       "maxDuration": 60
     }

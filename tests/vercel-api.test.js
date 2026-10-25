@@ -44,6 +44,7 @@ test("Vercel config restores clean URLs, Fluid Compute, and the Hobby max durati
   assert.equal(config.cleanUrls, true);
   assert.equal(config.fluid, true);
   assert.equal(config.functions["api/generate.js"].maxDuration, 300);
+  assert.equal(config.functions["api/mcp.js"].maxDuration, 300);
   assert.ok(config.headers.some((entry) => entry.source === "/assets/(.*)"));
 });
 
@@ -623,4 +624,12 @@ test("Qwen Image 2.1 Turbo is wired to a protected, separate CUDA generation rou
   assert.match(workflow, /sd-cli-linux-cuda\.tar\.gz/);
   assert.match(space, /sd-cli-linux-cuda\.tar\.gz/);
   assert.match(space, /tarfile\.open\(archive_path, "r:gz"\)/);
+});
+
+test("voice-reference audio enforces the documented 10–60 second range", () => {
+  const source = readFileSync(new URL("../api/generate.js", import.meta.url), "utf8");
+  assert.ok(source.includes("MIN_VOICE_AUDIO_DURATION_SECONDS = 10"));
+  assert.ok(source.includes("MAX_VOICE_AUDIO_DURATION_SECONDS = 60"));
+  assert.ok(source.includes("duration > MAX_VOICE_AUDIO_DURATION_SECONDS"));
+  assert.ok(source.includes("Voice reference audio must be between 10 and 60 seconds long."));
 });

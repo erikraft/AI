@@ -40,6 +40,7 @@ const VOICE_LANGUAGE_CODES = Object.freeze({
 });
 const MAX_VOICE_AUDIO_BYTES = 3 * 1024 * 1024;
 const MIN_VOICE_AUDIO_DURATION_SECONDS = 10;
+const MAX_VOICE_AUDIO_DURATION_SECONDS = 60;
 const ENABLED_VALUES = new Set(["1", "true", "yes", "on"]);
 const envEnabled = (value) => {
   // Allow real inference attempts unless the operator explicitly disables a model.
@@ -173,8 +174,8 @@ async function voiceAudioToGradioFile(dataUrl) {
   } catch {
     throw new Error("Could not read the audio duration. Upload a valid audio file at least 10 seconds long.");
   }
-  if (!Number.isFinite(duration) || duration < MIN_VOICE_AUDIO_DURATION_SECONDS) {
-    throw new Error("Voice reference audio must be at least 10 seconds long.");
+  if (!Number.isFinite(duration) || duration < MIN_VOICE_AUDIO_DURATION_SECONDS || duration > MAX_VOICE_AUDIO_DURATION_SECONDS) {
+    throw new Error("Voice reference audio must be between 10 and 60 seconds long.");
   }
   if (!mimeType.includes("wav")) throw new Error("Voice audio must be normalized to WAV PCM before inference.");
   return handle_file(new File([bytes], "voice-reference.wav", { type: "audio/wav" }));
