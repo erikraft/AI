@@ -1,6 +1,3 @@
-import { initializeApp, cert, getApps } from "firebase-admin/app";
-import { getAuth } from "firebase-admin/auth";
-import { MongoClient } from "mongodb";
 import { createHash } from "node:crypto";
 const SITE_ORIGIN = "https://ai.erikraft.com";
 const UI_URI = "ui://erikraft-ai/studio-v1.html";
@@ -246,6 +243,7 @@ async function oauthTokenCollection() {
   const uri = String(process.env.MONGODB_URI || "").trim();
   if (!uri) throw new Error("MONGODB_URI is not configured");
   if (!oauthMongoPromise) {
+    const { MongoClient } = await import("mongodb");
     oauthMongoPromise = new MongoClient(uri, { maxPoolSize: 5, serverSelectionTimeoutMS: 8000 }).connect()
       .catch((error) => { oauthMongoPromise = undefined; oauthTokenCollectionPromise = undefined; throw error; });
   }
@@ -263,6 +261,8 @@ async function verifyOAuthBearer(accessToken) {
   const collection = await oauthTokenCollection();
   const record = await collection.findOne({ _id: createHash("sha256").update(accessToken).digest("hex"), expires_at: { $gt: new Date() } });
   if (!record || typeof record.firebase_id_token !== "string") throw new Error("Invalid or expired OAuth access token");
+  const { getApps, initializeApp, cert } = await import("firebase-admin/app");
+  const { getAuth } = await import("firebase-admin/auth");
   const raw = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
   if (!getApps().length) {
     if (!raw) throw new Error("Firebase Admin is not configured");
