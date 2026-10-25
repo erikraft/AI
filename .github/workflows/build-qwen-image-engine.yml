@@ -1,0 +1,111 @@
+name: Build Qwen Image CUDA engine
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/build-qwen-image-engine.yml"
+      - "huggingface/qwen-image-engine.lock"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: qwen-image-engine-build
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 90
+    steps:
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake ninja-build git zip libcurl4-openssl-dev libssl-dev
+
+      - name: Install CUDA toolkit
+        uses: Jimver/cuda-toolkit@v0.2.22
+        with:
+          cuda: "12.8.1"
+          method: "network"
+          sub-packages: '["nvcc","cudart","cublas","cublas_dev","thrust"]'
+
+      - name: Read pinned stable-diffusion.cpp revision
+        id: revision
+        shell: bash
+        run: |
+          REV="$(tr -d '\r\n ' < huggingface/qwen-image-engine.lock)"
+          if ! [[ "$REV" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "Invalid stable-diffusion.cpp revision in lock file" >&2
+            exit 1
+          fi
+          echo "sha=$REV" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout stable-diffusion.cpp
+        uses: actions/checkout@v6
+        with:
+          repository: leejet/stable-diffusion.cpp
+          ref: ${{ steps.revision.outputs.sha }}
+          path: stable-diffusion.cpp
+          submodules: recursive
+
+      - name: Build CUDA-enabled sd-cli
+        shell: bash
+        run: |
+          set -euo pipefail
+          cmake -S stable-diffusion.cpp -B stable-diffusion.cpp/build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DSD_CUDA=ON \
+            -DCMAKE_CUDA_ARCHITECTURES="61;70;75;80;86;89;90;100;120" \
+            -DSD_BUILD_SHARED_LIBS=ON \
+            -DSD_BUILD_SHARED_GGML_LIB=ON \
+            -DGGML_NATIVE=OFF \
+            -DGGML_BACKEND_DL=ON \
+            -DGGML_CPU_ALL_VARIANTS=ON \
+            -DGGML_CUDA_FA_ALL_QUANTS=ON \
+            -DCMAKE_BUILD_WITH_INSTALL_RPATH=ON \
+            -DCMAKE_INSTALL_RPATH='$ORIGIN'
+          cmake --build stable-diffusion.cpp/build --config Release --parallel 2
+          test -x stable-diffusion.cpp/build/bin/sd-cli
+          stable-diffusion.cpp/build/bin/sd-cli --help >/dev/null
+
+      - name: Bundle CLI, shared libraries, and CUDA runtime libraries
+        shell: bash
+        run: |
+          set -euo pipefail
+          BUNDLE="$RUNNER_TEMP/qwen-image-engine"
+          mkdir -p "$BUNDLE"
+          cp -a stable-diffusion.cpp/build/bin/. "$BUNDLE/"
+          find /usr/local/cuda -type f -o -type l | grep -E '/lib(cuda|cublas|cublasLt|nvrtc|nvrtc-builtins|nvJitLink|cusparse|curand|cufft|cusolver|culibos|nvToolsExt)[^/]*\.so([.]|$)' | while read -r lib; do
+            name="$(basename "$lib")"
+            cp -L "$lib" "$BUNDLE/$name"
+          done
+          cp stable-diffusion.cpp/LICENSE "$BUNDLE/stable-diffusion.cpp.LICENSE"
+          cp stable-diffusion.cpp/ggml/LICENSE "$BUNDLE/ggml.LICENSE"
+          if ldd "$BUNDLE/sd-cli" | grep -q "not found"; then
+            ldd "$BUNDLE/sd-cli" | grep "not found"
+            echo "Bundled CLI has unresolved shared-library dependencies" >&2
+            exit 1
+          fi
+          (cd "$BUNDLE" && zip -q -r "$GITHUB_WORKSPACE/sd-cli-linux-cuda.zip" .)
+          cd "$GITHUB_WORKSPACE"
+          sha256sum sd-cli-linux-cuda.zip > sd-cli-linux-cuda.zip.sha256
+          ls -lh sd-cli-linux-cuda.zip sd-cli-linux-cuda.zip.sha256
+
+      - name: Publish pinned engine release asset
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if gh release view qwen-image-engine --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+            gh release upload qwen-image-engine sd-cli-linux-cuda.zip sd-cli-linux-cuda.zip.sha256 --repo "${GITHUB_REPOSITORY}" --clobber
+          else
+            gh release create qwen-image-engine sd-cli-linux-cuda.zip sd-cli-linux-cuda.zip.sha256 \
+              --repo "${GITHUB_REPOSITORY}" \
+              --title "Qwen Image CUDA engine (stable-diffusion.cpp)" \
+              --notes "CUDA-enabled stable-diffusion.cpp CLI built from the revision pinned in huggingface/qwen-image-engine.lock. This asset is used by the Hugging Face Space for Qwen Image 2.1 Turbo inference." \
+              --target "${GITHUB_SHA}"
+          fi
