@@ -84,12 +84,23 @@ jobs:
           done
           cp stable-diffusion.cpp/LICENSE "$BUNDLE/stable-diffusion.cpp.LICENSE"
           cp stable-diffusion.cpp/ggml/LICENSE "$BUNDLE/ggml.LICENSE"
-          MISSING="$(ldd "$BUNDLE/sd-cli" | awk '/not found/ && $1 != "libcuda.so.1" { print }')"
-          if [[ -n "$MISSING" ]]; then
-            printf '%s\n' "$MISSING"
-            echo "Bundled CLI has unresolved shared-library dependencies (the host-provided NVIDIA driver is intentionally not bundled)." >&2
-            exit 1
+          if [[ -f /usr/local/cuda/EULA.txt ]]; then
+            cp /usr/local/cuda/EULA.txt "$BUNDLE/NVIDIA-CUDA-EULA.txt"
           fi
+          check_shared_dependencies() {
+            local candidate="$1"
+            local missing
+            missing="$(LD_LIBRARY_PATH="$BUNDLE\${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" ldd "$candidate" | awk '/not found/ && $1 != "libcuda.so.1" { print }')"
+            if [[ -n "$missing" ]]; then
+              printf '%s\n' "$candidate: $missing"
+              return 1
+            fi
+          }
+          check_shared_dependencies "$BUNDLE/sd-cli"
+          for candidate in "$BUNDLE"/*.so*; do
+            [[ -f "$candidate" && ! -L "$candidate" ]] || continue
+            check_shared_dependencies "$candidate"
+          done
           (cd "$BUNDLE" && zip -q -r "$GITHUB_WORKSPACE/sd-cli-linux-cuda.zip" .)
           cd "$GITHUB_WORKSPACE"
           sha256sum sd-cli-linux-cuda.zip > sd-cli-linux-cuda.zip.sha256
