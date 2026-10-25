@@ -80,7 +80,7 @@ jobs:
           cp -a stable-diffusion.cpp/build/bin/. "$BUNDLE/"
           find /usr/local/cuda \( -type f -o -type l \) ! -path '*/stubs/*' -print | grep -E '/lib(cudart|cublas|cublasLt|nvrtc|nvrtc-builtins|nvJitLink|cusparse|curand|cufft|cusolver|culibos|nvToolsExt)[^/]*\.so([.]|$)' | while read -r lib; do
             name="$(basename "$lib")"
-            cp -L "$lib" "$BUNDLE/$name"
+            cp -a "$lib" "$BUNDLE/$name"
           done
           cp stable-diffusion.cpp/LICENSE "$BUNDLE/stable-diffusion.cpp.LICENSE"
           cp stable-diffusion.cpp/ggml/LICENSE "$BUNDLE/ggml.LICENSE"
