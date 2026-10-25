@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 const SITE_ORIGIN = "https://ai.erikraft.com";
 const UI_URI = "ui://erikraft-ai/studio-v1.html";
 
@@ -34,11 +35,10 @@ main{max-width:760px;margin:auto}.brand{display:flex;align-items:center;gap:12px
 <div id="image-options" class="grid"><div><label for="size">Image size</label><select id="size"><option value="768x768">768 × 768</option><option value="1024x768">1024 × 768</option><option value="768x1024">768 × 1024</option></select></div><div><label for="steps">Steps</label><select id="steps"><option value="20">20</option><option value="28">28</option></select></div></div>
 <div id="reference-wrap" class="hidden"><label for="reference">Reference image (Qwythos)</label><input id="reference" type="file" accept="image/png,image/jpeg,image/webp"><p class="muted small">PNG, JPEG or WebP, up to 3 MiB.</p></div>
 <div id="audio-wrap" class="hidden"><label for="audio">Voice reference (WAV)</label><input id="audio" type="file" accept="audio/wav,audio/x-wav"><p class="muted small">WAV reference audio, 10–60 seconds, up to 3 MiB.</p></div>
-<label for="token">Firebase session token</label><input id="token" type="password" autocomplete="off" spellcheck="false" placeholder="Short-lived Firebase ID token">
-<p class="muted small warn">The existing site API requires a signed-in Firebase session. Never enter your password, Hugging Face token, service-account JSON, or MongoDB URI here. The token is used only for the current tool request and is not saved by this widget. OAuth sign-in for the plugin is not yet implemented.</p>
+<p class="muted small warn">Sign in securely through the ChatGPT connection dialog. The plugin uses a short-lived OAuth token; do not paste passwords or tokens into this interface.</p>
 <div class="actions"><button class="primary" id="generate">Generate</button><button id="clear">Clear</button><span id="run-status" class="status">Ready</span></div>
 <div id="result" class="result"></div></section>
-<section class="panel" id="profile-panel"><div class="eyebrow muted">Account</div><h2 style="font-size:16px;margin:6px 0">Profile photo</h2><p class="muted small">Use the same short-lived Firebase session token above. Changes use the existing account-owned profile API.</p><label for="profile-photo">Custom profile photo</label><input id="profile-photo" type="file" accept="image/png,image/jpeg,image/webp"><p class="muted small">PNG, JPEG or WebP, maximum 1 MiB.</p><div id="profile-preview" class="small muted">No preview loaded.</div><div class="actions"><button id="profile-load">Check saved photo</button><button id="profile-save">Save selected photo</button><button id="profile-delete">Remove photo</button><button id="profile-restore">Restore provider photo</button><span id="profile-status" class="status">Ready</span></div></section>
+<section class="panel" id="profile-panel"><div class="eyebrow muted">Account</div><h2 style="font-size:16px;margin:6px 0">Profile photo</h2><p class="muted small">Sign in through the ChatGPT OAuth connection. Changes use the existing account-owned profile API.</p><label for="profile-photo">Custom profile photo</label><input id="profile-photo" type="file" accept="image/png,image/jpeg,image/webp"><p class="muted small">PNG, JPEG or WebP, maximum 1 MiB.</p><div id="profile-preview" class="small muted">No preview loaded.</div><div class="actions"><button id="profile-load">Check saved photo</button><button id="profile-save">Save selected photo</button><button id="profile-delete">Remove photo</button><button id="profile-restore">Restore provider photo</button><span id="profile-status" class="status">Ready</span></div></section>
 <footer class="muted small">Models run on the existing ErikrafT AI™ / Hugging Face backend. Experimental models may be unavailable because of queue, hardware, or provider limits. Account quotas still apply.</footer>
 </main>
 <script>
@@ -63,10 +63,9 @@ async function refresh(){
 function fileData(file,maxBytes=3*1024*1024){return new Promise((resolve,reject)=>{if(!file)return resolve(null);if(file.size>maxBytes)return reject(new Error("The selected file exceeds the size limit."));const r=new FileReader();r.onload=()=>resolve(String(r.result));r.onerror=()=>reject(new Error("Could not read the selected file."));r.readAsDataURL(file);});}
 $("refresh").addEventListener("click",refresh);
 $("clear").addEventListener("click",()=>{$("prompt").value="";$("reference").value="";$("audio").value="";$("result").replaceChildren();$("run-status").textContent="Ready";});
-$("generate").addEventListener("click",async()=>{const prompt=$("prompt").value.trim();const token=$("token").value.trim();if(!prompt){$("run-status").textContent="Enter a prompt";return;}if(!token){$("run-status").textContent="Sign-in token required";return;}const b=$("generate");b.disabled=true;$("run-status").textContent="Working…";$("result").replaceChildren();try{const size=$("size").value.split("x").map(Number);const args={firebaseIdToken:token,prompt,model:model.value,width:size[0],height:size[1],steps:Number($("steps").value)};if(model.value.includes("Qwythos"))args.referenceImage=await fileData($("reference").files[0]);if(model.value.includes("voice-clone"))args.voiceAudio=await fileData($("audio").files[0]);const raw=await callTool("erikraft_ai_generate",args);const data=unpackToolResult(raw);const out=document.createElement("div");out.className="panel";if(data.imageUrl){const img=document.createElement("img");img.src=data.imageUrl;img.alt="Generated image";out.appendChild(img);const a=document.createElement("a");a.href=data.imageUrl;a.target="_blank";a.rel="noreferrer";a.textContent="Open image";out.appendChild(a);}else if(data.videoUrl){const v=document.createElement("video");v.controls=true;v.src=data.videoUrl;out.appendChild(v);const a=document.createElement("a");a.href=data.videoUrl;a.target="_blank";a.rel="noreferrer";a.textContent="Open video";out.appendChild(a);}else if(data.audioUrl){const a=document.createElement("audio");a.controls=true;a.src=data.audioUrl;out.appendChild(a);const link=document.createElement("a");link.href=data.audioUrl;link.target="_blank";link.rel="noreferrer";link.textContent="Open audio";out.appendChild(link);}else if(data.text){const p=document.createElement("pre");p.style.whiteSpace="pre-wrap";p.textContent=data.text;out.appendChild(p);}else{const pre=document.createElement("pre");pre.style.whiteSpace="pre-wrap";pre.textContent=pretty(data);out.appendChild(pre);}const quota=document.createElement("p");quota.className="muted small";if(data.remaining!==undefined)quota.textContent="Remaining this hour: "+data.remaining;out.appendChild(quota);$("result").appendChild(out);$("run-status").textContent="Completed";}catch(e){$("run-status").textContent="Request failed";const p=document.createElement("p");p.className="warn";p.textContent=String(e.message||e);$("result").appendChild(p);}finally{b.disabled=false;}});
-function profileToken(){return $("token").value.trim();}
+$("generate").addEventListener("click",async()=>{const prompt=$("prompt").value.trim();if(!prompt){$("run-status").textContent="Enter a prompt";return;}const b=$("generate");b.disabled=true;$("run-status").textContent="Working…";$("result").replaceChildren();try{const size=$("size").value.split("x").map(Number);const args={prompt,model:model.value,width:size[0],height:size[1],steps:Number($("steps").value)};if(model.value.includes("Qwythos"))args.referenceImage=await fileData($("reference").files[0]);if(model.value.includes("voice-clone"))args.voiceAudio=await fileData($("audio").files[0]);const raw=await callTool("erikraft_ai_generate",args);const data=unpackToolResult(raw);const out=document.createElement("div");out.className="panel";if(data.imageUrl){const img=document.createElement("img");img.src=data.imageUrl;img.alt="Generated image";out.appendChild(img);const a=document.createElement("a");a.href=data.imageUrl;a.target="_blank";a.rel="noreferrer";a.textContent="Open image";out.appendChild(a);}else if(data.videoUrl){const v=document.createElement("video");v.controls=true;v.src=data.videoUrl;out.appendChild(v);const a=document.createElement("a");a.href=data.videoUrl;a.target="_blank";a.rel="noreferrer";a.textContent="Open video";out.appendChild(a);}else if(data.audioUrl){const a=document.createElement("audio");a.controls=true;a.src=data.audioUrl;out.appendChild(a);const link=document.createElement("a");link.href=data.audioUrl;link.target="_blank";link.rel="noreferrer";link.textContent="Open audio";out.appendChild(link);}else if(data.text){const p=document.createElement("pre");p.style.whiteSpace="pre-wrap";p.textContent=data.text;out.appendChild(p);}else{const pre=document.createElement("pre");pre.style.whiteSpace="pre-wrap";pre.textContent=pretty(data);out.appendChild(pre);}const quota=document.createElement("p");quota.className="muted small";if(data.remaining!==undefined)quota.textContent="Remaining this hour: "+data.remaining;out.appendChild(quota);$("result").appendChild(out);$("run-status").textContent="Completed";}catch(e){$("run-status").textContent="Request failed";const p=document.createElement("p");p.className="warn";p.textContent=String(e.message||e);$("result").appendChild(p);}finally{b.disabled=false;}});
 function showProfileState(text,photo){const root=$("profile-preview");root.replaceChildren();if(photo){const img=document.createElement("img");img.src=photo;img.alt="Profile photo";img.style.width="96px";img.style.height="96px";img.style.objectFit="cover";img.style.borderRadius="50%";root.appendChild(img);}else{const p=document.createElement("p");p.className="muted small";p.textContent=text;root.appendChild(p);}}
-async function profileCall(tool,args={}){const token=profileToken();if(!token)throw new Error("Enter a short-lived Firebase ID token first.");const data=unpackToolResult(await callTool(tool,{firebaseIdToken:token,...args}));if(data?.error)throw new Error(data.error);return data;}
+async function profileCall(tool,args={}){const data=unpackToolResult(await callTool(tool,args));if(data?.error)throw new Error(data.error);return data;}
 $("profile-load").addEventListener("click",async()=>{const s=$("profile-status");s.textContent="Checking…";try{const d=await profileCall("erikraft_ai_get_profile_photo");showProfileState(d.photoDisabled?"Profile photo removed.":d.hasCustomPhoto?"A custom profile photo is saved.":d.hasProviderPhoto?"A provider photo is available.":"No profile photo is configured.");s.textContent="Loaded";}catch(e){showProfileState(String(e.message||e));s.textContent="Failed";}});
 $("profile-save").addEventListener("click",async()=>{const s=$("profile-status");s.textContent="Saving…";try{const file=$("profile-photo").files[0];if(!file)throw new Error("Choose a profile photo first.");if(!/^image\/(png|jpeg|webp)$/i.test(file.type))throw new Error("Choose a PNG, JPEG, or WebP image.");const photo=await fileData(file,1024*1024);const d=await profileCall("erikraft_ai_save_profile_photo",{photo});showProfileState("Custom profile photo saved.",photo);s.textContent=d.saved?"Saved":"Completed";}catch(e){showProfileState(String(e.message||e));s.textContent="Failed";}});
 $("profile-delete").addEventListener("click",async()=>{const s=$("profile-status");s.textContent="Removing…";try{await profileCall("erikraft_ai_delete_profile_photo");showProfileState("Profile photo removed; this preference is saved to your account.");s.textContent="Removed";}catch(e){showProfileState(String(e.message||e));s.textContent="Failed";}});
@@ -115,7 +114,7 @@ function validateToken(token) {
     throw new Error("A valid short-lived Firebase ID token is required. Sign in to ErikrafT AI™ first.");
   }
 }
-async function callTool(name, args) {
+async function callTool(name, args, bearerToken) {
   if (name === "erikraft_ai_studio") {
     const [health, models] = await Promise.all([
       siteRequest("/api/health"),
@@ -128,10 +127,10 @@ async function callTool(name, args) {
     const [models, health] = await Promise.all([siteRequest("/api/models"), siteRequest("/api/health")]);
     return toolText({ ...models, health, modelCatalog: modelCatalogWithAvailability(models) });
   }
-  const token = args.firebaseIdToken;
+  const token = bearerToken;
   validateToken(token);
   if (name === "erikraft_ai_generate") {
-    const { firebaseIdToken, ...body } = args;
+    const body = args;
     if (typeof body.prompt !== "string" || !body.prompt.trim() || body.prompt.length > 1500) throw new Error("Prompt must contain 1–1500 characters.");
     const supported = MODEL_CATALOG.some((m) => m.id === (body.model || MODEL_CATALOG[0].id));
     if (!supported) throw new Error("Unsupported model.");
@@ -185,11 +184,10 @@ const tools = [
   {
     name: "erikraft_ai_generate",
     title: "Generate with ErikrafT AI",
-    description: "Generate an image, video, text, or voice using the same authenticated API as the ErikrafT AI™ website. Requires a short-lived Firebase ID token from the signed-in user's own session. Never provide passwords, service-account credentials, Hugging Face tokens, or MongoDB connection strings. Respects server-side account quotas.",
+    description: "Generate an image, video, text, or voice using the same authenticated API as the ErikrafT AI™ website. Requires the user's authenticated OAuth connection; the bearer token is supplied by the MCP host and is never a tool argument. Never provide passwords, service-account credentials, Hugging Face tokens, or MongoDB connection strings. Respects server-side account quotas.",
     inputSchema: {
       type: "object",
       properties: {
-        firebaseIdToken: { type: "string", minLength: 20, maxLength: 10000, description: "Short-lived Firebase ID token. Secret; use only for the current authenticated request." },
         prompt: { type: "string", minLength: 1, maxLength: 1500 },
         model: { type: "string", enum: MODEL_CATALOG.map((m) => m.id) },
         width: { type: "integer", enum: [768, 1024] },
@@ -198,7 +196,7 @@ const tools = [
         referenceImage: { type: "string", maxLength: 4200000, description: "Qwythos reference image data URL (PNG/JPEG/WebP, max 3 MiB decoded)." },
         voiceAudio: { type: "string", maxLength: 4200000, description: "Voice reference WAV data URL (at least 10 seconds; max 3 MiB decoded)." }
       },
-      required: ["firebaseIdToken", "prompt"],
+      required: ["prompt"],
       additionalProperties: false
     },
     _meta: { ui: { resourceUri: UI_URI, visibility: ["app"] }, "openai/outputTemplate": UI_URI, "openai/widgetAccessible": true },
@@ -207,47 +205,98 @@ const tools = [
   {
     name: "erikraft_ai_get_profile_photo",
     title: "Get profile photo",
-    description: "Read the signed-in user's profile photo through the existing MongoDB Atlas-backed profile API.",
-    inputSchema: { type: "object", properties: { firebaseIdToken: { type: "string", minLength: 20, maxLength: 10000, description: "Short-lived Firebase ID token; app-only input." } }, required: ["firebaseIdToken"], additionalProperties: false },
+    description: "Read the signed-in user's profile photo through the existing MongoDB Atlas-backed profile API. Requires an authenticated OAuth connection.",
+    inputSchema: { type: "object", properties: {}, required: [], additionalProperties: false },
     _meta: { ui: { visibility: ["app"] }, "openai/widgetAccessible": true },
     annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false, idempotentHint: true }
   },
   {
     name: "erikraft_ai_save_profile_photo",
     title: "Save custom profile photo",
-    description: "Save a PNG/JPEG/WebP profile image (data URL, max 1 MiB) for the signed-in user through the existing profile API.",
-    inputSchema: { type: "object", properties: { firebaseIdToken: { type: "string", minLength: 20, maxLength: 10000 }, photo: { type: "string", minLength: 30, maxLength: 1400000, description: "PNG/JPEG/WebP data URL, maximum 1 MiB decoded." } }, required: ["firebaseIdToken", "photo"], additionalProperties: false },
+    description: "Save a PNG/JPEG/WebP profile image (data URL, max 1 MiB) for the signed-in user through the existing profile API. Requires an authenticated OAuth connection.",
+    inputSchema: { type: "object", properties: { photo: { type: "string", minLength: 30, maxLength: 1400000, description: "PNG/JPEG/WebP data URL, maximum 1 MiB decoded." } }, required: ["photo"], additionalProperties: false },
     _meta: { ui: { visibility: ["app"] }, "openai/widgetAccessible": true },
     annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false, idempotentHint: false }
   },
   {
     name: "erikraft_ai_delete_profile_photo",
     title: "Delete profile photo",
-    description: "Persist the signed-in user's choice to remove their profile photo using the existing profile API.",
-    inputSchema: { type: "object", properties: { firebaseIdToken: { type: "string", minLength: 20, maxLength: 10000 } }, required: ["firebaseIdToken"], additionalProperties: false },
+    description: "Persist the signed-in user's choice to remove their profile photo using the existing profile API. Requires an authenticated OAuth connection.",
+    inputSchema: { type: "object", properties: {}, required: [], additionalProperties: false },
     _meta: { ui: { visibility: ["app"] }, "openai/widgetAccessible": true },
     annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: false, idempotentHint: true }
   },
   {
     name: "erikraft_ai_restore_provider_photo",
     title: "Restore provider photo",
-    description: "Restore the photo from the signed-in user's identity provider through the existing profile API.",
-    inputSchema: { type: "object", properties: { firebaseIdToken: { type: "string", minLength: 20, maxLength: 10000 } }, required: ["firebaseIdToken"], additionalProperties: false },
+    description: "Restore the photo from the signed-in user's identity provider through the existing profile API. Requires an authenticated OAuth connection.",
+    inputSchema: { type: "object", properties: {}, required: [], additionalProperties: false },
     _meta: { ui: { visibility: ["app"] }, "openai/widgetAccessible": true },
     annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false, idempotentHint: true }
   }
 ];
 
-export default async function handler(req, res) {
+const DATABASE_NAME = process.env.MONGODB_DATABASE || "ErikrafTAI";
+let oauthMongoPromise;
+let oauthTokenCollectionPromise;
+async function oauthTokenCollection() {
+  const uri = String(process.env.MONGODB_URI || "").trim();
+  if (!uri) throw new Error("MONGODB_URI is not configured");
+  if (!oauthMongoPromise) {
+    const { MongoClient } = await import("mongodb");
+    oauthMongoPromise = new MongoClient(uri, { maxPoolSize: 5, serverSelectionTimeoutMS: 8000 }).connect()
+      .catch((error) => { oauthMongoPromise = undefined; oauthTokenCollectionPromise = undefined; throw error; });
+  }
+  if (!oauthTokenCollectionPromise) {
+    oauthTokenCollectionPromise = oauthMongoPromise.then(async (client) => {
+      const collection = client.db(DATABASE_NAME).collection("mcp_oauth_tokens");
+      await collection.createIndex({ expires_at: 1 }, { expireAfterSeconds: 0, name: "mcp_oauth_token_ttl" });
+      return collection;
+    }).catch((error) => { oauthTokenCollectionPromise = undefined; throw error; });
+  }
+  return oauthTokenCollectionPromise;
+}
+async function verifyOAuthBearer(accessToken) {
+  if (typeof accessToken !== "string" || accessToken.length < 32 || accessToken.length > 256) throw new Error("Invalid OAuth access token");
+  const collection = await oauthTokenCollection();
+  const record = await collection.findOne({ _id: createHash("sha256").update(accessToken).digest("hex"), expires_at: { $gt: new Date() } });
+  if (!record || typeof record.firebase_id_token !== "string") throw new Error("Invalid or expired OAuth access token");
+  const { getApps, initializeApp, cert } = await import("firebase-admin/app");
+  const { getAuth } = await import("firebase-admin/auth");
+  const raw = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
+  if (!getApps().length) {
+    if (!raw) throw new Error("Firebase Admin is not configured");
+    initializeApp({ credential: cert(JSON.parse(raw)) });
+  }
+  const user = await getAuth().verifyIdToken(record.firebase_id_token, true);
+  if (user.uid !== record.uid) throw new Error("OAuth identity mismatch");
+  return { uid: user.uid, firebaseIdToken: record.firebase_id_token };
+}
+
+export default async function handler(req, res, verifyBearer = verifyOAuthBearer) {
   res.setHeader("Cache-Control", "no-store");
   res.setHeader("X-Content-Type-Options", "nosniff");
   res.setHeader("Access-Control-Allow-Origin", "https://chatgpt.com");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "content-type, mcp-session-id, mcp-protocol-version");
+  res.setHeader("Access-Control-Allow-Headers", "authorization, content-type, mcp-session-id, mcp-protocol-version");
   if (req.method === "OPTIONS") return res.status(204).end();
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST, OPTIONS");
     return res.status(405).json({ error: "Method not allowed." });
+  }
+  const authHeader = String(req.headers.authorization || "");
+  const bearerMatch = authHeader.match(/^Bearer\s+(.+)$/i);
+  if (!bearerMatch) {
+    res.setHeader("WWW-Authenticate", 'Bearer resource_metadata="https://ai.erikraft.com/.well-known/oauth-protected-resource/api/mcp"');
+    return res.status(401).json({ error: "Authentication required." });
+  }
+  const accessToken = bearerMatch[1];
+  let authContext;
+  try {
+    authContext = await verifyBearer(accessToken);
+  } catch {
+    res.setHeader("WWW-Authenticate", 'Bearer error="invalid_token", resource_metadata="https://ai.erikraft.com/.well-known/oauth-protected-resource/api/mcp"');
+    return res.status(401).json({ error: "Invalid or expired OAuth access token." });
   }
   const message = req.body;
   if (!message || typeof message !== "object" || Array.isArray(message) || message.jsonrpc !== "2.0" || typeof message.method !== "string") {
@@ -260,8 +309,8 @@ export default async function handler(req, res) {
       result = {
         protocolVersion: ["2025-11-25", "2025-06-18", "2025-03-26"].includes(message.params?.protocolVersion) ? message.params.protocolVersion : "2025-11-25",
         capabilities: { tools: { listChanged: false }, resources: { subscribe: false, listChanged: false } },
-        serverInfo: { name: "erikraft-ai", version: "0.3.1" },
-        instructions: "ErikrafT AI™ MCP server. Use the UI studio tool for interactive generation. Never ask the user to reveal or paste a Firebase ID token into chat. Authenticated generation/profile actions are available only inside the Studio UI, which currently requires a short-lived token entered directly into the widget because native OAuth/PKCE sign-in is not implemented. If the token has not been entered inside the widget, explain this limitation and do not ask for it in conversation. Never request passwords, Firebase service-account JSON, Hugging Face tokens/secrets, or MongoDB credentials."
+        serverInfo: { name: "erikraft-ai", version: "0.4.0" },
+        instructions: "ErikrafT AI™ MCP server. OAuth 2.0 Authorization Code with PKCE (S256) is required. The user signs in through Firebase Authentication; the OAuth access token is a short-lived Firebase ID token. Never ask users to paste tokens or passwords into chat. Never request Firebase service-account JSON, Hugging Face tokens/secrets, or MongoDB credentials."
       };
     } else if (message.method === "ping") {
       result = {};
@@ -283,7 +332,7 @@ export default async function handler(req, res) {
       const name = message.params?.name;
       const args = message.params?.arguments || {};
       try {
-        return res.status(200).json(jsonRpc(id ?? null, await callTool(name, args)));
+        return res.status(200).json(jsonRpc(id ?? null, await callTool(name, args, authContext?.firebaseIdToken)));
       } catch (error) {
         return res.status(200).json(jsonRpc(id ?? null, {
           isError: true,
