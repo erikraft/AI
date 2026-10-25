@@ -131,7 +131,7 @@ async function handleAuthorize(req, res) {
 }
 async function handleToken(req, res) {
   if (req.method !== "POST") return oauthError(res, 405, "invalid_request", "Use POST.");
-  const p = bodyOf(req);
+  const p = bodyOf(req), { codes } = await oauthCollections();
   if (p.grant_type !== "authorization_code" || typeof p.code !== "string" || typeof p.code_verifier !== "string" || p.code_verifier.length < 43 || p.code_verifier.length > 128) return oauthError(res, 400, "invalid_grant", "Authorization code and PKCE verifier are required.");
   if (typeof p.client_id !== "string" || typeof p.redirect_uri !== "string") return oauthError(res, 400, "invalid_request", "client_id and redirect_uri are required.");
   const calculated = createHash("sha256").update(p.code_verifier).digest("base64url");
@@ -142,7 +142,7 @@ async function handleToken(req, res) {
   try { decoded = await getAuth(adminApp()).verifyIdToken(record.firebase_id_token, true); }
   catch { return oauthError(res, 400, "invalid_grant", "The Firebase session has expired. Authorize again."); }
   if (decoded.uid !== record.uid) return oauthError(res, 400, "invalid_grant", "The Firebase identity did not match.");
-  return sendJson(res, 200, { access_token: record.firebase_id_token, token_type: "Bearer", expires_in: Math.max(0, decoded.exp - Math.floor(Date.now() / 1000)), scope: "openid profile email" });
+  return sendJson(res, 200, { access_token: record.firebase_id_token, token_type: "Bearer", expires_in: Math.max(0, decoded.exp - Math.floor(Date.now() / 1000)), scope: "mcp:tools" });
 }
 export default async function handler(req, res) {
   noStore(res);
@@ -150,11 +150,11 @@ export default async function handler(req, res) {
   try {
     if (action === "authorization-server") {
       if (req.method !== "GET") return oauthError(res, 405, "invalid_request", "Use GET.");
-      return sendJson(res, 200, { issuer: ORIGIN, authorization_endpoint: OAUTH_ROOT + "/authorize", token_endpoint: OAUTH_ROOT + "/token", registration_endpoint: OAUTH_ROOT + "/register", response_types_supported: ["code"], grant_types_supported: ["authorization_code"], code_challenge_methods_supported: ["S256"], token_endpoint_auth_methods_supported: ["none"], scopes_supported: ["openid", "profile", "email"], client_id_metadata_document_supported: false });
+      return sendJson(res, 200, { issuer: ORIGIN, authorization_endpoint: OAUTH_ROOT + "/authorize", token_endpoint: OAUTH_ROOT + "/token", registration_endpoint: OAUTH_ROOT + "/register", response_types_supported: ["code"], grant_types_supported: ["authorization_code"], code_challenge_methods_supported: ["S256"], token_endpoint_auth_methods_supported: ["none"], scopes_supported: ["mcp:tools"], client_id_metadata_document_supported: false });
     }
     if (action === "protected-resource") {
       if (req.method !== "GET") return oauthError(res, 405, "invalid_request", "Use GET.");
-      return sendJson(res, 200, { resource: RESOURCE, authorization_servers: [ORIGIN], bearer_methods_supported: ["header"], scopes_supported: ["openid", "profile", "email"] });
+      return sendJson(res, 200, { resource: RESOURCE, authorization_servers: [ORIGIN], bearer_methods_supported: ["header"], scopes_supported: ["mcp:tools"] });
     }
     if (action === "register") return await handleRegistration(req, res);
     if (action === "authorize") return await handleAuthorize(req, res);
