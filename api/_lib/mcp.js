@@ -69,7 +69,7 @@ for (const [address, prefix] of [
   ["198.51.100.0", 24], ["203.0.113.0", 24], ["224.0.0.0", 4], ["240.0.0.0", 4]
 ]) BLOCKED_IP_RANGES.addSubnet(address, prefix, "ipv4");
 for (const [address, prefix] of [
-  ["::", 128], ["::1", 128], ["64:ff9b:1::", 48], ["100::", 64],
+  ["::", 128], ["::1", 128], ["::ffff:0:0", 96], ["64:ff9b:1::", 48], ["100::", 64],
   ["2001::", 23], ["2001:db8::", 32], ["2002::", 16],
   ["fc00::", 7], ["fe80::", 10], ["ff00::", 8]
 ]) BLOCKED_IP_RANGES.addSubnet(address, prefix, "ipv6");
@@ -153,36 +153,6 @@ function requestPinnedMcp(target, headers, body) {
     request.on("error", reject);
     request.end(body);
   });
-}
-
-async function readBoundedResponseText(response, maximumBytes = 1_000_000) {
-  const declaredLength = Number(response.headers.get("content-length") || 0);
-  if (declaredLength > maximumBytes) throw new Error("MCP response exceeded the 1 MB safety limit.");
-  const reader = response.body?.getReader();
-  if (!reader) return "";
-  const decoder = new TextDecoder();
-  let text = "";
-  let totalBytes = 0;
-  try {
-    while (true) {
-      const { value, done } = await reader.read();
-      if (value) {
-        totalBytes += value.byteLength;
-        if (totalBytes > maximumBytes) {
-          try { await reader.cancel(); } catch {}
-          throw new Error("MCP response exceeded the 1 MB safety limit.");
-        }
-        text += decoder.decode(value, { stream: !done });
-      }
-      if (done) {
-        text += decoder.decode();
-        break;
-      }
-    }
-  } finally {
-    try { reader.releaseLock(); } catch {}
-  }
-  return text;
 }
 
 async function rpc(server, method, params = {}, { notification = false } = {}) {
