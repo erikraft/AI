@@ -1,5 +1,7 @@
 import { initializeApp, cert, getApps } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
+import { MongoClient } from "mongodb";
+import { createHash } from "node:crypto";
 const SITE_ORIGIN = "https://ai.erikraft.com";
 const UI_URI = "ui://erikraft-ai/studio-v1.html";
 
@@ -237,16 +239,41 @@ const tools = [
   }
 ];
 
-async function verifyFirebaseBearer(accessToken) {
+const DATABASE_NAME = process.env.MONGODB_DATABASE || "ErikrafTAI";
+let oauthMongoPromise;
+let oauthTokenCollectionPromise;
+async function oauthTokenCollection() {
+  const uri = String(process.env.MONGODB_URI || "").trim();
+  if (!uri) throw new Error("MONGODB_URI is not configured");
+  if (!oauthMongoPromise) {
+    oauthMongoPromise = new MongoClient(uri, { maxPoolSize: 5, serverSelectionTimeoutMS: 8000 }).connect()
+      .catch((error) => { oauthMongoPromise = undefined; oauthTokenCollectionPromise = undefined; throw error; });
+  }
+  if (!oauthTokenCollectionPromise) {
+    oauthTokenCollectionPromise = oauthMongoPromise.then(async (client) => {
+      const collection = client.db(DATABASE_NAME).collection("mcp_oauth_tokens");
+      await collection.createIndex({ expires_at: 1 }, { expireAfterSeconds: 0, name: "mcp_oauth_token_ttl" });
+      return collection;
+    }).catch((error) => { oauthTokenCollectionPromise = undefined; throw error; });
+  }
+  return oauthTokenCollectionPromise;
+}
+async function verifyOAuthBearer(accessToken) {
+  if (typeof accessToken !== "string" || accessToken.length < 32 || accessToken.length > 256) throw new Error("Invalid OAuth access token");
+  const collection = await oauthTokenCollection();
+  const record = await collection.findOne({ _id: createHash("sha256").update(accessToken).digest("hex"), expires_at: { $gt: new Date() } });
+  if (!record || typeof record.firebase_id_token !== "string") throw new Error("Invalid or expired OAuth access token");
   const raw = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
   if (!getApps().length) {
     if (!raw) throw new Error("Firebase Admin is not configured");
     initializeApp({ credential: cert(JSON.parse(raw)) });
   }
-  return getAuth().verifyIdToken(accessToken, true);
+  const user = await getAuth().verifyIdToken(record.firebase_id_token, true);
+  if (user.uid !== record.uid) throw new Error("OAuth identity mismatch");
+  return { uid: user.uid, firebaseIdToken: record.firebase_id_token };
 }
 
-export default async function handler(req, res, verifyBearer = verifyFirebaseBearer) {
+export default async function handler(req, res, verifyBearer = verifyOAuthBearer) {
   res.setHeader("Cache-Control", "no-store");
   res.setHeader("X-Content-Type-Options", "nosniff");
   res.setHeader("Access-Control-Allow-Origin", "https://chatgpt.com");
@@ -264,8 +291,9 @@ export default async function handler(req, res, verifyBearer = verifyFirebaseBea
     return res.status(401).json({ error: "Authentication required." });
   }
   const accessToken = bearerMatch[1];
+  let authContext;
   try {
-    await verifyBearer(accessToken);
+    authContext = await verifyBearer(accessToken);
   } catch {
     res.setHeader("WWW-Authenticate", 'Bearer error="invalid_token", resource_metadata="https://ai.erikraft.com/.well-known/oauth-protected-resource"');
     return res.status(401).json({ error: "Invalid or expired OAuth access token." });
@@ -304,7 +332,7 @@ export default async function handler(req, res, verifyBearer = verifyFirebaseBea
       const name = message.params?.name;
       const args = message.params?.arguments || {};
       try {
-        return res.status(200).json(jsonRpc(id ?? null, await callTool(name, args, accessToken)));
+        return res.status(200).json(jsonRpc(id ?? null, await callTool(name, args, authContext?.firebaseIdToken)));
       } catch (error) {
         return res.status(200).json(jsonRpc(id ?? null, {
           isError: true,
