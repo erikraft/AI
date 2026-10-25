@@ -56,7 +56,8 @@ export default function handler(req, res) {
     databaseConnectionTested: false,
     experimentalModels: {
       cosmosVideo: experimentalSecretConfigured && hfSpaceIdValid && featureEnabled(process.env.ENABLE_COSMOS_VIDEO),
-      qwenText: experimentalSecretConfigured && hfSpaceIdValid && featureEnabled(process.env.ENABLE_QWEN_TEXT)
+      qwenText: experimentalSecretConfigured && hfSpaceIdValid && featureEnabled(process.env.ENABLE_QWEN_TEXT),
+      qwenImage: experimentalSecretConfigured && hfSpaceIdValid && featureEnabled(process.env.ENABLE_QWEN_IMAGE)
     },
     inferenceTested: false
   });
