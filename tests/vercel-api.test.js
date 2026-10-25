@@ -6,6 +6,7 @@ import healthHandler from "../api/health.js";
 
 const MODEL_COSMOS = "DuoNeural/Cosmos3-Nano-Abliterated";
 const MODEL_QWEN = "0bserverx/Qwen3.8-27B-Heretic-Abliterated-Uncensored-GGUF";
+const MODEL_QWEN_IMAGE = "AtomicChat/Qwen-Image-2.1-Turbo-Uncensored-GGUF";
 const SECRET = "test-secret-that-is-long-enough-to-pass-32-characters";
 
 function callHandler(handler, method = "GET") {
@@ -51,13 +52,15 @@ test("model API reports experimental routes fail-closed without backend credenti
     HF_SPACE_ID: null,
     HF_SPACE_API_SECRET: null,
     ENABLE_COSMOS_VIDEO: null,
-    ENABLE_QWEN_TEXT: null
+    ENABLE_QWEN_TEXT: null,
+    ENABLE_QWEN_IMAGE: null
   }, () => {
     const response = callHandler(modelsHandler);
     assert.equal(response.statusCode, 200);
     assert.equal(response.body.models[MODEL_COSMOS], false);
     assert.equal(response.body.models[MODEL_QWEN], false);
-    assert.equal(response.body.selectableModels.length, 5);
+    assert.equal(response.body.models[MODEL_QWEN_IMAGE], false);
+    assert.equal(response.body.selectableModels.length, 6);
     assert.equal(response.body.runtimeChecksRequired, true);
     assert.equal(response.headers["cache-control"], "no-store");
     assert.equal(response.headers["x-content-type-options"], "nosniff");
@@ -69,11 +72,13 @@ test("experimental model flags default on when backend credentials are configure
     HF_SPACE_ID: "ErikrafT/erikraft-ai",
     HF_SPACE_API_SECRET: SECRET,
     ENABLE_COSMOS_VIDEO: null,
-    ENABLE_QWEN_TEXT: null
+    ENABLE_QWEN_TEXT: null,
+    ENABLE_QWEN_IMAGE: null
   }, () => {
     const response = callHandler(modelsHandler);
     assert.equal(response.body.models[MODEL_COSMOS], true);
     assert.equal(response.body.models[MODEL_QWEN], true);
+    assert.equal(response.body.models[MODEL_QWEN_IMAGE], true);
   });
 });
 
@@ -82,11 +87,13 @@ test("an explicit false value disables only its own experimental route", () => {
     HF_SPACE_ID: "ErikrafT/erikraft-ai",
     HF_SPACE_API_SECRET: SECRET,
     ENABLE_COSMOS_VIDEO: "false",
-    ENABLE_QWEN_TEXT: "true"
+    ENABLE_QWEN_TEXT: "true",
+    ENABLE_QWEN_IMAGE: "false"
   }, () => {
     const response = callHandler(modelsHandler);
     assert.equal(response.body.models[MODEL_COSMOS], false);
     assert.equal(response.body.models[MODEL_QWEN], true);
+    assert.equal(response.body.models[MODEL_QWEN_IMAGE], false);
   });
 });
 
@@ -102,7 +109,8 @@ test("health endpoint returns configuration booleans without credential contents
     HF_TOKEN: "hf-test-token",
     HF_SPACE_API_SECRET: SECRET,
     ENABLE_COSMOS_VIDEO: "true",
-    ENABLE_QWEN_TEXT: "true"
+    ENABLE_QWEN_TEXT: "true",
+    ENABLE_QWEN_IMAGE: "true"
   }, () => {
     const response = callHandler(healthHandler);
     assert.equal(response.statusCode, 200);
@@ -111,6 +119,7 @@ test("health endpoint returns configuration booleans without credential contents
     assert.equal(response.body.hfSpaceIdValid, true);
     assert.equal(response.body.experimentalModels.cosmosVideo, true);
     assert.equal(response.body.experimentalModels.qwenText, true);
+    assert.equal(response.body.experimentalModels.qwenImage, true);
     assert.equal(response.body.inferenceTested, false);
     const serialized = JSON.stringify(response.body);
     assert.equal(serialized.includes(credentials), false);
@@ -171,7 +180,7 @@ test("account deletion removes user-owned MongoDB records and deletes Firebase A
   const source = readFileSync(new URL("../api/account.js", import.meta.url), "utf8");
   assert.match(source, /listCollections\(\{\}\)/);
   assert.match(source, /deleteMany\(\{ userId: uid \}\)/);
-  assert.match(source, /const quotaKeys = \["flux", "qwythos", "cosmos", "qwen", "voice"\]/);
+  assert.match(source, /const quotaKeys = \["flux", "qwythos", "cosmos", "qwen", "qwen-image", "voice"\]/);
   assert.match(source, /quotaKeys\.map\(\(key\) => `\$\{user\.uid\}_\$\{key\}`\)/);
   assert.match(source, /quotaBatch\.commit\(\)/);
   assert.match(source, /generation_limits[\s\S]*quotaKeys[\s\S]*deleteUser\(user\.uid\)/);
@@ -581,4 +590,34 @@ test("Qwythos reference editing preserves source dimensions and MCP controls hav
     assert.match(app, new RegExp(key + ":"));
     assert.ok((app.match(new RegExp(key + ":", "g")) || []).length >= 2, key + " must be translated in both locales");
   }
+});
+ 
+test("Qwen Image 2.1 Turbo is wired to a protected, separate CUDA generation route", () => {
+  const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
+  const app = readFileSync(new URL("../assets/js/app.js", import.meta.url), "utf8");
+  const api = readFileSync(new URL("../api/generate.js", import.meta.url), "utf8");
+  const models = readFileSync(new URL("../api/models.js", import.meta.url), "utf8");
+  const health = readFileSync(new URL("../api/health.js", import.meta.url), "utf8");
+  const account = readFileSync(new URL("../api/account.js", import.meta.url), "utf8");
+  const space = readFileSync(new URL("../huggingface/app.py", import.meta.url), "utf8");
+  const hfReadme = readFileSync(new URL("../huggingface/README.md", import.meta.url), "utf8");
+  const workflow = readFileSync(new URL("../.github/workflows/build-qwen-image-engine.yml", import.meta.url), "utf8");
+
+  assert.match(html, /<option value="AtomicChat\/Qwen-Image-2\.1-Turbo-Uncensored-GGUF" data-task="image"/);
+  assert.match(app, /const QWEN_IMAGE_MODEL = "AtomicChat\/Qwen-Image-2\.1-Turbo-Uncensored-GGUF"/);
+  assert.match(app, /MODEL_AVAILABILITY\.qwenImage = data\?\.models\?\.\[QWEN_IMAGE_MODEL\] === true/);
+  assert.match(api, /const QWEN_IMAGE_MODEL_ID = "AtomicChat\/Qwen-Image-2\.1-Turbo-Uncensored-GGUF"/);
+  assert.match(api, /isQwenImage && !envEnabled\(process\.env\.ENABLE_QWEN_IMAGE\)/);
+  assert.match(api, /\[prompt\.trim\(\), Number\(width\), Number\(height\), spaceApiSecret\]/);
+  assert.match(api, /phase = "space-qwen-image"/);
+  assert.match(models, /\[QWEN_IMAGE_MODEL_ID\]: backendConfigured && featureEnabled\(process\.env\.ENABLE_QWEN_IMAGE\)/);
+  assert.match(models, /QWEN_IMAGE_MODEL_ID, VOICE_CLONE_MODEL_ID/);
+  assert.match(health, /qwenImage: experimentalSecretConfigured && hfSpaceIdValid && featureEnabled\(process\.env\.ENABLE_QWEN_IMAGE\)/);
+  assert.match(account, /"qwen-image"/);
+  assert.match(space, /@spaces\.GPU\(duration=_authorize_qwen_image_request\)/);
+  assert.match(space, /"--sigmas", "qwen-image-2\.1-turbo"/);
+  assert.match(space, /"--steps", "8"/);
+  assert.match(space, /with gr\.Tab\("Qwen Image 2\.1 Turbo", visible=False\)/);
+  assert.match(hfReadme, /AtomicChat\/Qwen-Image-2\.1-Turbo-GGUF/);
+  assert.match(workflow, /DSD_CUDA=ON|DSD_CUDA/);
 });
