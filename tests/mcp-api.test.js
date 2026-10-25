@@ -82,7 +82,7 @@ test("studio resource removes the manually pasted Firebase token field", async (
   assert.match(html, /AtomicChat\/Qwen-Image-2\.1-Turbo-Uncensored-GGUF/);
   assert.doesNotMatch(html, /id="token"/);
   assert.doesNotMatch(html, /Firebase session token/);
-  assert.match(html, /authenticated OAuth connection/);
+  assert.match(html, /ChatGPT connection dialog/);
 });
 
 test("MCP endpoint supports ChatGPT CORS preflight without executing a tool", async () => {
