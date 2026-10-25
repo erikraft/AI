@@ -90,7 +90,7 @@ jobs:
           check_shared_dependencies() {
             local candidate="$1"
             local missing
-            missing="$(LD_LIBRARY_PATH="$BUNDLE\${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" ldd "$candidate" | awk '/not found/ && $1 != "libcuda.so.1" { print }')"
+            missing="$(LD_LIBRARY_PATH="$BUNDLE${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" ldd "$candidate" | awk '/not found/ && $1 != "libcuda.so.1" { print }')"
             if [[ -n "$missing" ]]; then
               printf '%s\n' "$candidate: $missing"
               return 1
