@@ -488,7 +488,7 @@ test("multilingual voice cloning chooses the requested text language rather than
 test("custom MCP server management is authenticated, account-scoped, and requires an explicit trust acknowledgement", () => {
   const api = readFileSync(new URL("../api/mcp-servers.js", import.meta.url), "utf8");
   const helper = readFileSync(new URL("../api/_lib/mcp.js", import.meta.url), "utf8");
-  assert.match(api, /verifyIdToken\(match\[1\]\)/);
+  assert.match(api, /verifyIdToken\(match\[1\], true\)/);
   assert.match(api, /req\.body\?\.acknowledged !== true/);
   assert.match(api, /Allow", "GET, POST, DELETE/);
   assert.match(helper, /collection\.find\(\{ userId \}/);
@@ -504,9 +504,12 @@ test("custom MCP clients encrypt OAuth tokens and block unsafe URL targets and r
   assert.match(helper, /createDecipheriv\("aes-256-gcm"/);
   assert.match(helper, /MCP_ENCRYPTION_KEY/);
   assert.match(helper, /url\.protocol !== "https:"/);
-  assert.match(helper, /privateIp\(entry\.address\)/);
-  assert.match(helper, /redirect: "manual"/);
+  assert.match(helper, /BLOCKED_IP_RANGES = new BlockList\(\)/);
+  assert.match(helper, /lookup\(hostname, \{ all: true, verbatim: true \}\)/);
+  assert.match(helper, /requestPinnedMcp\(target, headers, JSON\.stringify\(body\)\)/);
+  assert.match(helper, /lookup: ipLookup/);
   assert.match(helper, /MCP redirects are blocked/);
+  assert.doesNotMatch(helper, /fetch\(url,\s*\{/);
   assert.match(helper, /notifications\/initialized/);
   assert.match(helper, /tools\/list/);
   assert.match(helper, /tools\/call/);
@@ -521,7 +524,9 @@ test("Qwen MCP tool calls require read-only annotations by default and explicit 
   assert.match(api, /buildUserMcpToolset\(user\.uid\)/);
   assert.match(api, /callUserMcpTool\(user\.uid/);
   assert.match(api, /toolset\.toolMap\.has\(functionName\)/);
-  assert.match(api, /toolCallsExecuted >= 8/);
+  assert.match(api, /MAX_MCP_TOOL_CALLS_PER_TURN = 4/);
+  assert.match(api, /MAX_MCP_TOOL_CALLS_PER_ROUND = 2/);
+  assert.match(api, /toolCallsExecuted >= MAX_MCP_TOOL_CALLS_PER_TURN/);
   assert.match(helper, /if \(tools\.length >= MAX_TOOLS_PER_TURN\) break;/);
   assert.match(space, /tools_json: str = "\[\]"/);
   assert.match(space, /messages_json: str = ""/);
