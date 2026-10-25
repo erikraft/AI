@@ -1,23 +1,31 @@
 # ChatGPT MCP integration for ErikrafT AI™
 
-This branch adds `/api/mcp`, a stateless JSON-RPC MCP endpoint intended for ChatGPT and compatible MCP Apps hosts. It exposes public health/model discovery, authenticated multimodal generation through the existing `/api/generate` route, and account-owned profile-photo operations through `/api/profile`. The interactive studio includes Qwen Image 2.1 Turbo and disables experimental models that `/api/models` reports as unavailable. Token-bearing tools are restricted to the app UI instead of being directly model-callable. The `erikraft_ai_studio` tool returns an interactive UI resource.
+The MCP endpoint at `/api/mcp` exposes public health/model discovery, authenticated generation through the existing `/api/generate` route, and account-owned profile-photo operations through `/api/profile`. The interactive Studio UI is served as `ui://erikraft-ai/studio-v1.html`.
 
-## Important authentication limitation
+## OAuth 2.0 Authorization Code + PKCE
 
-The website's generation and profile APIs currently authenticate with Firebase ID tokens. This initial MCP endpoint accepts a short-lived token for those calls; the Studio UI has a password-type field and does not persist it. It does **not** implement a native OAuth sign-in/authorization-code flow for ChatGPT yet. Do not describe the integration as one-click sign-in until that flow is implemented and tested.
+This branch implements the native OAuth flow intended for ChatGPT:
 
-For a production public release, implement OAuth with PKCE and a secure session/token exchange rather than asking users to paste tokens. Never put Firebase service-account JSON, `HF_TOKEN`, `HF_SPACE_API_SECRET`, or `MONGODB_URI` in plugin files or client-side code.
+- Authorization Code grant with PKCE `S256`; no client secret is required for public clients.
+- Firebase Authentication handles the user's identity and sign-in (Google and GitHub providers).
+- MongoDB Atlas stores OAuth client registrations, short-lived authorization codes, and opaque access-token records. Authorization codes are one-time-use and expire after five minutes; TTL indexes clean up expired records.
+- The MCP endpoint validates the opaque bearer token against MongoDB Atlas and verifies the associated Firebase ID token server-side. The Firebase ID token is never a tool argument and is not exposed to the model.
+- OAuth discovery is exposed at `/.well-known/oauth-authorization-server` and `/.well-known/oauth-protected-resource`, including the resource-specific metadata path for `/api/mcp`.
 
-## MongoDB Atlas
+The Firebase Web configuration in the login page is public client configuration, not a service-account secret. Keep `FIREBASE_SERVICE_ACCOUNT_JSON`, `MONGODB_URI`, `HF_TOKEN`, and `HF_SPACE_API_SECRET` private and configured only as server-side environment variables.
 
-This endpoint does not offer arbitrary database queries or Atlas administration. Profile photo tools call the existing authenticated `/api/profile` route, which stores custom/disabled photo state in the `profile_photos` collection. The Qwen custom-MCP feature uses the existing `qwen_mcp_servers` collection. Atlas must be tested through the deployed site's server-side connection; a public health response only reports configuration flags and explicitly reports `databaseConnectionTested: false`.
+## Firebase Free and MongoDB Atlas
 
-## Deployment and verification
+Firebase Authentication can remain on the Firebase Spark (Free) plan, subject to Firebase provider and usage limits. This implementation does not use Firestore for OAuth state. MongoDB Atlas is the database for OAuth registrations/codes/tokens, consistent with the project's database architecture. OAuth endpoints require the existing `MONGODB_URI`, `MONGODB_DATABASE`, and `FIREBASE_SERVICE_ACCOUNT_JSON` environment variables to be configured on Vercel.
 
-1. Review and merge the branch.
-2. Deploy the repository to Vercel. `api/mcp.js` has a 300-second function ceiling because it proxies long-running generation. Verify `https://ai.erikraft.com/api/mcp` handles MCP `initialize`, `tools/list`, `resources/list`, and `resources/read`.
-3. Connect the plugin to `https://ai.erikraft.com/api/mcp` using Streamable HTTP and verify the UI renders.
-4. With a test account, verify image, text, video, voice, and profile-photo flows individually. Experimental video/text models can fail due to GPU, disk, queue, or provider limits.
-5. The token field is a temporary bridge, not a suitable public sign-in flow. Keep this PR in draft until native OAuth/PKCE is implemented and tested. Never ask the model to collect a token. Test the Atlas-backed profile route end to end before claiming MongoDB operations work.
+Atlas network access must permit the Vercel function to connect. Do not claim OAuth is live until the deployed endpoint can reach Atlas and the full authorization-code exchange has been tested against ChatGPT's actual OAuth client behavior. No secret values belong in this repository or plugin package.
 
-The API keeps generation quotas in the existing backend and does not bypass them. The voice-reference validator enforces the same 10–60 second range described in the studio UI.
+## Security and release checklist
+
+- Verify the OAuth discovery responses on the deployed domain.
+- Test dynamic client registration, Google/GitHub sign-in, PKCE verifier mismatch, redirect URI mismatch, expired/reused codes, expired tokens, and a successful MCP tool call.
+- Confirm Firebase authorized domains include the hosted login origin and that the provider sign-in methods are enabled.
+- Verify generation/profile APIs still enforce the authenticated UID and server-side quotas.
+- Test a real ChatGPT connection before submitting the plugin for public listing.
+
+Do not describe the public integration as production-ready until the live end-to-end tests pass.
