@@ -1,55 +1,20 @@
-/* Infinite RGB rainbow feedback while text is selected. */
+/* Native text selection with a continuously cycling RGB rainbow background. */
+:root {
+  --erikraft-selection-rgb: 255, 0, 0;
+}
+
 ::selection {
   color: #ffffff;
-  background: rgba(255, 0, 128, 0.42);
-  text-shadow: 0 0 8px rgba(255, 255, 255, 0.35);
+  background-color: rgba(var(--erikraft-selection-rgb), 0.72);
 }
+
 ::-moz-selection {
   color: #ffffff;
-  background: rgba(255, 0, 128, 0.42);
+  background-color: rgba(var(--erikraft-selection-rgb), 0.72);
 }
-.text-selection-effects {
-  position: fixed;
-  inset: 0;
-  z-index: 2147483000;
-  overflow: visible;
-  pointer-events: none;
-  contain: layout style;
-}
-.text-selection-effect {
-  position: fixed;
-  display: block;
-  border: 2px dashed #ff0080;
-  border-radius: 3px;
-  outline: 1px solid rgba(255, 0, 128, 0.24);
-  outline-offset: 2px;
-  background: linear-gradient(
-    90deg,
-    rgba(255, 0, 0, 0.18),
-    rgba(255, 128, 0, 0.18),
-    rgba(255, 255, 0, 0.18),
-    rgba(0, 255, 0, 0.18),
-    rgba(0, 220, 255, 0.18),
-    rgba(40, 70, 255, 0.18),
-    rgba(190, 0, 255, 0.18),
-    rgba(255, 0, 128, 0.18)
-  );
-  box-shadow: 0 0 12px rgba(255, 0, 128, 0.68);
-  transform-origin: center;
-  animation: erikraft-selection-rgb-rainbow 3s linear infinite;
-}
-@keyframes erikraft-selection-rgb-rainbow {
-  from {
-    filter: hue-rotate(0deg);
-    border-color: #ff003c;
-    box-shadow: 0 0 12px rgba(255, 0, 60, 0.72);
-  }
-  to {
-    filter: hue-rotate(360deg);
-    border-color: #ff003c;
-    box-shadow: 0 0 12px rgba(255, 0, 60, 0.72);
-  }
-}
+
 @media (prefers-reduced-motion: reduce) {
-  .text-selection-effect { animation: none; }
+  :root {
+    --erikraft-selection-rgb: 255, 0, 128;
+  }
 }
