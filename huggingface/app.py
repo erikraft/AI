@@ -36,9 +36,9 @@ QWEN_MODEL_ID = "0bserverx/Qwen3.8-27B-Heretic-Abliterated-Uncensored-GGUF"
 ENABLE_COSMOS_VIDEO = os.getenv("ENABLE_COSMOS_VIDEO", "true").strip().lower() in {"1", "true", "yes"}
 ENABLE_QWEN_TEXT = os.getenv("ENABLE_QWEN_TEXT", "true").strip().lower() in {"1", "true", "yes"}
 QWEN_GGUF_FILE = "RVN-IQ2_XS.gguf"
-# The deployed ZeroGPU request surfaced 300 seconds as a 450-second reservation.
-# Keep Qwythos below the observed 300-second ceiling, with headroom for scheduler overhead.
-MAX_QWYTHOS_GPU_SECONDS = 180
+# Live ZeroGPU logs showed a 180-second declaration becoming a rejected 270-second reservation.
+# Keep Qwythos at 120 seconds so the effective reservation stays below the observed provider cap.
+MAX_QWYTHOS_GPU_SECONDS = 120
 
 pipe = None
 pipe_mode = None
@@ -369,7 +369,8 @@ def _authorize_video_request_duration(prompt: str, api_secret: str, *args, **kwa
         raise gr.Error("Cosmos video is disabled. Enable ENABLE_COSMOS_VIDEO only after validating GPU and disk capacity.")
     if not isinstance(prompt, str) or not prompt.strip() or len(prompt.strip()) > 1500:
         raise gr.Error("Prompt must contain 1–1500 characters.")
-    return 180
+    # The live Space rejected a 270-second reservation produced by a 180-second declaration.
+    return 120
 
 
 @spaces.GPU(duration=_authorize_video_request_duration)
@@ -723,8 +724,8 @@ with gr.Blocks(title="ErikrafT AI — FLUX + Qwythos", delete_cache=(3600, 86400
             image_height = gr.Dropdown(choices=[768, 1024], value=768, label="Output height")
             image_steps = gr.Dropdown(choices=[20, 28], value=20, label="FLUX inference steps")
         image_language = gr.Radio(
-            choices=[("Português (Brasil)", "pt-BR"), ("English", "en")],
-            value="pt-BR",
+            choices=[("Detecção automática / Auto-detect", "auto"), ("Português (Brasil)", "pt-BR"), ("English", "en")],
+            value="auto",
             label="Prompt language",
         )
         interpreted_prompt = gr.Textbox(visible=False, label="Interpreted generation prompt")
