@@ -33,11 +33,13 @@ async function oauthCollections() {
       const database = client.db(DATABASE_NAME);
       const clients = database.collection("mcp_oauth_clients");
       const codes = database.collection("mcp_oauth_codes");
+      const tokens = database.collection("mcp_oauth_tokens");
       await Promise.all([
         clients.createIndex({ client_id: 1 }, { unique: true, name: "mcp_oauth_client_id" }),
-        codes.createIndex({ expires_at: 1 }, { expireAfterSeconds: 0, name: "mcp_oauth_code_ttl" })
+        codes.createIndex({ expires_at: 1 }, { expireAfterSeconds: 0, name: "mcp_oauth_code_ttl" }),
+        tokens.createIndex({ expires_at: 1 }, { expireAfterSeconds: 0, name: "mcp_oauth_token_ttl" })
       ]);
-      return { clients, codes };
+      return { clients, codes, tokens };
     }).catch((error) => { oauthCollectionsPromise = undefined; throw error; });
   }
   return oauthCollectionsPromise;
@@ -131,7 +133,7 @@ async function handleAuthorize(req, res) {
 }
 async function handleToken(req, res) {
   if (req.method !== "POST") return oauthError(res, 405, "invalid_request", "Use POST.");
-  const p = bodyOf(req), { codes } = await oauthCollections();
+  const p = bodyOf(req), { codes, tokens } = await oauthCollections();
   if (p.grant_type !== "authorization_code" || typeof p.code !== "string" || typeof p.code_verifier !== "string" || p.code_verifier.length < 43 || p.code_verifier.length > 128) return oauthError(res, 400, "invalid_grant", "Authorization code and PKCE verifier are required.");
   if (typeof p.client_id !== "string" || typeof p.redirect_uri !== "string") return oauthError(res, 400, "invalid_request", "client_id and redirect_uri are required.");
   const calculated = createHash("sha256").update(p.code_verifier).digest("base64url");
@@ -142,7 +144,11 @@ async function handleToken(req, res) {
   try { decoded = await getAuth(adminApp()).verifyIdToken(record.firebase_id_token, true); }
   catch { return oauthError(res, 400, "invalid_grant", "The Firebase session has expired. Authorize again."); }
   if (decoded.uid !== record.uid) return oauthError(res, 400, "invalid_grant", "The Firebase identity did not match.");
-  return sendJson(res, 200, { access_token: record.firebase_id_token, token_type: "Bearer", expires_in: Math.max(0, decoded.exp - Math.floor(Date.now() / 1000)), scope: "mcp:tools" });
+  const expiresIn = Math.max(0, decoded.exp - Math.floor(Date.now() / 1000));
+  if (expiresIn < 1) return oauthError(res, 400, "invalid_grant", "The Firebase session has expired. Authorize again.");
+  const accessToken = randomId(32);
+  await tokens.insertOne({ _id: hash(accessToken), client_id: p.client_id, uid: decoded.uid, firebase_id_token: record.firebase_id_token, scope: "mcp:tools", expires_at: new Date(Date.now() + expiresIn * 1000) });
+  return sendJson(res, 200, { access_token: accessToken, token_type: "Bearer", expires_in: expiresIn, scope: "mcp:tools" });
 }
 export default async function handler(req, res) {
   noStore(res);
