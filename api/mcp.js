@@ -185,7 +185,7 @@ const tools = [
   {
     name: "erikraft_ai_generate",
     title: "Generate with ErikrafT AI",
-    description: "Generate an image, video, text, or voice using the same authenticated API as the ErikrafT AI™ website. Requires a short-lived Firebase ID token from the signed-in user's own session. Never provide passwords, service-account credentials, Hugging Face tokens, or MongoDB connection strings. Respects server-side account quotas.",
+    description: "Generate an image, video, text, or voice using the same authenticated API as the ErikrafT AI™ website. Requires the user's authenticated OAuth connection; the bearer token is supplied by the MCP host and is never a tool argument. Never provide passwords, service-account credentials, Hugging Face tokens, or MongoDB connection strings. Respects server-side account quotas.",
     inputSchema: {
       type: "object",
       properties: {
@@ -206,7 +206,7 @@ const tools = [
   {
     name: "erikraft_ai_get_profile_photo",
     title: "Get profile photo",
-    description: "Read the signed-in user's profile photo through the existing MongoDB Atlas-backed profile API.",
+    description: "Read the signed-in user's profile photo through the existing MongoDB Atlas-backed profile API. Requires an authenticated OAuth connection.",
     inputSchema: { type: "object", properties: {}, required: [], additionalProperties: false },
     _meta: { ui: { visibility: ["app"] }, "openai/widgetAccessible": true },
     annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false, idempotentHint: true }
@@ -214,7 +214,7 @@ const tools = [
   {
     name: "erikraft_ai_save_profile_photo",
     title: "Save custom profile photo",
-    description: "Save a PNG/JPEG/WebP profile image (data URL, max 1 MiB) for the signed-in user through the existing profile API.",
+    description: "Save a PNG/JPEG/WebP profile image (data URL, max 1 MiB) for the signed-in user through the existing profile API. Requires an authenticated OAuth connection.",
     inputSchema: { type: "object", properties: { photo: { type: "string", minLength: 30, maxLength: 1400000, description: "PNG/JPEG/WebP data URL, maximum 1 MiB decoded." } }, required: ["photo"], additionalProperties: false },
     _meta: { ui: { visibility: ["app"] }, "openai/widgetAccessible": true },
     annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false, idempotentHint: false }
@@ -222,7 +222,7 @@ const tools = [
   {
     name: "erikraft_ai_delete_profile_photo",
     title: "Delete profile photo",
-    description: "Persist the signed-in user's choice to remove their profile photo using the existing profile API.",
+    description: "Persist the signed-in user's choice to remove their profile photo using the existing profile API. Requires an authenticated OAuth connection.",
     inputSchema: { type: "object", properties: {}, required: [], additionalProperties: false },
     _meta: { ui: { visibility: ["app"] }, "openai/widgetAccessible": true },
     annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: false, idempotentHint: true }
@@ -230,7 +230,7 @@ const tools = [
   {
     name: "erikraft_ai_restore_provider_photo",
     title: "Restore provider photo",
-    description: "Restore the photo from the signed-in user's identity provider through the existing profile API.",
+    description: "Restore the photo from the signed-in user's identity provider through the existing profile API. Requires an authenticated OAuth connection.",
     inputSchema: { type: "object", properties: {}, required: [], additionalProperties: false },
     _meta: { ui: { visibility: ["app"] }, "openai/widgetAccessible": true },
     annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false, idempotentHint: true }
