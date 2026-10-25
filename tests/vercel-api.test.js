@@ -198,7 +198,10 @@ test("Yahoo sign-in is accepted consistently by all authenticated account endpoi
   assert.match(app, /Google, GitHub, Yahoo/);
   assert.match(privacy, /Google, GitHub, Yahoo/);
   assert.match(readme, /Google, GitHub, Yahoo/);
-  assert.ok(profile.includes('verifyIdToken(match[1])'), "profile API should continue to use authenticated Firebase identity");
+  assert.match(profile, /verifyIdToken\(match\[1\], true\)/, "profile API rejects revoked Firebase sessions");
+  assert.match(generation, /verifyIdToken\(match\[1\], true\)/);
+  assert.match(history, /verifyIdToken\(match\[1\], true\)/);
+  assert.match(mcp, /verifyIdToken\(match\[1\], true\)/);
 });
 
 test("Vercel validation workflow uses the same Node major version as the application runtime", () => {
@@ -338,6 +341,30 @@ test("localized interface text is rendered without reinterpreting translations a
   assert.ok(app.includes("studio_title_accent"));
 });
 
+test("production GPU declarations fit the recent ZeroGPU reservation ceiling and Qwythos accepts auto language", () => {
+  const space = readFileSync(new URL("../huggingface/app.py", import.meta.url), "utf8");
+  const api = readFileSync(new URL("../api/generate.js", import.meta.url), "utf8");
+  assert.match(space, /MAX_QWYTHOS_GPU_SECONDS = 120/);
+  assert.match(space, /return 120\s+\n\s*@spaces\.GPU\(duration=_authorize_video_request_duration\)/);
+  assert.match(space, /choices=\[\("Detecção automática \/ Auto-detect", "auto"\)/);
+  assert.match(api, /\[prompt\.trim\(\), referenceImageFile, "auto"\]/);
+});
+
+test("untrusted MCP server errors are not interpolated into privileged system messages", () => {
+  const api = readFileSync(new URL("../api/generate.js", import.meta.url), "utf8");
+  assert.match(api, /Continue without those tools and do not infer tool results/);
+  assert.doesNotMatch(api, /role: "system",[\s\S]{0,160}toolset\.warnings\.slice/);
+});
+
+test("health endpoint reports MongoDB and MCP configuration without exposing secret values", () => {
+  const health = readFileSync(new URL("../api/health.js", import.meta.url), "utf8");
+  assert.match(health, /mongoUriConfigured/);
+  assert.match(health, /mongoDatabaseConfigured/);
+  assert.match(health, /mcpOAuthConfigured: mongoUriConfigured && mcpEncryptionKeyConfigured/);
+  assert.match(health, /databaseConnectionTested: false/);
+  assert.doesNotMatch(health, /MONGODB_URI:\s*process\.env/);
+});
+
 test("experimental Space tabs are hidden from the public UI while server-side authorization remains required", () => {
   const source = readFileSync(new URL("../huggingface/app.py", import.meta.url), "utf8");
   assert.match(source, /with gr\.Tab\("Cosmos3 Nano text-to-video", visible=False\)/);
@@ -374,15 +401,20 @@ test("voice-cloning reference audio is confined to Gradio's resolved cache path"
   assert.equal(source.includes("os.path.getsize(reference_audio)"), false);
 });
 
-test("voice preview only accepts supported audio MIME types and uses a normalized Blob URL", () => {
+test("voice upload is normalized to bounded mono PCM WAV before provider inference", () => {
   const app = readFileSync(new URL("../assets/js/app.js", import.meta.url), "utf8");
   const api = readFileSync(new URL("../api/generate.js", import.meta.url), "utf8");
   assert.ok(app.includes("const SUPPORTED_VOICE_AUDIO_TYPES = new Set(["));
-  assert.ok(app.includes("if (!SUPPORTED_VOICE_AUDIO_TYPES.has(mimeType))"));
-  assert.ok(app.includes("new Blob([file], { type: mimeType })"));
-  assert.ok(app.includes('if (!previewUrl.startsWith("blob:"))'));
-  assert.ok(app.includes("`data:${mimeType};base64,${dataUrl[1]}`"));
-  assert.ok(api.includes("(?:wav|x-wav|mpeg|mp3|ogg|webm|mp4|x-m4a)"));
+  assert.match(app, /normalizeVoiceAudioToWav\(file\)/);
+  assert.match(app, /VOICE_AUDIO_TARGET_SAMPLE_RATE = 16000/);
+  assert.match(app, /MAX_VOICE_DURATION_SECONDS = 60/);
+  assert.match(app, /writeAscii\(0, "RIFF"\)/);
+  assert.match(app, /setUint16\(22, 1, true\)/);
+  assert.match(app, /voiceAudioDataUrl = "data:audio\/wav;base64," \+ match\[1\]/);
+  assert.match(app, /URL\.createObjectURL\(normalizedBlob\)/);
+  assert.match(api, /\^data:audio\\x2f\(\?:wav\|x-wav\);base64,/);
+  assert.match(api, /new File\(\[bytes\], "voice-reference\.wav", \{ type: "audio\/wav" \}\)/);
+  assert.doesNotMatch(api, /audio\\x2f\(\?:wav\|x-wav\|mpeg\|mp3\|ogg\|webm\|mp4/);
 });
 
 test("voice cloning detects language from reference speech instead of website locale", () => {
