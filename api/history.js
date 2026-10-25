@@ -35,7 +35,7 @@ async function authenticatedUser(req) {
   const match = String(req.headers.authorization || "").match(/^Bearer\s+(.+)$/i);
   if (!match) return null;
   try {
-    const decoded = await getAuth(getAdminApp()).verifyIdToken(match[1]);
+    const decoded = await getAuth(getAdminApp()).verifyIdToken(match[1], true);
     if (decoded.firebase?.sign_in_provider === "password" && decoded.email_verified !== true) return null;
     if (!["google.com", "github.com", "yahoo.com", "password"].includes(decoded.firebase?.sign_in_provider)) return null;
     return decoded;
