@@ -443,8 +443,8 @@ def _prepare_qwen_image_assets() -> dict:
         "vae": _cached_repo_size_gib("models--Comfy-Org--Qwen-Image-2.1"),
     }
     missing_weights = (
-        cache_sizes["encoder"] < 5.0
-        or cache_sizes["denoiser"] < 4.0
+        cache_sizes["encoder"] < 4.8
+        or cache_sizes["denoiser"] < 3.8
         or cache_sizes["vae"] < 0.5
     )
     if missing_weights and _disk_free_gib() < 14:
