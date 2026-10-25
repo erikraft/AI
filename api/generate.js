@@ -52,6 +52,8 @@ const envEnabled = (value) => {
 // already queued by Gradio, so users are warned not to retry immediately.
 const EXPERIMENTAL_INFERENCE_TIMEOUT_MS = 235_000;
 const QWEN_INFERENCE_TIMEOUT_MS = 235_000;
+const MAX_MCP_TOOL_CALLS_PER_TURN = 4;
+const MAX_MCP_TOOL_CALLS_PER_ROUND = 2;
 // Bound image inference before Vercel's function deadline so callers receive JSON
 // errors instead of a platform-generated 502 when a Space stalls in its queue.
 const IMAGE_INFERENCE_TIMEOUT_MS = 225_000;
@@ -456,7 +458,7 @@ export default async function handler(req, res) {
           answer = rawAnswer;
           break;
         }
-        const calls = toolRequest.mcp_tool_calls.slice(0, 2);
+        const calls = toolRequest.mcp_tool_calls.slice(0, Math.min(MAX_MCP_TOOL_CALLS_PER_ROUND, MAX_MCP_TOOL_CALLS_PER_TURN - toolCallsExecuted));
         messages.push({
           role: "assistant",
           content: toolRequest.assistant_content || null,
@@ -467,7 +469,7 @@ export default async function handler(req, res) {
           const callId = String(call?.id || ("mcp-call-" + round + "-" + index)).slice(0, 100);
           const functionName = call?.function?.name;
           let content;
-          if (!functionName || !toolset.toolMap.has(functionName) || toolCallsExecuted >= 8) {
+          if (!functionName || !toolset.toolMap.has(functionName) || toolCallsExecuted >= MAX_MCP_TOOL_CALLS_PER_TURN) {
             content = JSON.stringify({ error: "This tool is not available or the per-turn tool-call limit was reached." });
           } else {
             try {
