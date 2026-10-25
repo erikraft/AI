@@ -1,7 +1,7 @@
 import { initializeApp, cert, getApps } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 import { MongoClient } from "mongodb";
-import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 
 const ORIGIN = "https://ai.erikraft.com";
 const RESOURCE = ORIGIN + "/api/mcp";
@@ -53,10 +53,6 @@ function oauthError(res, status, error, description) {
 }
 function randomId(bytes = 32) { return randomBytes(bytes).toString("base64url"); }
 function hash(value) { return createHash("sha256").update(value).digest("hex"); }
-function safeEqual(a, b) {
-  const left = Buffer.from(String(a)), right = Buffer.from(String(b));
-  return left.length === right.length && timingSafeEqual(left, right);
-}
 function bodyOf(req) {
   if (req.body && typeof req.body === "object" && !Array.isArray(req.body)) return req.body;
   if (typeof req.body === "string") { try { return JSON.parse(req.body); } catch {} try { return Object.fromEntries(new URLSearchParams(req.body)); } catch {} }
@@ -127,7 +123,7 @@ async function handleAuthorize(req, res) {
   catch { return oauthError(res, 401, "login_required", "Sign in with a valid Firebase session."); }
   if (user.firebase?.sign_in_provider === "password" && user.email_verified !== true) return oauthError(res, 403, "access_denied", "Verify your email before connecting.");
   const code = randomId(32), expiresAt = new Date(Date.now() + 5 * 60 * 1000);
-  await codes.insertOne({ _id: hash(code), client_id: p.client_id, redirect_uri: p.redirect_uri, code_challenge: p.code_challenge, firebase_id_token: String(p.firebase_id_token), uid: user.uid, expires_at: expiresAt });
+  await codes.insertOne({ _id: hash(code), client_id: p.client_id, redirect_uri: p.redirect_uri, resource: RESOURCE, code_challenge: p.code_challenge, firebase_id_token: String(p.firebase_id_token), uid: user.uid, expires_at: expiresAt });
   const redirect = new URL(p.redirect_uri); redirect.searchParams.set("code", code); redirect.searchParams.set("state", p.state);
   return sendJson(res, 200, { redirect: redirect.toString() });
 }
@@ -136,8 +132,9 @@ async function handleToken(req, res) {
   const p = bodyOf(req), { codes, tokens } = await oauthCollections();
   if (p.grant_type !== "authorization_code" || typeof p.code !== "string" || typeof p.code_verifier !== "string" || p.code_verifier.length < 43 || p.code_verifier.length > 128) return oauthError(res, 400, "invalid_grant", "Authorization code and PKCE verifier are required.");
   if (typeof p.client_id !== "string" || typeof p.redirect_uri !== "string") return oauthError(res, 400, "invalid_request", "client_id and redirect_uri are required.");
+  if (p.resource && p.resource !== RESOURCE) return oauthError(res, 400, "invalid_target", "The requested resource is not supported.");
   const calculated = createHash("sha256").update(p.code_verifier).digest("base64url");
-  const result = await codes.findOneAndDelete({ _id: hash(p.code), client_id: p.client_id, redirect_uri: p.redirect_uri, code_challenge: calculated, expires_at: { $gt: new Date() } });
+  const result = await codes.findOneAndDelete({ _id: hash(p.code), client_id: p.client_id, redirect_uri: p.redirect_uri, resource: RESOURCE, code_challenge: calculated, expires_at: { $gt: new Date() } });
   const record = result && (result.value || result);
   if (!record) return oauthError(res, 400, "invalid_grant", "The code is invalid, expired, already used, or the PKCE verifier did not match.");
   let decoded;
