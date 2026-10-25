@@ -432,6 +432,17 @@ test("voice cloning detects language from reference speech instead of website lo
 });
 
 
+test("MongoDB history and profile indexes are initialized once per warm serverless instance", () => {
+  const history = readFileSync(new URL("../api/history.js", import.meta.url), "utf8");
+  const profile = readFileSync(new URL("../api/profile.js", import.meta.url), "utf8");
+  assert.match(history, /let cachedCollectionPromise/);
+  assert.match(history, /if \(!cachedCollectionPromise\)[\s\S]*?createIndex\(\{ userId: 1, createdAt: -1 \}/);
+  assert.match(history, /return cachedCollectionPromise/);
+  assert.match(profile, /let collectionPromise/);
+  assert.match(profile, /if \(!collectionPromise\)[\s\S]*?createIndex\(\{ userId: 1 \}, \{ unique: true/);
+  assert.match(profile, /return collectionPromise/);
+});
+
 test("custom profile photos persist in MongoDB and take precedence over provider photos", () => {
   const api = readFileSync(new URL("../api/profile.js", import.meta.url), "utf8");
   const profile = readFileSync(new URL("../assets/js/profile.js", import.meta.url), "utf8");
