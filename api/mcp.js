@@ -237,7 +237,16 @@ const tools = [
   }
 ];
 
-export default async function handler(req, res) {
+async function verifyFirebaseBearer(accessToken) {
+  const raw = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
+  if (!getApps().length) {
+    if (!raw) throw new Error("Firebase Admin is not configured");
+    initializeApp({ credential: cert(JSON.parse(raw)) });
+  }
+  return getAuth().verifyIdToken(accessToken, true);
+}
+
+export default async function handler(req, res, verifyBearer = verifyFirebaseBearer) {
   res.setHeader("Cache-Control", "no-store");
   res.setHeader("X-Content-Type-Options", "nosniff");
   res.setHeader("Access-Control-Allow-Origin", "https://chatgpt.com");
@@ -256,12 +265,7 @@ export default async function handler(req, res) {
   }
   const accessToken = bearerMatch[1];
   try {
-    const raw = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
-    if (!getApps().length) {
-      if (!raw) throw new Error("Firebase Admin is not configured");
-      initializeApp({ credential: cert(JSON.parse(raw)) });
-    }
-    await getAuth().verifyIdToken(accessToken, true);
+    await verifyBearer(accessToken);
   } catch {
     res.setHeader("WWW-Authenticate", 'Bearer error="invalid_token", resource_metadata="https://ai.erikraft.com/.well-known/oauth-protected-resource"');
     return res.status(401).json({ error: "Invalid or expired OAuth access token." });
