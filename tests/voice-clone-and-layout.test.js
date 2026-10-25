@@ -51,7 +51,7 @@ test("result stage has responsive desktop, tablet, and mobile rules", () => {
 
 test("voice upload status never reflects an attacker-controlled filename as markup", () => {
   const app = read("../assets/js/app.js");
-  assert.match(app, /textContent = document\.documentElement\.lang === "en" \? "Voice sample ready\." : "Amostra de voz pronta\."/);
+  assert.match(app, /textContent = document\.documentElement\.lang === "en" \? "Voice sample converted to WAV and ready\." : "Amostra convertida para WAV e pronta\."/);
   assert.doesNotMatch(app, /file\.name\s*\+\s*["'] ready/);
 });
 
