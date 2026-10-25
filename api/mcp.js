@@ -128,10 +128,10 @@ async function callTool(name, args, bearerToken) {
     const [models, health] = await Promise.all([siteRequest("/api/models"), siteRequest("/api/health")]);
     return toolText({ ...models, health, modelCatalog: modelCatalogWithAvailability(models) });
   }
-  const token = bearerToken || args.firebaseIdToken;
+  const token = bearerToken;
   validateToken(token);
   if (name === "erikraft_ai_generate") {
-    const { firebaseIdToken, ...body } = args;
+    const body = args;
     if (typeof body.prompt !== "string" || !body.prompt.trim() || body.prompt.length > 1500) throw new Error("Prompt must contain 1–1500 characters.");
     const supported = MODEL_CATALOG.some((m) => m.id === (body.model || MODEL_CATALOG[0].id));
     if (!supported) throw new Error("Unsupported model.");
