@@ -261,7 +261,7 @@ export default async function handler(req, res) {
         protocolVersion: ["2025-11-25", "2025-06-18", "2025-03-26"].includes(message.params?.protocolVersion) ? message.params.protocolVersion : "2025-11-25",
         capabilities: { tools: { listChanged: false }, resources: { subscribe: false, listChanged: false } },
         serverInfo: { name: "erikraft-ai", version: "0.3.1" },
-        instructions: "ErikrafT AI™ MCP server. Use the UI studio tool for interactive generation. Generation/profile calls require the user's short-lived Firebase ID token. Never request passwords or backend secrets."
+        instructions: "ErikrafT AI™ MCP server. Use the UI studio tool for interactive generation. Never ask the user to reveal or paste a Firebase ID token into chat. Authenticated generation/profile actions are available only inside the Studio UI, which currently requires a short-lived token entered directly into the widget because native OAuth/PKCE sign-in is not implemented. If the token has not been entered inside the widget, explain this limitation and do not ask for it in conversation. Never request passwords, Firebase service-account JSON, Hugging Face tokens/secrets, or MongoDB credentials."
       };
     } else if (message.method === "ping") {
       result = {};
