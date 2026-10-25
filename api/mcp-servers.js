@@ -15,7 +15,7 @@ async function authenticatedUser(req) {
   const match = String(req.headers.authorization || "").match(/^Bearer\s+(.+)$/i);
   if (!match) return null;
   try {
-    const user = await getAuth(adminApp()).verifyIdToken(match[1]);
+    const user = await getAuth(adminApp()).verifyIdToken(match[1], true);
     if (!user.uid || !ALLOWED_PROVIDERS.has(user.firebase?.sign_in_provider)) return null;
     if (user.firebase?.sign_in_provider === "password" && user.email_verified !== true) return null;
     return user;

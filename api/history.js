@@ -7,6 +7,7 @@ const COLLECTION_NAME = "user_history";
 const MAX_ITEMS = 100;
 
 let cachedClientPromise;
+let cachedCollectionPromise;
 
 function getAdminApp() {
   if (getApps().length) return getApps()[0];
@@ -22,20 +23,28 @@ async function getCollection() {
     const client = new MongoClient(uri, { maxPoolSize: 5, serverSelectionTimeoutMS: 8000 });
     cachedClientPromise = client.connect().catch((error) => {
       cachedClientPromise = undefined;
+      cachedCollectionPromise = undefined;
       throw error;
     });
   }
-  const client = await cachedClientPromise;
-  const collection = client.db(DATABASE_NAME).collection(COLLECTION_NAME);
-  await collection.createIndex({ userId: 1, createdAt: -1 }, { name: "user_history_by_owner_and_date" });
-  return collection;
+  if (!cachedCollectionPromise) {
+    cachedCollectionPromise = cachedClientPromise.then(async (client) => {
+      const collection = client.db(DATABASE_NAME).collection(COLLECTION_NAME);
+      await collection.createIndex({ userId: 1, createdAt: -1 }, { name: "user_history_by_owner_and_date" });
+      return collection;
+    }).catch((error) => {
+      cachedCollectionPromise = undefined;
+      throw error;
+    });
+  }
+  return cachedCollectionPromise;
 }
 
 async function authenticatedUser(req) {
   const match = String(req.headers.authorization || "").match(/^Bearer\s+(.+)$/i);
   if (!match) return null;
   try {
-    const decoded = await getAuth(getAdminApp()).verifyIdToken(match[1]);
+    const decoded = await getAuth(getAdminApp()).verifyIdToken(match[1], true);
     if (decoded.firebase?.sign_in_provider === "password" && decoded.email_verified !== true) return null;
     if (!["google.com", "github.com", "yahoo.com", "password"].includes(decoded.firebase?.sign_in_provider)) return null;
     return decoded;

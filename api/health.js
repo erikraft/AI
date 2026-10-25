@@ -33,6 +33,11 @@ export default function handler(req, res) {
   const hfSpaceConfigured = Boolean(hfSpaceId);
   const hfSpaceIdValid = hfSpaceId.toLowerCase() === EXPECTED_SPACE_ID;
   const experimentalSecretConfigured = String(process.env.HF_SPACE_API_SECRET || "").trim().length >= 32;
+  const mongoUriConfigured = Boolean(String(process.env.MONGODB_URI || "").trim());
+  const mongoDatabaseConfigured = Boolean(String(process.env.MONGODB_DATABASE || "").trim());
+  const mcpKey = String(process.env.MCP_ENCRYPTION_KEY || "").trim();
+  const mcpEncryptionKeyConfigured = /^[a-f0-9]{64}$/i.test(mcpKey)
+    || (Buffer.from(mcpKey, "base64").length === 32 && Buffer.from(mcpKey, "base64").toString("base64").replace(/=+$/, "") === mcpKey.replace(/=+$/, ""));
 
   return res.status(200).json({
     ok: firebaseServiceAccountJsonValid && firebaseProjectMatches && hfSpaceIdValid,
@@ -43,7 +48,12 @@ export default function handler(req, res) {
     hfSpaceIdValid,
     hfTokenConfigured: Boolean(process.env.HF_TOKEN),
     experimentalSecretConfigured,
-    mcpEncryptionKeyConfigured: Boolean(String(process.env.MCP_ENCRYPTION_KEY || "").trim()),
+    mongoUriConfigured,
+    mongoDatabaseConfigured,
+    mongoPersistenceConfigured: mongoUriConfigured,
+    mcpEncryptionKeyConfigured,
+    mcpOAuthConfigured: mongoUriConfigured && mcpEncryptionKeyConfigured,
+    databaseConnectionTested: false,
     experimentalModels: {
       cosmosVideo: experimentalSecretConfigured && hfSpaceIdValid && featureEnabled(process.env.ENABLE_COSMOS_VIDEO),
       qwenText: experimentalSecretConfigured && hfSpaceIdValid && featureEnabled(process.env.ENABLE_QWEN_TEXT)

@@ -10,7 +10,7 @@ pinned: false
 This Space provides two image-generation workflows using two model checkpoints:
 
 - **Text-to-image:** `aoxo/flux.1dev-abliterated` via Diffusers at `/generate_image`. Inputs: prompt, width, height, and inference steps. Requested GPU duration: 120 seconds.
-- **Any browser-decodable input image + instructions → image edit:** the website normalizes the selected image to JPEG (up to 3 MiB) and uploads it through the server-side API to `/generate_image_from_image`. `fluffy12222/Qwythos-9B-Claude-Mythos-5-1M-heretic-abliterated` interprets the actual image and instructions and returns a prompt explicitly prioritizing identity preservation. The server then calls `/generate_image_from_reference`, which uses `FluxImg2ImgPipeline` with the actual uploaded image as the source and a low denoising strength of `0.30`, rather than generating from text alone. This improves continuity of faces, people, clothing, pose, and composition, but cannot guarantee pixel-perfect identity. Qwythos declared GPU duration: 180 seconds; FLUX editing has a separate 120-second GPU request.
+- **Any browser-decodable input image + instructions → image edit:** the website normalizes the selected image to JPEG (up to 3 MiB) and uploads it through the server-side API to `/generate_image_from_image`. `fluffy12222/Qwythos-9B-Claude-Mythos-5-1M-heretic-abliterated` interprets the actual image and instructions and returns a prompt explicitly prioritizing identity preservation. The server then calls `/generate_image_from_reference`, which uses `FluxImg2ImgPipeline` with the actual uploaded image as the source and a low denoising strength of `0.30`, rather than generating from text alone. This improves continuity of faces, people, clothing, pose, and composition, but cannot guarantee pixel-perfect identity. Qwythos declared GPU duration: 120 seconds; FLUX editing has a separate 120-second GPU request.
 
 The old standalone Qwythos text-only prompt-assistant endpoint (`/generate_prompt`) has been removed. Qwythos is used only when the user supplies a reference image and instructions. It interprets the input; FLUX performs the actual image edit using the reference image as its img2img source. Qwythos itself is a multimodal text/vision model, not an image-pixel generator.
 
@@ -22,7 +22,7 @@ The previous Qwythos configuration declared 300 seconds, but ZeroGPU surfaced it
 The requested GPU duration (450s) is larger than the maximum allowed
 ```
 
-The updated flow keeps two sequential requests with independent durations: Qwythos at 180 seconds and FLUX at 120 seconds (unchanged). This leaves headroom below the observed ZeroGPU ceiling; it does not guarantee that model loading or inference will finish within those windows.
+The updated flow keeps two sequential requests with independent durations: Qwythos at 120 seconds and FLUX at 120 seconds (unchanged). Live ZeroGPU logs showed a 180-second declaration becoming a rejected 270-second reservation, so the shorter value keeps the effective reservation near 180 seconds. This does not guarantee that model loading or inference will finish within the available GPU time.
 
 Both checkpoints are large and are loaded on demand to reduce memory pressure. Qwythos has approximately 18.8 GB of BF16 weights before runtime overhead. The Space still requires compatible Transformers/PyTorch versions and adequate RAM/VRAM. Free hardware, quotas, queue times, and successful live inference are not guaranteed.
 
