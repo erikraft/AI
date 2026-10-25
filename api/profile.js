@@ -6,6 +6,7 @@ const DATABASE_NAME = process.env.MONGODB_DATABASE || "ErikrafTAI";
 const COLLECTION_NAME = "profile_photos";
 const MAX_PHOTO_BYTES = 1024 * 1024;
 let clientPromise;
+let collectionPromise;
 
 function adminApp() {
   if (getApps().length) return getApps()[0];
@@ -27,12 +28,16 @@ async function collection() {
   if (!uri) throw new Error("MONGODB_URI is not configured");
   if (!clientPromise) {
     clientPromise = new MongoClient(uri, { maxPoolSize: 5, serverSelectionTimeoutMS: 8000 }).connect()
-      .catch((error) => { clientPromise = undefined; throw error; });
+      .catch((error) => { clientPromise = undefined; collectionPromise = undefined; throw error; });
   }
-  const client = await clientPromise;
-  const coll = client.db(DATABASE_NAME).collection(COLLECTION_NAME);
-  await coll.createIndex({ userId: 1 }, { unique: true, name: "profile_photo_by_user" });
-  return coll;
+  if (!collectionPromise) {
+    collectionPromise = clientPromise.then(async (client) => {
+      const coll = client.db(DATABASE_NAME).collection(COLLECTION_NAME);
+      await coll.createIndex({ userId: 1 }, { unique: true, name: "profile_photo_by_user" });
+      return coll;
+    }).catch((error) => { collectionPromise = undefined; throw error; });
+  }
+  return collectionPromise;
 }
 export default async function handler(req, res) {
   res.setHeader("Cache-Control", "no-store");
