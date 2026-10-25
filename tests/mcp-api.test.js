@@ -24,7 +24,8 @@ async function callMcp(body, method = "POST") {
 test("MCP endpoint accepts only POST and disables caching", async () => {
   const response = await callMcp({}, "GET");
   assert.equal(response.statusCode, 405);
-  assert.equal(response.headers.allow, "POST");
+  assert.equal(response.headers.allow, "POST, OPTIONS");
+  assert.equal(response.headers["access-control-allow-origin"], "https://chatgpt.com");
   assert.equal(response.headers["cache-control"], "no-store");
 });
 
@@ -78,4 +79,13 @@ test("generation without a Firebase token fails before proxying inference", asyn
   assert.equal(response.statusCode, 200);
   assert.equal(response.body.result.isError, true);
   assert.match(response.body.result.content[0].text, /Firebase ID token/);
+});
+
+test("MCP endpoint supports ChatGPT CORS preflight without executing a tool", async () => {
+  const response = await callMcp({}, "OPTIONS");
+  assert.equal(response.statusCode, 204);
+  assert.equal(response.ended, true);
+  assert.equal(response.headers["access-control-allow-origin"], "https://chatgpt.com");
+  assert.equal(response.headers["access-control-allow-methods"], "POST, OPTIONS");
+  assert.match(response.headers["access-control-allow-headers"], /mcp-protocol-version/);
 });
