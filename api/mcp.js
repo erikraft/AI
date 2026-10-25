@@ -287,7 +287,7 @@ export default async function handler(req, res, verifyBearer = verifyOAuthBearer
   const authHeader = String(req.headers.authorization || "");
   const bearerMatch = authHeader.match(/^Bearer\s+(.+)$/i);
   if (!bearerMatch) {
-    res.setHeader("WWW-Authenticate", 'Bearer resource_metadata="https://ai.erikraft.com/.well-known/oauth-protected-resource"');
+    res.setHeader("WWW-Authenticate", 'Bearer resource_metadata="https://ai.erikraft.com/.well-known/oauth-protected-resource/api/mcp"');
     return res.status(401).json({ error: "Authentication required." });
   }
   const accessToken = bearerMatch[1];
@@ -295,7 +295,7 @@ export default async function handler(req, res, verifyBearer = verifyOAuthBearer
   try {
     authContext = await verifyBearer(accessToken);
   } catch {
-    res.setHeader("WWW-Authenticate", 'Bearer error="invalid_token", resource_metadata="https://ai.erikraft.com/.well-known/oauth-protected-resource"');
+    res.setHeader("WWW-Authenticate", 'Bearer error="invalid_token", resource_metadata="https://ai.erikraft.com/.well-known/oauth-protected-resource/api/mcp"');
     return res.status(401).json({ error: "Invalid or expired OAuth access token." });
   }
   const message = req.body;
