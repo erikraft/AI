@@ -50,6 +50,11 @@ test("tools list includes the complete current model catalog without exposing au
   const tools = response.body.result.tools;
   const generate = tools.find((tool) => tool.name === "erikraft_ai_generate");
   assert.ok(generate);
+  for (const name of ["erikraft_ai_status", "erikraft_ai_list_models"]) {
+    const tool = tools.find((item) => item.name === name);
+    assert.ok(tool, name);
+    assert.equal(tool._meta["openai/widgetAccessible"], true);
+  }
   assert.ok(generate.inputSchema.properties.model.enum.includes("AtomicChat/Qwen-Image-2.1-Turbo-Uncensored-GGUF"));
   assert.deepEqual(generate._meta.ui.visibility, ["app"]);
   for (const name of ["erikraft_ai_get_profile_photo", "erikraft_ai_save_profile_photo", "erikraft_ai_delete_profile_photo", "erikraft_ai_restore_provider_photo"]) {
