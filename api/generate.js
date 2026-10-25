@@ -234,7 +234,7 @@ export default async function handler(req, res) {
     const app = getAdminApp();
     let user;
     try {
-      user = await getAuth(app).verifyIdToken(match[1]);
+      user = await getAuth(app).verifyIdToken(match[1], true);
     } catch {
       return res.status(401).json({
         error: localized(req, "Sua sessão é inválida ou expirou. Entre novamente.", "Your session is invalid or has expired. Please sign in again.")
@@ -423,9 +423,11 @@ export default async function handler(req, res) {
         { role: "user", content: prompt.trim() }
       ];
       if (toolset.warnings.length) {
+        // Server names and network error strings are untrusted provider-controlled data.
+        // Never insert them into a system message; keep the model's instruction trusted.
         messages.splice(1, 0, {
           role: "system",
-          content: "Some configured MCP servers could not be reached for this turn: " + toolset.warnings.slice(0, 5).join("; ").slice(0, 1200)
+          content: "Some configured MCP servers could not be reached for this turn. Continue without those tools and do not infer tool results."
         });
       }
       let answer = "";
