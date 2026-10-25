@@ -1013,5 +1013,25 @@ with gr.Blocks(title="ErikrafT AI — FLUX + Qwythos", delete_cache=(3600, 86400
         text_output = gr.Textbox(label="Qwen response", lines=12, max_lines=24, interactive=False)
         text_button.click(generate_text, [text_prompt, text_language, experimental_api_secret, text_tools_json, text_messages_json], text_output, api_name="generate_text")
 
+    with gr.Tab("Qwen Image 2.1 Turbo", visible=False):
+        gr.Markdown(
+            "Protected text-to-image inference using the AtomicChat uncensored Qwen3-VL GGUF encoder, "
+            "the paired Qwen Image 2.1 Turbo GGUF denoiser, and the official Qwen Image 2.1 VAE. "
+            "The endpoint is intended for the authenticated ErikrafT AI website and requires the shared server secret. "
+            "Turbo sampling uses the fixed 8-step sigma schedule."
+        )
+        qwen_image_prompt = gr.Textbox(label="Image prompt", lines=4, max_lines=8, max_length=1500)
+        qwen_image_width = gr.Number(value=768, precision=0, visible=False, label="Image width")
+        qwen_image_height = gr.Number(value=768, precision=0, visible=False, label="Image height")
+        qwen_image_api_secret = gr.Textbox(value="", visible=False, label="Internal API credential")
+        qwen_image_button = gr.Button("Generate image")
+        qwen_image_output = gr.Image(type="pil", label="Generated Qwen Image")
+        qwen_image_button.click(
+            generate_qwen_image,
+            [qwen_image_prompt, qwen_image_width, qwen_image_height, qwen_image_api_secret],
+            qwen_image_output,
+            api_name="generate_qwen_image",
+        )
+
 demo.queue()
 demo.launch()
