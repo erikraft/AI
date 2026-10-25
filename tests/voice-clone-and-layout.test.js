@@ -26,6 +26,8 @@ test("voice cloning routes through authenticated API with reference-language det
   assert.match(api, /Client\.connect\(targetSpaceId/);
   assert.ok(api.includes('"/predict"'));
   assert.match(api, /MAX_VOICE_AUDIO_BYTES = 3 \* 1024 \* 1024/);
+  assert.match(api, /new File\(\[bytes\], "voice-reference\.wav", \{ type: "audio\/wav" \}\)/);
+  assert.match(api, /(?:wav|x-wav)/);
 });
 
 test("profile popover remains fixed and layered above the footer", () => {
@@ -140,9 +142,11 @@ test("voice cloning discovers the current Whisper endpoint and enforces a ten-se
   assert.doesNotMatch(api, /"\/file_transcribe"/);
   assert.ok(pkg.dependencies["music-metadata"]);
 
-  assert.match(frontend, /getVoiceAudioDuration\(file\)/);
+  assert.match(frontend, /normalizeVoiceAudioToWav\(file\)/);
   assert.match(frontend, /recordedDuration < 10/);
   assert.match(frontend, /duration < 10/);
+  assert.match(frontend, /MAX_VOICE_DURATION_SECONDS = 60/);
+  assert.match(frontend, /VOICE_AUDIO_TARGET_SAMPLE_RATE = 16000/);
 });
 
 
