@@ -503,8 +503,8 @@ test("custom MCP clients encrypt OAuth tokens and block unsafe URL targets and r
   assert.match(helper, /createCipheriv\("aes-256-gcm"/);
   assert.match(helper, /createDecipheriv\("aes-256-gcm"/);
   assert.match(helper, /MCP_ENCRYPTION_KEY/);
-  assert.match(helper, /url\.protocol !== "https:"/);
   const network = readFileSync(new URL("../api/_lib/mcp-network.js", import.meta.url), "utf8");
+  assert.match(network, /url\.protocol !== "https:"/);
   assert.match(network, /BLOCKED_IP_RANGES = new BlockList\(\)/);
   assert.match(network, /lookup\(hostname, \{ all: true, verbatim: true \}\)/);
   assert.match(network, /requestPinnedMcp\(target, headers, JSON\.stringify\(body\)\)/);
