@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { validateMcpUrl } from "../api/_lib/mcp.js";
+import { validateMcpUrl } from "../api/_lib/mcp-network.js";
 
 test("custom MCP URLs reject loopback, private, link-local, and reserved IP ranges", async () => {
   const blocked = [
@@ -41,14 +41,16 @@ test("custom MCP URLs reject local names, embedded credentials, and fragments", 
 });
 
 test("MCP transport pins each HTTPS request to the validated public DNS address", () => {
+  const network = readFileSync(new URL("../api/_lib/mcp-network.js", import.meta.url), "utf8");
   const helper = readFileSync(new URL("../api/_lib/mcp.js", import.meta.url), "utf8");
-  assert.match(helper, /BLOCKED_IP_RANGES = new BlockList\(\)/);
-  assert.match(helper, /lookup\(hostname, \{ all: true, verbatim: true \}\)/);
-  assert.match(helper, /requestPinnedMcp\(target, headers, JSON\.stringify\(body\)\)/);
-  assert.match(helper, /httpsRequest\(target\.url/);
-  assert.match(helper, /lookup: ipLookup/);
-  assert.match(helper, /address: target\.address/);
-  assert.doesNotMatch(helper, /fetch\(url,\s*\{/);
+  assert.match(network, /BLOCKED_IP_RANGES = new BlockList\(\)/);
+  assert.match(network, /lookup\(hostname, \{ all: true, verbatim: true \}\)/);
+  assert.match(network, /requestPinnedMcp\(target, headers, JSON\.stringify\(body\)\)/);
+  assert.match(network, /httpsRequest\(target\.url/);
+  assert.match(network, /lookup: ipLookup/);
+  assert.match(network, /address: target\.address/);
+  assert.doesNotMatch(network, /fetch\(url,\s*\{/);
+  assert.match(helper, /resolveMcpTarget, requestPinnedMcp, validateMcpUrl/);
 });
 
 test("MCP collection lookups use owner/date and owner/server indexes", () => {
