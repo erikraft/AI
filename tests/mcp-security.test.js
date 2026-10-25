@@ -46,7 +46,7 @@ test("MCP transport pins each HTTPS request to the validated public DNS address"
   const helper = readFileSync(new URL("../api/_lib/mcp.js", import.meta.url), "utf8");
   assert.match(network, /BLOCKED_IP_RANGES = new BlockList\(\)/);
   assert.match(network, /lookup\(hostname, \{ all: true, verbatim: true \}\)/);
-  assert.match(network, /requestPinnedMcp\(target, headers, JSON\.stringify\(body\)\)/);
+  assert.match(helper, /requestPinnedMcp\(target, headers, JSON\.stringify\(body\)\)/);
   assert.match(network, /httpsRequest\(target\.url/);
   assert.match(network, /lookup: ipLookup/);
   assert.match(network, /address: target\.address/);
