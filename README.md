@@ -49,7 +49,7 @@ The browser client uses `https://ai.erikraft.com` as its Firebase `authDomain`, 
 - GitHub: update the callback URL in the GitHub OAuth App used by Firebase.
 - Yahoo: update the redirect URI in the Yahoo developer app used by Firebase.
 
-The old callback `https://erikraft-account.firebaseapp.com/__/auth/handler` will no longer match once the provider configuration switches to the first-party auth domain. Do not deploy this config change until provider callbacks have been updated; otherwise OAuth sign-in will fail for affected providers. Email/password sign-in does not use an OAuth redirect URI. For Vercel preview domains or local development, configure an appropriate authorized domain and auth helper proxy, or use a separate development Firebase configuration.
+The old callback `https://erikraft-account.firebaseapp.com/__/auth/handler` will no longer match once the provider configuration switches to the first-party auth domain. Coordinate the provider-console changes with the production deployment: OAuth sign-in will be temporarily unavailable during the cutover if the app and provider callback settings are out of sync. GitHub OAuth Apps normally expose one callback URL, so GitHub sign-in cannot use both callback domains simultaneously in the same app. Email/password sign-in does not use an OAuth redirect URI. For Vercel preview domains or local development, configure an appropriate authorized domain and auth helper proxy, or use a separate development Firebase configuration.
 
 ## Vercel environment variables
 
