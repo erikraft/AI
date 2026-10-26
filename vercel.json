@@ -56,6 +56,10 @@
       "destination": "https://erikraft-account.firebaseapp.com/__/auth/$1"
     },
     {
+      "source": "/__/firebase/init.json",
+      "destination": "https://erikraft-account.firebaseapp.com/__/firebase/init.json"
+    },
+    {
       "source": "/.well-known/oauth-protected-resource/api/mcp",
       "destination": "/api/oauth/protected-resource"
     },
