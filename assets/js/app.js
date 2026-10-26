@@ -332,7 +332,9 @@ function authErrorText(error) {
     "auth/popup-closed-by-user": "auth_cancelled",
     "auth/cancelled-popup-request": "auth_in_progress",
     "auth/redirect-operation-pending": "auth_in_progress",
-    "auth/operation-not-allowed": "email_provider_disabled",
+    "auth/operation-not-allowed": "auth_provider_disabled",
+    "auth/account-exists-with-different-credential": "auth_account_conflict",
+    "auth/redirect-result-missing": "auth_redirect_incomplete",
     "auth/expired-action-code": "reset_code_expired",
     "auth/invalid-action-code": "reset_code_invalid",
     "auth/invalid-oob-code": "reset_code_invalid"
@@ -544,7 +546,7 @@ async function consumeOAuthRedirectResult() {
     clearOAuthRedirectContext();
     if (result?.user || auth.currentUser) return;
     if (context) {
-      presentOAuthError({ code: "auth/redirect-cancelled-by-user" }, context);
+      presentOAuthError({ code: "auth/redirect-result-missing" }, context);
     }
   } catch (error) {
     clearOAuthRedirectContext();
@@ -1602,6 +1604,8 @@ const translations = {
   }
 };
 Object.assign(translations["pt-BR"], {
+  auth_provider_disabled: "Este provedor de login está desativado no Firebase Authentication. Confira a configuração do provedor.",
+  auth_account_conflict: "Este e-mail já está associado a outro método de login. Entre pelo método original ou configure a vinculação de contas.",
   auth_browser_unsupported: "Este navegador não abriu a janela de login. Tente novamente; o site usará o redirecionamento quando possível.",
   auth_storage_blocked: "O Firefox bloqueou o armazenamento usado na autenticação. Confira se o domínio ai.erikraft.com está autorizado e tente novamente.",
   auth_cancelled: "O login foi cancelado ou não foi concluído. Tente novamente.",
@@ -1609,6 +1613,8 @@ Object.assign(translations["pt-BR"], {
   auth_redirect_incomplete: "O login não foi concluído. Escolha o provedor e tente novamente."
 });
 Object.assign(translations.en, {
+  auth_provider_disabled: "This sign-in provider is disabled in Firebase Authentication. Check the provider configuration.",
+  auth_account_conflict: "This email is already associated with another sign-in method. Use the original method or configure account linking.",
   auth_browser_unsupported: "This browser could not open the sign-in window. Try again; the site will use a redirect when possible.",
   auth_storage_blocked: "Firefox blocked storage used by authentication. Check that ai.erikraft.com is authorized and try again.",
   auth_cancelled: "Sign-in was cancelled or did not finish. Please try again.",
