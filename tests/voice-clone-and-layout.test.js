@@ -218,6 +218,6 @@ test("legal pages remove draft-style disclaimers and explain consent for synthet
   assert.ok(privacy.includes("hf-audio/whisper-large-v3"));
   assert.match(terms, /deepfakes sexuais/);
   assert.match(terms, /sexual deepfakes/);
-  assert.match(terms, /pessoas reais sem consentimento explícito/);
-  assert.match(terms, /real people without explicit consent/);
+  assert.match(terms, /pessoas reais identificáveis sem consentimento livre e explícito/);
+  assert.match(terms, /identifiable real people without their free and explicit consent/);
 });
