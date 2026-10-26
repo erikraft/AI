@@ -88,13 +88,13 @@ test("history prompts are readonly, selectable, scrollable, and localized for as
   assert.match(css, /\.history-prompt\{[^}]*resize:none/);
 });
 
-test("privacy policy and terms use the requested October 24, 2026 date in both languages", () => {
+test("privacy policy and terms use the requested October 26, 2026 date in both languages", () => {
   for (const path of ["../privacy.html", "../terms.html"]) {
     const html = read(path);
-    assert.match(html, /dateModified": "2026-10-24"/);
-    assert.match(html, /24 de outubro de 2026/);
-    assert.match(html, /October 24, 2026/);
-    assert.doesNotMatch(html, /October 22, 2026|22 de outubro de 2026|dateModified": "2026-10-22"/);
+    assert.match(html, /dateModified": "2026-10-26"/);
+    assert.match(html, /26 de outubro de 2026/);
+    assert.match(html, /October 26, 2026/);
+    assert.doesNotMatch(html, /October 24, 2026|24 de outubro de 2026|dateModified": "2026-10-24"/);
   }
 });
 
@@ -208,4 +208,16 @@ test("image inference is bounded before the Vercel gateway deadline", () => {
   assert.match(api, /predictWithTimeout\(\s*client,\s*"\/generate_image_from_image"/);
   assert.match(api, /predictWithTimeout\(\s*client,\s*"\/generate_image_from_image_render"/);
   assert.match(api, /phase === "space-generate" \|\| phase === "space-interpret"[\s\S]*?res\.status\(504\)/);
+});
+
+test("legal pages remove draft-style disclaimers and explain consent for synthetic media", () => {
+  const privacy = read("../privacy.html");
+  const terms = read("../terms.html");
+  assert.doesNotMatch(privacy, /este documento é informativo|this document is informational|não garante conformidade integral mundial|does not guarantee worldwide compliance/i);
+  assert.doesNotMatch(terms, /não garantem conformidade automática|do not guarantee automatic compliance/i);
+  assert.ok(privacy.includes("hf-audio/whisper-large-v3"));
+  assert.match(terms, /deepfakes sexuais/);
+  assert.match(terms, /sexual deepfakes/);
+  assert.match(terms, /pessoas reais sem consentimento explícito/);
+  assert.match(terms, /real people without explicit consent/);
 });
