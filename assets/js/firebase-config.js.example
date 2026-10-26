@@ -1,9 +1,9 @@
-// Copie este arquivo para firebase-config.js e preencha com as credenciais Web
-// do seu projeto Firebase. A configuração Web não é um segredo; proteja os dados
-// usando Firebase Authentication, regras do Firestore e restrições de API.
+// For a non-Firebase host, use the app's own domain as authDomain and proxy
+// /__/auth/* to https://YOUR_PROJECT.firebaseapp.com/__/auth/* in your host config.
+// The OAuth providers must allow https://YOUR_APP_DOMAIN/__/auth/handler as a callback.
 window.ERIKRAFT_FIREBASE_CONFIG = {
   apiKey: "YOUR_FIREBASE_WEB_API_KEY",
-  authDomain: "YOUR_PROJECT.firebaseapp.com",
+  authDomain: "YOUR_APP_DOMAIN",
   projectId: "YOUR_PROJECT_ID",
   appId: "YOUR_FIREBASE_APP_ID"
 };
