@@ -930,7 +930,7 @@ with gr.Blocks(title="ErikrafT AI — FLUX Abliterated + Qwythos", delete_cache=
         "Escolha o FLUX.1-dev Abliterated para gerar imagens por texto ou envie uma imagem de referência e instruções "
         "para o Qwythos interpretar antes de o mesmo checkpoint FLUX Abliterated editar a imagem de origem. "
         "As alterações solicitadas não são bloqueadas por regras genéricas de preservação. "
-        "Each model runs in a separate GPU request to stay within the provider's duration limit."
+        "Each model runs in a separate GPU request to stay within the provider's duration limit. / Cada modelo executa em uma solicitação de GPU separada para respeitar o limite de duração do provedor."
     )
     gr.Markdown(
         "**Protected experimental models / Modelos experimentais protegidos:** "
@@ -945,11 +945,11 @@ with gr.Blocks(title="ErikrafT AI — FLUX Abliterated + Qwythos", delete_cache=
     with gr.Tab("FLUX Abliterated text-to-image / Texto para imagem"):
         prompt_image = gr.Textbox(label="Prompt / Instrução", lines=4, max_lines=8)
         with gr.Row():
-            width = gr.Dropdown(choices=[768, 1024], value=768, label="Width")
-            height = gr.Dropdown(choices=[768, 1024], value=768, label="Height")
-            steps = gr.Dropdown(choices=[20, 28], value=20, label="Inference steps")
-        image_button = gr.Button("Generate image")
-        image_output = gr.Image(type="pil", label="Generated image")
+            width = gr.Dropdown(choices=[768, 1024], value=768, label="Width / Largura")
+            height = gr.Dropdown(choices=[768, 1024], value=768, label="Height / Altura")
+            steps = gr.Dropdown(choices=[20, 28], value=20, label="Inference steps / Etapas de inferência")
+        image_button = gr.Button("Generate image / Gerar imagem")
+        image_output = gr.Image(type="pil", label="Generated image / Imagem gerada")
         image_button.click(
             generate_image,
             [prompt_image, width, height, steps],
@@ -966,9 +966,9 @@ with gr.Blocks(title="ErikrafT AI — FLUX Abliterated + Qwythos", delete_cache=
             max_lines=8,
         )
         with gr.Row():
-            image_width = gr.Dropdown(choices=[768, 1024], value=768, label="Output width")
-            image_height = gr.Dropdown(choices=[768, 1024], value=768, label="Output height")
-            image_steps = gr.Dropdown(choices=[20, 28], value=20, label="FLUX inference steps")
+            image_width = gr.Dropdown(choices=[768, 1024], value=768, label="Output width / Largura da saída")
+            image_height = gr.Dropdown(choices=[768, 1024], value=768, label="Output height / Altura da saída")
+            image_steps = gr.Dropdown(choices=[20, 28], value=20, label="FLUX inference steps / Etapas de inferência do FLUX")
         image_language = gr.Radio(
             choices=[("Detecção automática / Auto-detect", "auto"), ("Português (Brasil)", "pt-BR"), ("English", "en")],
             value="auto",
