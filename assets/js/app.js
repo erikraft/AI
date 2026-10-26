@@ -593,8 +593,8 @@ function updateModelSelection() {
   $("empty-result").classList.toggle("task-empty-no-image", isCosmos || isQwen || isVoice);
   $("selected-model-label").textContent = model;
   const labels = {
-    [FLUX_MODEL]: english ? "FLUX.1-dev — Image generation" : "FLUX.1-dev — Gerar imagens",
-    [QWYTHOS_MODEL]: english ? "Qwythos — Image editing" : "Qwythos — Editar imagens",
+    [FLUX_MODEL]: english ? "FLUX.1-dev Abliterated — Image generation" : "FLUX.1-dev Abliterated — Gerar imagens",
+    [QWYTHOS_MODEL]: english ? "Qwythos — Image-to-image editing" : "Qwythos — Edição imagem para imagem",
     [COSMOS_MODEL]: english ? "Cosmos3 Nano — Video generation (experimental)" : "Cosmos3 Nano — Gerar vídeos (experimental)",
     [QWEN_MODEL]: english ? "Qwen3.8 27B — Chatbot (experimental)" : "Qwen3.8 27B — Chatbot (experimental)",
     [QWEN_IMAGE_MODEL]: english ? "Qwen Image 2.1 Turbo — Image generation (experimental)" : "Qwen Image 2.1 Turbo — Gerar imagens (experimental)",
