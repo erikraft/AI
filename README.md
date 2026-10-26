@@ -44,10 +44,19 @@ The repository is laid out for Vercel's zero-configuration static hosting and No
 
 The browser client uses `https://ai.erikraft.com` as its Firebase `authDomain`, and Vercel transparently proxies `/__/auth/*` to `https://erikraft-account.firebaseapp.com/__/auth/*`. This first-party helper path avoids the cross-origin storage restriction that can interrupt OAuth redirect flows in Firefox and other browsers with strict tracking protection. Mobile browsers use Firebase's full-page redirect flow; desktop browsers use popups with redirect fallback when popups are blocked. The app consumes `getRedirectResult()` on return and displays provider errors in Portuguese or English.
 
-**Required Firebase/provider console setup before deploying this auth-domain migration:** add `ai.erikraft.com` under Firebase Authentication → Settings → Authorized domains. Update the authorized OAuth callback/redirect URI for every enabled provider to `https://ai.erikraft.com/__/auth/handler`:
-- Google: update the OAuth client used by the Google provider.
-- GitHub: update the callback URL in the GitHub OAuth App used by Firebase.
-- Yahoo: update the redirect URI in the Yahoo developer app used by Firebase.
+**Required console setup — do this before deploying or testing the first-party auth domain:** the code change and Vercel rewrite alone cannot register an OAuth callback with Google. In Firebase Console, open **Authentication → Settings → Authorized domains** and add `ai.erikraft.com`. Then open **Google Cloud Console → APIs & Services → Credentials → OAuth 2.0 Client IDs**, edit the exact Web client used by the Google provider in Firebase Authentication, and add this value under **Authorized redirect URIs** (not just Authorized JavaScript origins):
+
+```text
+https://ai.erikraft.com/__/auth/handler
+```
+
+Save the OAuth client, allow a short time for the setting to propagate, then retry Google sign-in. The error `redirect_uri_mismatch` means Google rejected the callback before the app can handle the response; changing JavaScript alone cannot fix that rejection. If the Google client is managed by Firebase or you do not have permission to edit it, use the OAuth client configured for the Firebase Google provider or ask its administrator to add the URI.
+
+Also update the callback for every other enabled provider:
+- GitHub: update the callback URL in the GitHub OAuth App used by Firebase to `https://ai.erikraft.com/__/auth/handler`.
+- Yahoo: update the redirect URI in the Yahoo developer app used by Firebase to `https://ai.erikraft.com/__/auth/handler`.
+
+**Do not switch the app to the first-party auth domain until the matching provider callbacks are saved.**
 
 The old callback `https://erikraft-account.firebaseapp.com/__/auth/handler` will no longer match once the provider configuration switches to the first-party auth domain. Coordinate the provider-console changes with the production deployment: OAuth sign-in will be temporarily unavailable during the cutover if the app and provider callback settings are out of sync. GitHub OAuth Apps normally expose one callback URL, so GitHub sign-in cannot use both callback domains simultaneously in the same app. Email/password sign-in does not use an OAuth redirect URI. For Vercel preview domains or local development, configure an appropriate authorized domain and auth helper proxy, or use a separate development Firebase configuration.
 
