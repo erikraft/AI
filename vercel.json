@@ -52,6 +52,10 @@
   ],
   "rewrites": [
     {
+      "source": "/__/auth/(.*)",
+      "destination": "https://erikraft-account.firebaseapp.com/__/auth/$1"
+    },
+    {
       "source": "/.well-known/oauth-protected-resource/api/mcp",
       "destination": "/api/oauth/protected-resource"
     },
