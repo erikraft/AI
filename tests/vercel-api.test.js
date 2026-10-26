@@ -338,8 +338,8 @@ test("account deletion and legal pages disclose Hugging Face provider-side reten
   assert.match(profile, /Prompts and inputs sent to Hugging Face/);
   assert.match(privacy, /does <strong>not automatically delete/);
   assert.match(privacy, /não apaga automaticamente/);
-  assert.match(privacy, /24 de outubro de 2026/);
-  assert.match(privacy, /October 24, 2026/);
+  assert.match(privacy, /26 de outubro de 2026/);
+  assert.match(privacy, /October 26, 2026/);
 });
 
 test("localized interface text is rendered without reinterpreting translations as HTML", () => {
