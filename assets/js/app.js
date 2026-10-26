@@ -1,5 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-app.js";
-import { getAuth, GoogleAuthProvider, GithubAuthProvider, OAuthProvider, signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendEmailVerification, sendPasswordResetEmail, verifyPasswordResetCode, confirmPasswordReset, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-auth.js";
+import { getAuth, GoogleAuthProvider, GithubAuthProvider, OAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendEmailVerification, sendPasswordResetEmail, verifyPasswordResetCode, confirmPasswordReset, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-auth.js";
 
 const firebaseConfig = window.ERIKRAFT_FIREBASE_CONFIG || {};
 const configured = Boolean(firebaseConfig.apiKey && firebaseConfig.authDomain && firebaseConfig.projectId && firebaseConfig.appId);
@@ -325,7 +325,16 @@ function authErrorText(error) {
     "auth/missing-password": "password_required",
     "auth/too-many-requests": "too_many_requests",
     "auth/network-request-failed": "network_error",
-    "auth/operation-not-allowed": "email_provider_disabled",
+    "auth/popup-blocked": "auth_browser_unsupported",
+    "auth/operation-not-supported-in-this-environment": "auth_browser_unsupported",
+    "auth/web-storage-unsupported": "auth_storage_blocked",
+    "auth/redirect-cancelled-by-user": "auth_cancelled",
+    "auth/popup-closed-by-user": "auth_cancelled",
+    "auth/cancelled-popup-request": "auth_in_progress",
+    "auth/redirect-operation-pending": "auth_in_progress",
+    "auth/operation-not-allowed": "auth_provider_disabled",
+    "auth/account-exists-with-different-credential": "auth_account_conflict",
+    "auth/redirect-result-missing": "auth_redirect_incomplete",
     "auth/expired-action-code": "reset_code_expired",
     "auth/invalid-action-code": "reset_code_invalid",
     "auth/invalid-oob-code": "reset_code_invalid"
@@ -492,6 +501,61 @@ async function completePasswordReset(event) {
   }
 }
 
+const OAUTH_REDIRECT_CONTEXT_KEY = "erikraft-ai-oauth-redirect-context";
+
+function mobileOAuthRedirectPreferred() {
+  const userAgent = navigator.userAgent || "";
+  // Full-page redirects are more reliable than popups in mobile browsers,
+  // especially Firefox for Android where popup windows and cross-site storage
+  // may be restricted by tracking protection.
+  return /Android|iPhone|iPad|iPod|Mobile/i.test(userAgent);
+}
+
+function saveOAuthRedirectContext(errorTarget) {
+  try {
+    sessionStorage.setItem(OAUTH_REDIRECT_CONTEXT_KEY, errorTarget === "auth-error" ? "modal" : "studio");
+  } catch {
+    // The redirect still works if browser storage is disabled; only error placement falls back.
+  }
+}
+
+function readOAuthRedirectContext() {
+  try {
+    const context = sessionStorage.getItem(OAUTH_REDIRECT_CONTEXT_KEY);
+    return context === "modal" || context === "studio" ? context : "";
+  } catch {
+    return "";
+  }
+}
+
+function clearOAuthRedirectContext() {
+  try { sessionStorage.removeItem(OAUTH_REDIRECT_CONTEXT_KEY); } catch {}
+}
+
+function presentOAuthError(error, context = "studio") {
+  const target = context === "modal" ? "auth-error" : "studio-auth-error";
+  if (context === "modal") $("auth-modal").classList.remove("hidden");
+  $(target).textContent = authErrorText(error);
+}
+
+async function consumeOAuthRedirectResult() {
+  if (!auth) return;
+  const context = readOAuthRedirectContext();
+  try {
+    const result = await getRedirectResult(auth);
+    clearOAuthRedirectContext();
+    if (result?.user || auth.currentUser) return;
+    if (context) {
+      presentOAuthError({ code: "auth/redirect-result-missing" }, context);
+    }
+  } catch (error) {
+    clearOAuthRedirectContext();
+    console.error("Firebase OAuth redirect sign-in failed:", error?.code || error?.message || error);
+    if (auth.currentUser) return;
+    presentOAuthError(error, context || "studio");
+  }
+}
+
 async function login(provider, errorTarget = "auth-error") {
   $("auth-error").textContent = "";
   $("studio-auth-error").textContent = "";
@@ -499,10 +563,34 @@ async function login(provider, errorTarget = "auth-error") {
     $(errorTarget).textContent = languageText("auth_unavailable");
     return;
   }
-  try { await signInWithPopup(auth, provider); }
-  catch (error) {
-    const message = authErrorText(error);
-    $(errorTarget).textContent = message;
+
+  const buttons = [...document.querySelectorAll(".provider-button")];
+  buttons.forEach((button) => { button.disabled = true; });
+  const context = errorTarget === "auth-error" ? "modal" : "studio";
+  try {
+    if (mobileOAuthRedirectPreferred()) {
+      saveOAuthRedirectContext(errorTarget);
+      await signInWithRedirect(auth, provider);
+      return;
+    }
+    try {
+      await signInWithPopup(auth, provider);
+    } catch (error) {
+      // Only fall back when the popup could not be opened. A user explicitly
+      // closing a popup should not unexpectedly trigger a full-page navigation.
+      if (["auth/popup-blocked", "auth/operation-not-supported-in-this-environment"].includes(error?.code)) {
+        saveOAuthRedirectContext(errorTarget);
+        await signInWithRedirect(auth, provider);
+        return;
+      }
+      throw error;
+    }
+  } catch (error) {
+    clearOAuthRedirectContext();
+    console.error("Firebase OAuth sign-in failed:", error?.code || error?.message || error);
+    $(errorTarget).textContent = authErrorText(error);
+  } finally {
+    buttons.forEach((button) => { button.disabled = false; });
   }
 }
 $("studio-email-auth-form").addEventListener("submit", (event) => {
@@ -1515,6 +1603,24 @@ const translations = {
     nav_studio:"AI Hub",nav_how:"How it works",nav_donate:"Donate",nav_source:"Source code ↗",footer_privacy:"Privacy",footer_terms:"Terms of Use",bitcoin_qr_primary_label:"Bitcoin QR code for the main account",bitcoin_qr_email_label:"Bitcoin QR code for the email account",hero_eyebrow:"AI MODEL HUB · OPEN SOURCE",hero_title:"Your own personal J.A.R.V.I.S.",hero_title_emphasis:"A personal AI assistant, designed around you.",hero_lead:"Explore image, video, and text workflows in one open-source hub. Choose a model and the interface adapts to its task, subject to backend availability.",meta_prompt:"Custom prompts",meta_login:"Free account",meta_limits:"Abuse protection",studio_eyebrow:"ONE HUB · MULTIPLE MODELS",studio_title:"AI model hub",studio_title_accent:".",studio_intro:"Choose an available model. The inputs, guidance, and result area change to match the selected task.",prompt_label:"Your prompt",prompt_placeholder:"E.g. A futuristic train station in a forest, cinematic blue light, soft mist, detailed composition...",prompt_help:"Describe the subject, setting, lighting, and style.",model_label:"Model and task",model_help:"FLUX turns text into an image. To use a reference image, select Qwythos; the inputs change with the selected model.",qwythos_help:"Upload an image and describe the changes. Qwythos interprets the image and FLUX edits the actual reference image at low strength to help preserve faces, appearance, and composition. Large changes may still alter details.",qwythos_runtime_notice:"Qwythos interprets the instructions and FLUX edits the original image instead of recreating everything from text alone. Face preservation is improved but not guaranteed; an upload is required.",model_runtime_notice:"Text → image mode: write a prompt to generate an image with FLUX. To start from an uploaded reference, select Qwythos. Provider queues and limits may vary.",qwythos_image_button:"Edit reference image",reference_image_label:"Input image (required for this task)",reference_drop_title:"Drop an image here or tap to choose",reference_drop_hint:"Use your camera, photo gallery, or device files · images up to 12 MB",reference_camera:"Take a photo",reference_gallery:"Open photo gallery",reference_browse:"Choose file",reference_image_help:"Upload an image up to 12 MB and describe the edits. Qwythos interprets the instructions and FLUX uses the original image as the editing base, with low strength to help preserve identity and faces. Drastic edits can still change appearance.",reference_image_required:"Upload a reference image to use the image → text → image workflow.",reference_image_too_large:"The original image must be 12 MB or smaller; the prepared upload is capped at 3 MB.",reference_image_type:"Choose an image file your browser can open.",reference_image_read_error:"Could not read the selected image.",reference_image_clear:"Remove image",reference_image_status:"No image selected.",reference_image_processing:"Preparing image for upload…",reference_image_added:"Image prepared and ready to send to Qwythos.",reference_image_unsupported:"The browser could not open or convert this image file. Try another format.",reference_image_uploading:"Converting and sending the image and instructions to Qwythos…",aspect_label:"Aspect ratio",quality_label:"Generation steps",notice_limits:"Sign in with Google, GitHub, Yahoo, or email and password. Per-account, per-model limits: up to 15 Qwythos edits per hour and up to 10 requests per hour for each other model; provider availability may vary.",generate_button:"Generate image",responsible_note:"By generating, you agree to use the service responsibly.",result_eyebrow:"RESULT",result_title:"Your result",empty_title:"Your image starts here",empty_desc:"Your result will appear here after generation.",video_result_title:"Your video",video_empty_title:"Your video will appear here",video_empty_desc:"The generated video will be displayed in this area when it is ready.",qwen_chat_title:"Chat with Qwen",qwen_empty_title:"Chat with Qwen",qwen_empty_desc:"Type a question in the prompt field below to start the conversation.",qwen_user_label:"You",qwen_assistant_label:"Qwen",qwen_thinking:"Thinking…",qwen_timeout:"Qwen did not respond within this request’s 285-second timeout. Check the Space logs; wait a little before retrying because the previous inference may still be queued.",request_timeout:"The request took too long and was stopped. Check the Space status and try again later.",loading_title:"Preparing your image...",loading_desc:"Sending the prompt to the AI model.",loading_note:"This may take a few minutes on the free tier.",ready_status:"Ready to create.",how_eyebrow:"ONE HUB · MULTIPLE TASKS",how_title:"From idea to output.",step1_title:"Write your idea",step1_desc:"Use an original prompt. You control the description, with no hidden fixed text in the code.",step2_title:"Choose a model",step2_desc:"The hub routes your request to the selected model and displays an image, video, or text response according to the task and backend availability.",step3_title:"Review the result",step3_desc:"View the image, watch the video, or read the text response. Download media files when supported.",security_title:"Usage limits · abuse protection",security_desc:"Only users authenticated with Google, GitHub, Yahoo, or email and password can generate content. The backend validates the Firebase session and enforces per-model limits: up to 15 Qwythos edits per hour and up to 10 requests per hour for each other model.",space_feature_eyebrow:"MODEL RUNTIME · HUGGING FACE",space_feature_title:"Explore the ErikrafT AI Space",space_feature_desc:"The Hugging Face Space is the environment that runs the AI models behind ErikrafT AI. Visit the Space page to explore the app and its resources; processing may vary with availability, queueing, and hardware limits.",space_feature_open:"Open Space on Hugging Face ↗",space_feature_source:"Open-source Space code ↗",github_feature_eyebrow:"OPEN SOURCE · COMMUNITY",github_feature_title:"Explore the ErikrafT AI repository",github_feature_desc:"Browse the source code, report bugs, or propose improvements. Before opening an issue or pull request, review the contribution guidelines and code of conduct.",github_feature_repo:"Open repository ↗",github_feature_issues:"Report an issue ↗",github_feature_pulls:"Create a pull request ↗",quota_title:"Free-tier quotas and provider limits",quota_intro:"ErikrafT AI sends image requests to a Hugging Face Space. This website’s limits are separate from the provider’s compute limits.",quota_site_label:"ERIKRAFT AI LIMITS",quota_site_value:"Up to 15 Qwythos edits per hour · up to 10 requests per hour for each other model",quota_site_desc:"A valid Firebase session from Google, GitHub, or email and password is required. The backend enforces separate transactional quotas per model: up to 15 Qwythos edits per hour and up to 10 requests per hour for each other model.",quota_gpu_label:"HUGGING FACE ZEROGPU · IF APPLICABLE",quota_gpu_value:"2 min/day unauthenticated · 5 min/day for a Free account",quota_gpu_desc:"When a Space uses ZeroGPU, Hugging Face documents daily GPU-time quotas by account tier. The quota resets 24 hours after first GPU use, and remaining quota affects queue priority. This is compute time, not a guaranteed number of images.",quota_availability_label:"SPACE AVAILABILITY",quota_availability_value:"Queues, cold starts, and suspensions may occur",quota_availability_desc:"Free hardware may be temporarily unavailable or need to restart after inactivity. On CPU Basic hardware, Hugging Face documents suspension after 48 hours without activity. Loading a large model can also take time.",quota_note:"The ZeroGPU quota only applies if this Space uses that hardware. Provider quota is independent of ErikrafT AI’s limits and does not guarantee a number of images per day or a response time.",quota_link_space:"Open the Space used by ErikrafT AI ↗",quota_link_zerogpu:"Official ZeroGPU quotas ↗",quota_link_sleep:"Spaces sleep and lifecycle rules ↗",studio_login_eyebrow:"SIGN-IN REQUIRED",studio_login_title:"Sign in to generate images",studio_login_desc:"The generator and results are available after you sign in with Google, GitHub, Yahoo, or email and password.",studio_google_button:"Continue with Google",studio_github_button:"Continue with GitHub",more_login_options:"More sign-up and sign-in options",yahoo_login_button:"Continue with Yahoo!",studio_login_note:"Up to 15 Qwythos edits per hour and up to 10 requests per hour for each other model. Hugging Face availability may vary.",auth_unavailable:"Authentication is unavailable. Try again later or contact the administrator.",auth_required_error:"Sign in with Google, GitHub, Yahoo, or a verified email account before generating content.",auth_provider_error:"Sign in using Google, GitHub, Yahoo, or a verified email account to continue.",email_separator:"OR USE EMAIL AND PASSWORD",email_label:"Email",password_label:"Password",email_placeholder:"you@example.com",password_placeholder:"At least 6 characters",email_sign_in:"Sign in with email",create_account:"Create account",forgot_password:"Forgot password?",reset_title:"Reset your password",reset_desc:"Enter your email to receive the official Firebase link. You can also paste the reset link or code below.",reset_email_label:"Account email",reset_send_link:"Send reset link",reset_code_label:"Reset link or code from email",reset_code_placeholder:"Paste the full link or the oobCode",reset_new_password:"New password",reset_confirm_password:"Confirm new password",reset_confirm_button:"Save new password",reset_back:"Back to sign in",reset_link_detected:"Reset link detected. Confirm the email and set a new password.",reset_code_required:"Paste the password-reset link or code received by email.",reset_password_mismatch:"The passwords do not match.",reset_email_mismatch:"The reset link does not match the email you entered.",reset_password_success:"Password reset successfully. You can now sign in with your new password.",reset_code_expired:"This link has expired. Request a new password-reset email.",reset_code_invalid:"This link or code is invalid or has already been used.",modal_auth_eyebrow:"YOUR ACCOUNT",modal_auth_title:"Sign in or create your account",modal_auth_desc:"Use Google, GitHub, Yahoo, or your email and password to continue.",google_login_button:"Continue with Google",github_login_button:"Continue with GitHub",modal_auth_note:"Authentication and password handling are managed by Firebase.",email_required:"Enter your email address.",invalid_email:"Enter a valid email address.",password_required:"Enter your password.",weak_password:"Your password must contain at least 6 characters.",email_already_in_use:"This email is already registered. Sign in or reset your password.",invalid_credentials:"Incorrect email or password.",too_many_requests:"Too many attempts. Please wait before trying again.",network_error:"Connection failed. Check your internet connection and try again.",email_provider_disabled:"Email and password sign-in is not enabled in Firebase.",verification_email_sent:"Account created. We sent a verification link to your email. Verify it before signing in.",email_verification_required:"Your email has not been verified yet. We sent a new link; verify it before signing in.",reset_email_sent:"If an account exists for this email, password-reset instructions will be sent.",reset_email_failed:"Could not send the password-reset email. Check the address and try again.",auth_domain_error:"This domain is not authorized in Firebase Authentication.",auth_failed:"Sign-in failed. Please try again.",generation_http_error:"Image generation failed",provider_image_missing:"The Space did not return a recognized image.",support_project:"SUPPORT THE PROJECT",donate_title:"Help keep the project open.",donate_desc:"If ErikrafT AI™ is useful to you, support it with Bitcoin. Verify the wallet before sending; blockchain transactions are irreversible.",primary_account:"Primary account",email_account:"Email account",copy_address:"Copy address",copied:"Address copied!",open_wallet:"Open in wallet ↗",scan_qr:"Scan with your Bitcoin wallet",bitcoin_note:"Send Bitcoin only over the Bitcoin network. Always verify the address in your wallet before confirming.",history_eyebrow:"YOUR LIBRARY",history_title:"Creation and conversation history",history_desc:"History stores prompts, messages and links. Trash deletes the record, not third-party copies.",history_refresh:"Refresh",history_loading:"Loading history…",footer_text:"Open source · Built by ErikrafT",generate:"Generate image",generating:"Generating...",validating:"Checking usage limit...",image_ready:"Image ready.",image_load_error:"The temporary image could not be loaded. Try generating again.",generation_error:"Could not generate the image."
   }
 };
+Object.assign(translations["pt-BR"], {
+  auth_provider_disabled: "Este provedor de login está desativado no Firebase Authentication. Confira a configuração do provedor.",
+  auth_account_conflict: "Este e-mail já está associado a outro método de login. Entre pelo método original ou configure a vinculação de contas.",
+  auth_browser_unsupported: "Este navegador não abriu a janela de login. Tente novamente; o site usará o redirecionamento quando possível.",
+  auth_storage_blocked: "O Firefox bloqueou o armazenamento usado na autenticação. Confira se o domínio ai.erikraft.com está autorizado e tente novamente.",
+  auth_cancelled: "O login foi cancelado ou não foi concluído. Tente novamente.",
+  auth_in_progress: "Já existe uma tentativa de login em andamento. Conclua-a ou recarregue a página e tente de novo.",
+  auth_redirect_incomplete: "O login não foi concluído. Escolha o provedor e tente novamente."
+});
+Object.assign(translations.en, {
+  auth_provider_disabled: "This sign-in provider is disabled in Firebase Authentication. Check the provider configuration.",
+  auth_account_conflict: "This email is already associated with another sign-in method. Use the original method or configure account linking.",
+  auth_browser_unsupported: "This browser could not open the sign-in window. Try again; the site will use a redirect when possible.",
+  auth_storage_blocked: "Firefox blocked storage used by authentication. Check that ai.erikraft.com is authorized and try again.",
+  auth_cancelled: "Sign-in was cancelled or did not finish. Please try again.",
+  auth_in_progress: "A sign-in attempt is already in progress. Finish it, or reload the page and try again.",
+  auth_redirect_incomplete: "Sign-in did not complete. Choose the provider and try again."
+});
 function detectBrowserLanguage(){const candidates=[...(navigator.languages||[]),navigator.language||""];for(const locale of candidates){const normalized=locale.toLowerCase();if(normalized.startsWith("pt"))return "pt-BR";if(normalized.startsWith("en"))return "en";}return "en";}
 function setLanguage(language){
   const selected=translations[language]?language:"pt-BR";
@@ -1590,6 +1696,7 @@ function setLanguage(language){
 function languageText(key){return translations[document.documentElement.lang]?.[key]||translations["pt-BR"][key]||key;}
 $("language-select").addEventListener("change",()=>{setLanguage($("language-select").value);updateModelSelection();void loadHistory();});
 try{const saved=localStorage.getItem("erikraft-ai-language");setLanguage(saved&&translations[saved]?saved:detectBrowserLanguage());}catch{setLanguage(detectBrowserLanguage());}
+void consumeOAuthRedirectResult();
 const initialAuthAction = new URLSearchParams(window.location.search);
 if (initialAuthAction.get("mode") === "resetPassword" && initialAuthAction.get("oobCode")) {
   showPasswordReset(initialAuthAction.get("email") || "");

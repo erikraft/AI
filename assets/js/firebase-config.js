@@ -2,7 +2,7 @@
 // These client-side identifiers are public by design. Never place server secrets here.
 window.ERIKRAFT_FIREBASE_CONFIG = {
   apiKey: "AIzaSyCVyRjRIL_s0K-e5qRx2xh2L0ucKu_1AXY",
-  authDomain: "erikraft-account.firebaseapp.com",
+  authDomain: "ai.erikraft.com",
   projectId: "erikraft-account",
   storageBucket: "erikraft-account.firebasestorage.app",
   messagingSenderId: "60555596464",

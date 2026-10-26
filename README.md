@@ -40,7 +40,18 @@ The Qwythos picker supports touch-friendly camera capture, the device photo gall
 
 The repository is laid out for Vercel's zero-configuration static hosting and Node.js Functions: no framework build step is required. `vercel.json` restores clean URLs/security headers, enables Fluid Compute, and sets `api/generate.js` to the Hobby maximum of **300 seconds**. `.vercelignore` keeps Hugging Face source and repository-only files out of public deployment assets; the GitHub repository and Hugging Face sync workflow retain them.
 
-### Vercel environment variables
+### Mobile OAuth and Firefox compatibility
+
+The browser client uses `https://ai.erikraft.com` as its Firebase `authDomain`, and Vercel transparently proxies `/__/auth/*` to `https://erikraft-account.firebaseapp.com/__/auth/*`. This first-party helper path avoids the cross-origin storage restriction that can interrupt OAuth redirect flows in Firefox and other browsers with strict tracking protection. Mobile browsers use Firebase's full-page redirect flow; desktop browsers use popups with redirect fallback when popups are blocked. The app consumes `getRedirectResult()` on return and displays provider errors in Portuguese or English.
+
+**Required Firebase/provider console setup before deploying this auth-domain migration:** add `ai.erikraft.com` under Firebase Authentication → Settings → Authorized domains. Update the authorized OAuth callback/redirect URI for every enabled provider to `https://ai.erikraft.com/__/auth/handler`:
+- Google: update the OAuth client used by the Google provider.
+- GitHub: update the callback URL in the GitHub OAuth App used by Firebase.
+- Yahoo: update the redirect URI in the Yahoo developer app used by Firebase.
+
+The old callback `https://erikraft-account.firebaseapp.com/__/auth/handler` will no longer match once the provider configuration switches to the first-party auth domain. Coordinate the provider-console changes with the production deployment: OAuth sign-in will be temporarily unavailable during the cutover if the app and provider callback settings are out of sync. GitHub OAuth Apps normally expose one callback URL, so GitHub sign-in cannot use both callback domains simultaneously in the same app. Email/password sign-in does not use an OAuth redirect URI. For Vercel preview domains or local development, configure an appropriate authorized domain and auth helper proxy, or use a separate development Firebase configuration.
+
+## Vercel environment variables
 
 Configure these in **Vercel → Project → Settings → Environment Variables** for Production and Preview as appropriate:
 
