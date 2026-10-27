@@ -1229,7 +1229,7 @@ with gr.Blocks(title="ErikrafT AI — FLUX Abliterated + Qwythos", delete_cache=
             api_name="generate_image_to_json_prompt",
         )
 
-    with gr.Tab("Voice cloning / Clonagem de voz")
+    with gr.Tab("Voice cloning / Clonagem de voz"):
         gr.Markdown(
             "Whisper transcribes the reference sample to detect its spoken language, then multilingual XTTS-v2 "
             "synthesizes your text in that detected language—not the website locale. For best results, use a clear "
