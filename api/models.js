@@ -3,6 +3,7 @@ const QWYTHOS_MODEL_ID = "fluffy12222/Qwythos-9B-Claude-Mythos-5-1M-heretic-abli
 const COSMOS_MODEL_ID = "DuoNeural/Cosmos3-Nano-Abliterated";
 const QWEN_MODEL_ID = "0bserverx/Qwen3.8-27B-Heretic-Abliterated-Uncensored-GGUF";
 const QWEN_IMAGE_MODEL_ID = "AtomicChat/Qwen-Image-2.1-Turbo-Uncensored-GGUF";
+const IMAGE_TO_JSON_MODEL_ID = "erikraft/image-to-json-prompt";
 const VOICE_CLONE_MODEL_ID = "tonyassi/voice-clone";
 
 const SPACE_ID = "erikraft/erikraft-ai";
@@ -38,12 +39,13 @@ export default function handler(req, res) {
     [COSMOS_MODEL_ID]: backendConfigured && featureEnabled(process.env.ENABLE_COSMOS_VIDEO),
     [QWEN_MODEL_ID]: backendConfigured && featureEnabled(process.env.ENABLE_QWEN_TEXT),
     [QWEN_IMAGE_MODEL_ID]: backendConfigured && featureEnabled(process.env.ENABLE_QWEN_IMAGE),
+    [IMAGE_TO_JSON_MODEL_ID]: backendConfigured,
     [VOICE_CLONE_MODEL_ID]: true
   };
 
   return res.status(200).json({
     models,
-    selectableModels: [FLUX_MODEL_ID, QWYTHOS_MODEL_ID, COSMOS_MODEL_ID, QWEN_MODEL_ID, QWEN_IMAGE_MODEL_ID, VOICE_CLONE_MODEL_ID],
+    selectableModels: [FLUX_MODEL_ID, QWYTHOS_MODEL_ID, COSMOS_MODEL_ID, QWEN_MODEL_ID, QWEN_IMAGE_MODEL_ID, IMAGE_TO_JSON_MODEL_ID, VOICE_CLONE_MODEL_ID],
     runtimeChecksRequired: true
   });
 }

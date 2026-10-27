@@ -32,7 +32,7 @@ The repository workflow `.github/workflows/sync-to-huggingface.yml` syncs this d
 
 ## Protected experimental endpoints
 
-Qwen text, Qwen Image generation, and Cosmos video are intentionally hidden from the public Space UI because they require the server-side `HF_SPACE_API_SECRET`. Use the authenticated ErikrafT AI website to invoke them; the website backend supplies the secret without exposing it to browser users. Direct calls without the configured secret are rejected by design. Do not populate a browser field with a server secret.
+Qwen text, Qwen Image generation, Cosmos video, and image-to-JSON visual analysis are intentionally hidden from the public Space UI because they require the server-side `HF_SPACE_API_SECRET`. Use the authenticated ErikrafT AI website to invoke them; the website backend supplies the secret without exposing it to browser users. Direct calls without the configured secret are rejected by design. Do not populate a browser field with a server secret.
 
 Voice cloning remains available in the Space UI and through the authenticated website backend. Reference audio is restricted to files under Gradio's managed upload cache and limited to 3 MiB. The flow first transcribes the reference sample with Whisper to identify its spoken language, then selects the matching XTTS v2 language on the multilingual voice-cloning Space; it does not use the website locale. Supported languages include English, Portuguese, Spanish, French, German, Italian, Polish, Turkish, Russian, Dutch, Czech, Arabic, Chinese, Japanese, Korean, and Hungarian. Samples with too little or unclear speech fail with an actionable message rather than silently forcing English. Reference audio is sent to the Whisper and multilingual XTTS Hugging Face Spaces for inference.
 
@@ -49,7 +49,7 @@ The new model weights and fine-tunes are third-party artifacts; ErikrafT did not
 
 ## Direct API protection and output cleanup
 
-The Cosmos, Qwen text, and Qwen Image endpoints require `HF_SPACE_API_SECRET` (at least 32 characters) as a Space secret and as a **server-side** secret in the Vercel project environment (never a browser variable). The secret is passed only as a hidden Gradio input. The handlers fail closed if it is missing or wrong. The Space remains public for existing image workflows; this shared secret specifically protects the experimental endpoints.
+The Cosmos, Qwen text, Qwen Image, and `/generate_image_to_json_prompt` endpoints require `HF_SPACE_API_SECRET` (at least 32 characters) as a Space secret and as a **server-side** secret in the Vercel project environment (never a browser variable). The secret is passed only as a hidden Gradio input. The handlers fail closed if it is missing or wrong. The image-to-JSON endpoint returns a structured visual blueprint with estimated OCR, geometry, typography, and recreation prompt; its estimates are not a guarantee of perfect fidelity. The Space remains public for existing image workflows; this shared secret specifically protects the experimental endpoints.
 
 For Cosmos, the callable passed as `spaces.GPU(duration=...)` validates the secret and prompt before ZeroGPU schedules a GPU worker. `generate_video` remains the decorated function registered with Gradio; this avoids the ZeroGPU startup failure that can occur when only an inner helper is decorated. The handler repeats authorization as defense in depth.
 

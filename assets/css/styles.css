@@ -560,6 +560,10 @@
 }
 
 /* Personal history */
+.result-heading-actions{display:flex;flex-wrap:wrap;justify-content:flex-end;align-items:center;gap:8px}
+.result-heading-actions .button{white-space:nowrap}
+#generated-text{overflow-wrap:anywhere;white-space:pre-wrap;user-select:text;-webkit-user-select:text}
+@media(max-width:520px){.result-heading-actions{flex-direction:column;align-items:stretch}.result-heading-actions .button{width:100%}}
 .history-panel{margin:24px 0 0;padding:clamp(16px,3vw,26px);min-width:0}
 .history-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:14px}
 .history-heading h3{margin:3px 0 5px;font-size:clamp(18px,2.5vw,24px);line-height:1.25}

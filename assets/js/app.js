@@ -16,7 +16,7 @@ const FLUX_MODEL = "aoxo/flux.1dev-abliterated";
 const COSMOS_MODEL = "DuoNeural/Cosmos3-Nano-Abliterated";
 const QWEN_MODEL = "0bserverx/Qwen3.8-27B-Heretic-Abliterated-Uncensored-GGUF";
 const QWEN_IMAGE_MODEL = "AtomicChat/Qwen-Image-2.1-Turbo-Uncensored-GGUF";
-const MODEL_AVAILABILITY = { cosmosVideo: false, qwenText: false, qwenImage: false };
+const MODEL_AVAILABILITY = { cosmosVideo: false, qwenText: false, qwenImage: false, imageToJson: false };
 
 function canUseStudio(user) {
   const hasPasswordProvider = Boolean(user?.providerData?.some(({ providerId }) => providerId === "password"));
@@ -619,6 +619,7 @@ $("studio-yahoo-login").addEventListener("click", () => login(new OAuthProvider(
 const promptInput = $("prompt");
 const modelSelect = $("model-select");
 const QWYTHOS_MODEL = "fluffy12222/Qwythos-9B-Claude-Mythos-5-1M-heretic-abliterated";
+const IMAGE_TO_JSON_MODEL = "erikraft/image-to-json-prompt";
 const VOICE_CLONE_MODEL = "tonyassi/voice-clone";
 let voiceAudioDataUrl = "";
 let voiceAudioObjectUrl = "";
@@ -630,6 +631,7 @@ let voiceRecordingStartedAt = 0;
 function selectedTask(model = modelSelect.value) {
   if (model === VOICE_CLONE_MODEL) return "voice";
   if (model === QWYTHOS_MODEL) return "image-edit";
+  if (model === IMAGE_TO_JSON_MODEL) return "image-to-json";
   if (model === COSMOS_MODEL) return "video";
   if (model === QWEN_MODEL) return "text";
   return "image";
@@ -639,6 +641,7 @@ function modelButtonLabel(model = modelSelect.value) {
   const english = document.documentElement.lang === "en";
   const task = selectedTask(model);
   if (task === "voice") return english ? "Clone voice and generate audio" : "Clonar voz e gerar áudio";
+  if (task === "image-to-json") return languageText("image_to_json_button");
   if (task === "image-edit") return languageText("qwythos_image_button");
   if (task === "video") return english ? "Generate short video" : "Gerar vídeo curto";
   if (task === "text") return english ? "Ask Qwen" : "Perguntar ao Qwen";
@@ -650,6 +653,8 @@ function updateModelSelection() {
   const task = selectedTask(model);
   const english = document.documentElement.lang === "en";
   const isQwythos = task === "image-edit";
+  const isImageToJson = task === "image-to-json";
+  const isReferenceMode = isQwythos || isImageToJson;
   const isCosmos = task === "video";
   const isQwen = task === "text";
   const isQwenImage = model === QWEN_IMAGE_MODEL;
@@ -676,12 +681,13 @@ function updateModelSelection() {
     if (generatorForm.parentElement !== studioGrid) studioGrid.insertBefore(generatorForm, $("result-panel"));
     generatorForm.classList.remove("is-chat-composer");
   }
-  $("empty-title").textContent = isVoice ? (english ? "Your cloned voice audio starts here" : "O áudio da voz clonada aparecerá aqui") : isCosmos ? languageText("video_empty_title") : isQwen ? languageText("qwen_empty_title") : languageText("empty_title");
-  $("empty-desc").textContent = isVoice ? (english ? "Upload or record a voice sample, write the text, and generate speech." : "Envie ou grave uma amostra de voz, escreva o texto e gere a fala.") : isCosmos ? languageText("video_empty_desc") : isQwen ? languageText("qwen_empty_desc") : languageText("empty_desc");
-  $("empty-result").classList.toggle("task-empty-no-image", isCosmos || isQwen || isVoice);
+  $("empty-title").textContent = isImageToJson ? languageText("image_to_json_result_title") : isVoice ? (english ? "Your cloned voice audio starts here" : "O áudio da voz clonada aparecerá aqui") : isCosmos ? languageText("video_empty_title") : isQwen ? languageText("qwen_empty_title") : languageText("empty_title");
+  $("empty-desc").textContent = isImageToJson ? languageText("image_to_json_help") : isVoice ? (english ? "Upload or record a voice sample, write the text, and generate speech." : "Envie ou grave uma amostra de voz, escreva o texto e gere a fala.") : isCosmos ? languageText("video_empty_desc") : isQwen ? languageText("qwen_empty_desc") : languageText("empty_desc");
+  $("empty-result").classList.toggle("task-empty-no-image", isCosmos || isQwen || isVoice || isImageToJson);
   $("selected-model-label").textContent = model;
   const labels = {
     [FLUX_MODEL]: english ? "FLUX.1-dev Abliterated — Image generation" : "FLUX.1-dev Abliterated — Gerar imagens",
+    [IMAGE_TO_JSON_MODEL]: english ? "Image → JSON prompt (detailed visual analysis)" : "Imagem → Prompt JSON (análise visual detalhada)",
     [QWYTHOS_MODEL]: english ? "Qwythos — Image-to-image editing" : "Qwythos — Edição imagem para imagem",
     [COSMOS_MODEL]: english ? "Cosmos3 Nano — Video generation (experimental)" : "Cosmos3 Nano — Gerar vídeos (experimental)",
     [QWEN_MODEL]: english ? "Qwen3.8 27B — Chatbot (experimental)" : "Qwen3.8 27B — Chatbot (experimental)",
@@ -690,27 +696,37 @@ function updateModelSelection() {
   };
   for (const option of modelSelect.options) if (labels[option.value]) option.textContent = labels[option.value];
   $("selected-model-label").textContent = labels[model] || model;
-  $("image-options-row").classList.toggle("hidden", isCosmos || isQwen || isVoice);
+  $("image-options-row").classList.toggle("hidden", isCosmos || isQwen || isVoice || isImageToJson);
   $("quality")?.closest(".field")?.classList.toggle("hidden", isQwenImage);
   $("prompt").previousElementSibling.textContent = isVoice ? (english ? "Text to speak" : "Texto para falar") : languageText("prompt_label");
   $("prompt").placeholder = isVoice ? (english ? "Write the text for the cloned voice to speak..." : "Escreva o texto que a voz clonada deverá falar...") : languageText("prompt_placeholder");
   $("prompt").setAttribute("aria-label", isVoice ? (english ? "Text to speak" : "Texto para falar") : languageText("prompt_label"));
+  $("prompt").required = !isImageToJson;
+  $("prompt").classList.toggle("hidden", isImageToJson);
+  $("prompt").previousElementSibling.classList.toggle("hidden", isImageToJson);
+  $("prompt").parentElement.querySelector(".field-footer")?.classList.toggle("hidden", isImageToJson);
   
   const qwythosInputPanel = $("qwythos-image-input");
-  qwythosInputPanel.classList.toggle("hidden", !isQwythos);
-  qwythosInputPanel.hidden = !isQwythos;
-  qwythosInputPanel.setAttribute("aria-hidden", String(!isQwythos));
+  qwythosInputPanel.classList.toggle("hidden", !isReferenceMode);
+  qwythosInputPanel.hidden = !isReferenceMode;
+  qwythosInputPanel.setAttribute("aria-hidden", String(!isReferenceMode));
+  qwythosInputPanel.querySelector("label").textContent = isImageToJson ? languageText("image_to_json_prompt_label") : languageText("reference_image_label");
+  qwythosInputPanel.querySelector(".reference-image-dropzone strong").textContent = isImageToJson ? languageText("image_to_json_drop_title") : languageText("reference_drop_title");
+  qwythosInputPanel.querySelector(".reference-image-dropzone > span").textContent = isImageToJson ? languageText("image_to_json_drop_hint") : languageText("reference_drop_hint");
+  qwythosInputPanel.querySelector("p.small-note").textContent = isImageToJson ? languageText("image_to_json_reference_help") : languageText("reference_image_help");
   const voiceInputPanel = $("voice-clone-input");
   voiceInputPanel.classList.toggle("hidden", !isVoice);
   voiceInputPanel.hidden = !isVoice;
   voiceInputPanel.setAttribute("aria-hidden", String(!isVoice));
   $("generate").querySelector("span").textContent = modelButtonLabel(model);
   const taskBadges = english
-    ? { image: "TEXT → IMAGE", "image-edit": "REFERENCE → EDIT", video: "TEXT → VIDEO", text: "TEXT → TEXT", voice: "VOICE CLONING → AUDIO" }
-    : { image: "TEXTO → IMAGEM", "image-edit": "REFERÊNCIA → EDIÇÃO", video: "TEXTO → VÍDEO", text: "TEXTO → TEXTO", voice: "CLONAGEM DE VOZ → ÁUDIO" };
+    ? { image: "TEXT → IMAGE", "image-edit": "REFERENCE → EDIT", "image-to-json": "IMAGE → JSON", video: "TEXT → VIDEO", text: "TEXT → TEXT", voice: "VOICE CLONING → AUDIO" }
+    : { image: "TEXTO → IMAGEM", "image-edit": "REFERÊNCIA → EDIÇÃO", "image-to-json": "IMAGEM → JSON", video: "TEXTO → VÍDEO", text: "TEXTO → TEXTO", voice: "CLONAGEM DE VOZ → ÁUDIO" };
   $("model-task-badge").textContent = taskBadges[task];
   $("model-help").textContent = isVoice
     ? (english ? "XTTS-v2 clones a voice from a short reference audio sample and synthesizes the text above. Upload a file or record a sample in your browser; the upstream Space currently generates English speech." : "O XTTS-v2 clona uma voz a partir de uma amostra de áudio e sintetiza o texto acima. Envie um arquivo ou grave uma amostra no navegador; o Space de referência gera fala em inglês.")
+    : isImageToJson
+      ? languageText("image_to_json_help")
     : isQwythos
     ? languageText("qwythos_help")
     : isCosmos
@@ -720,7 +736,7 @@ function updateModelSelection() {
         : isQwenImage
           ? (english ? "Qwen Image 2.1 Turbo uses the linked uncensored Qwen3-VL GGUF text encoder with the matching Turbo denoiser and Qwen Image 2.1 VAE. Turbo sampling is fixed at 8 steps; CUDA and available GPU memory are required." : "Qwen Image 2.1 Turbo usa o encoder de texto Qwen3-VL GGUF do repositório indicado, junto do denoiser Turbo correspondente e do VAE Qwen Image 2.1. A amostragem Turbo é fixa em 8 passos; exige CUDA e memória de GPU disponível.")
           : languageText("model_help");
-  const enabled = isCosmos ? MODEL_AVAILABILITY.cosmosVideo : isQwen ? MODEL_AVAILABILITY.qwenText : isQwenImage ? MODEL_AVAILABILITY.qwenImage : true;
+  const enabled = isCosmos ? MODEL_AVAILABILITY.cosmosVideo : isQwen ? MODEL_AVAILABILITY.qwenText : isQwenImage ? MODEL_AVAILABILITY.qwenImage : isImageToJson ? MODEL_AVAILABILITY.imageToJson : true;
   $("model-runtime-pill").textContent = isVoice
     ? "Hugging Face Space · XTTS-v2"
     : isCosmos
@@ -729,9 +745,13 @@ function updateModelSelection() {
       ? (enabled ? (english ? "Configured · runtime checks apply" : "Configurado · sujeito às verificações do runtime") : (english ? "Unavailable · backend secret required" : "Indisponível · requer segredo do backend"))
       : isQwenImage
         ? (enabled ? (english ? "Configured · CUDA/runtime checks apply" : "Configurado · sujeito às verificações de CUDA/runtime") : (english ? "Unavailable · backend/engine configuration required" : "Indisponível · requer configuração do backend/mecanismo"))
-        : (english ? "Available · provider limits apply" : "Disponível · sujeito aos limites do provedor");
+        : isImageToJson
+          ? (enabled ? (english ? "Configured · vision model" : "Configurado · modelo visual") : (english ? "Unavailable · backend secret required" : "Indisponível · requer segredo do backend"))
+          : (english ? "Available · provider limits apply" : "Disponível · sujeito aos limites do provedor");
   $("model-runtime-notice").textContent = isVoice
     ? (english ? "Uses Whisper to detect the spoken language in your reference audio, then multilingual XTTS-v2 to synthesize in that language—not the website language. Availability and queue time depend on Hugging Face; only clone voices you have permission to use." : "Usa o Whisper para detectar o idioma falado no áudio de referência e o XTTS-v2 multilíngue para sintetizar nesse idioma — não no idioma do site. A fila e a disponibilidade dependem do Hugging Face; clone apenas vozes que você tem autorização para usar.")
+    : isImageToJson
+      ? (enabled ? languageText("image_to_json_reference_help") : (english ? "Unavailable until HF_SPACE_ID and the shared HF_SPACE_API_SECRET are configured in Vercel and the Space." : "Indisponível até configurar HF_SPACE_ID e o segredo HF_SPACE_API_SECRET no Vercel e no Space."))
     : isCosmos
     ? (english
         ? (enabled ? "The backend is configured to call Cosmos. The Space still checks its feature flag, available VRAM and disk at runtime; successful inference is not guaranteed." : "Unavailable until the backend API secret is configured. The Space also requires its Cosmos feature flag, suitable VRAM and enough disk space.")
@@ -748,8 +768,10 @@ function updateModelSelection() {
       : isQwythos
       ? languageText("qwythos_runtime_notice")
       : languageText("model_runtime_notice");
-  $("result-title").textContent = isVoice ? (english ? "Generated voice audio" : "Áudio de voz gerado") : isCosmos ? languageText("video_result_title") : isQwen ? languageText("qwen_chat_title") : languageText("result_title");
-  $("download").classList.toggle("hidden", isQwen);
+  $("result-title").textContent = isImageToJson ? languageText("image_to_json_result_title") : isVoice ? (english ? "Generated voice audio" : "Áudio de voz gerado") : isCosmos ? languageText("video_result_title") : isQwen ? languageText("qwen_chat_title") : languageText("result_title");
+  $("download").classList.toggle("hidden", isQwen || isImageToJson);
+  $("copy-json").classList.add("hidden");
+  $("download-json").classList.add("hidden");
   $("download").setAttribute("aria-label", isVoice ? (english ? "Download audio" : "Baixar áudio") : isCosmos ? (english ? "Download video" : "Baixar vídeo") : (english ? "Download image" : "Baixar imagem"));
   $("download").title = $("download").getAttribute("aria-label");
   $("download").disabled = true;
@@ -970,10 +992,12 @@ async function loadModelAvailability() {
     MODEL_AVAILABILITY.cosmosVideo = data?.models?.[COSMOS_MODEL] === true;
     MODEL_AVAILABILITY.qwenText = data?.models?.[QWEN_MODEL] === true;
     MODEL_AVAILABILITY.qwenImage = data?.models?.[QWEN_IMAGE_MODEL] === true;
+    MODEL_AVAILABILITY.imageToJson = data?.models?.[IMAGE_TO_JSON_MODEL] === true;
   } catch {
     MODEL_AVAILABILITY.cosmosVideo = false;
     MODEL_AVAILABILITY.qwenText = false;
     MODEL_AVAILABILITY.qwenImage = false;
+    MODEL_AVAILABILITY.imageToJson = false;
   }
   const cosmosOption = [...modelSelect.options].find((o) => o.value === COSMOS_MODEL);
   const qwenOption = [...modelSelect.options].find((o) => o.value === QWEN_MODEL);
@@ -1265,6 +1289,14 @@ async function normalizeImageForInference(file) {
   }
 }
 
+function referenceUploadText(key) {
+  if (modelSelect.value === IMAGE_TO_JSON_MODEL) {
+    if (key === "reference_image_status") return languageText("image_to_json_image_status");
+    if (key === "reference_image_added") return languageText("image_to_json_image_added");
+  }
+  return languageText(key);
+}
+
 function clearSelectedReferenceImage() {
   referenceImageSelectionVersion += 1;
   referenceImageDataUrl = "";
@@ -1273,7 +1305,7 @@ function clearSelectedReferenceImage() {
   referenceImagePreview.classList.add("hidden");
   referenceImageClear.classList.add("hidden");
   referenceDropzone.classList.remove("has-image", "is-dragging");
-  referenceImageStatus.textContent = languageText("reference_image_status");
+  referenceImageStatus.textContent = referenceUploadText("reference_image_status");
   $("reference-image-error").textContent = "";
 }
 
@@ -1286,10 +1318,10 @@ async function processReferenceImage(file) {
   referenceDropzone.classList.remove("has-image");
   $("reference-image-error").textContent = "";
   if (!file) {
-    referenceImageStatus.textContent = languageText("reference_image_status");
+    referenceImageStatus.textContent = referenceUploadText("reference_image_status");
     return;
   }
-  referenceImageStatus.textContent = languageText("reference_image_processing");
+  referenceImageStatus.textContent = referenceUploadText("reference_image_processing");
   try {
     const normalizedDataUrl = await normalizeImageForInference(file);
     if (version !== referenceImageSelectionVersion) return;
@@ -1298,11 +1330,11 @@ async function processReferenceImage(file) {
     referenceImagePreview.classList.remove("hidden");
     referenceImageClear.classList.remove("hidden");
     referenceDropzone.classList.add("has-image");
-    referenceImageStatus.textContent = languageText("reference_image_added");
+    referenceImageStatus.textContent = referenceUploadText("reference_image_added");
   } catch (error) {
     if (version !== referenceImageSelectionVersion) return;
     for (const input of referenceFileInputs) input.value = "";
-    referenceImageStatus.textContent = languageText("reference_image_status");
+    referenceImageStatus.textContent = referenceUploadText("reference_image_status");
     $("reference-image-error").textContent = error?.message || languageText("reference_image_read_error");
   }
 }
@@ -1392,8 +1424,9 @@ $("generator-form").addEventListener("submit", async (event) => {
     $("studio-auth-error").textContent = languageText("auth_required_error");
     return;
   }
-  const prompt = promptInput.value.trim();
-  if (!prompt) return;
+  const isImageToJsonRequest = modelSelect.value === IMAGE_TO_JSON_MODEL;
+  const prompt = isImageToJsonRequest ? languageText("image_to_json_history_prompt") : promptInput.value.trim();
+  if (!isImageToJsonRequest && !promptInput.value.trim()) return;
   const dimensions = { square: [768,768], landscape: [1024,768], portrait: [768,1024] }[$("aspect").value];
   const button = $("generate");
   const isQwenRequest = modelSelect.value === QWEN_MODEL;
@@ -1411,7 +1444,7 @@ $("generator-form").addEventListener("submit", async (event) => {
     : [];
   const contextBudget = Math.max(0, 1450 - prompt.length);
   const contextText = qwenHistory.map((message) => (message.role === "user" ? "User: " : "Assistant: ") + message.text).join("\n");
-  const requestPrompt = isQwenRequest && qwenHistory.length && contextBudget > 0
+  const requestPrompt = isImageToJsonRequest ? "" : isQwenRequest && qwenHistory.length && contextBudget > 0
     ? (contextText.slice(-contextBudget) + "\nUser: " + prompt).slice(-1500)
     : prompt;
   let qwenPendingMessage = null;
@@ -1422,6 +1455,8 @@ $("generator-form").addEventListener("submit", async (event) => {
   $("generated-video").classList.add("hidden");
   $("generated-audio").classList.add("hidden");
   $("generated-text").classList.add("hidden");
+  $("copy-json").classList.add("hidden");
+  $("download-json").classList.add("hidden");
   if (isQwenRequest) {
     qwenThread.classList.remove("hidden");
     qwenThread.appendChild((() => {
@@ -1453,10 +1488,10 @@ $("generator-form").addEventListener("submit", async (event) => {
   try {
     const headers = { "Content-Type": "application/json", Authorization: "Bearer " + await currentUser.getIdToken() };
     const isQwythos = modelSelect.value === QWYTHOS_MODEL;
-    const referenceImage = isQwythos ? referenceImageDataUrl : null;
+    const referenceImage = (isQwythos || isImageToJsonRequest) ? referenceImageDataUrl : null;
     const voiceAudio = isVoiceRequest ? voiceAudioDataUrl : null;
-    if (isQwythos && !referenceImage) throw new Error(languageText("reference_image_required"));
-    $("loading-message").textContent = isQwythos ? languageText("reference_image_uploading") : languageText("loading_desc");
+    if ((isQwythos || isImageToJsonRequest) && !referenceImage) throw new Error(isImageToJsonRequest ? languageText("image_to_json_required") : languageText("reference_image_required"));
+    $("loading-message").textContent = isImageToJsonRequest ? languageText("image_to_json_uploading") : isQwythos ? languageText("reference_image_uploading") : languageText("loading_desc");
     const response = await fetch("/api/generate", {
       method: "POST",
       headers,
@@ -1465,6 +1500,27 @@ $("generator-form").addEventListener("submit", async (event) => {
     });
     const data = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(data.error || languageText("generation_http_error") + " (" + response.status + ").");
+    if (data.type === "json") {
+      const rawAnswer = typeof data.text === "string" ? data.text.trim() : "";
+      let answer;
+      try { answer = JSON.stringify(JSON.parse(rawAnswer), null, 2); }
+      catch { throw new Error(languageText("image_to_json_invalid_json")); }
+      resultType = "text"; imageUrl = ""; videoUrl = "";
+      $("loading-result").classList.add("hidden");
+      $("empty-result").classList.add("hidden");
+      $("generated-image").classList.add("hidden");
+      $("generated-video").classList.add("hidden");
+      $("generated-audio").classList.add("hidden");
+      $("generated-text").textContent = answer;
+      $("generated-text").classList.remove("hidden");
+      $("download").classList.add("hidden");
+      $("copy-json").classList.remove("hidden");
+      $("download-json").classList.remove("hidden");
+      $("result-status").textContent = languageText("image_to_json_ready");
+      $("result-status").className = "result-status status-success";
+      void saveHistoryEntry("text", prompt, IMAGE_TO_JSON_MODEL, { outputText: answer });
+      return;
+    }
     if (data.type === "text") {
       const answer = typeof data.text === "string" ? data.text.trim() : "";
       if (!answer) throw new Error(languageText("provider_image_missing"));
@@ -1558,6 +1614,32 @@ $("generator-form").addEventListener("submit", async (event) => {
     button.querySelector("span").textContent = modelButtonLabel(modelSelect.value);
   }
 });
+$("copy-json").addEventListener("click", async () => {
+  const content = $("generated-text").textContent || "";
+  if (!content) return;
+  try {
+    await navigator.clipboard.writeText(content);
+    $("result-status").textContent = languageText("image_to_json_copied");
+    $("result-status").className = "result-status status-success";
+  } catch {
+    $("result-status").textContent = languageText("image_to_json_copy_error");
+    $("result-status").className = "result-status status-error";
+  }
+});
+$("download-json").addEventListener("click", () => {
+  const content = $("generated-text").textContent || "";
+  if (!content) return;
+  const blob = new Blob([content + "\n"], { type: "application/json;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "erikraft-image-prompt.json";
+  link.click();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  $("result-status").textContent = languageText("image_to_json_downloaded");
+  $("result-status").className = "result-status status-success";
+});
+
 $("download").addEventListener("click", async () => {
   const mediaUrl = resultType === "video" ? videoUrl : resultType === "audio" ? $("generated-audio").src : imageUrl;
   if (!mediaUrl || resultType === "text") return;
@@ -1604,6 +1686,26 @@ const translations = {
   }
 };
 Object.assign(translations["pt-BR"], {
+  filter_image_to_json: "Imagem → Prompt JSON",
+  image_to_json_button: "Converter imagem em JSON",
+  image_to_json_help: "Envie uma imagem para criar um blueprint JSON detalhado, com texto OCR, cores, camadas, posições, tipografia e um prompt de recriação para texto → imagem.",
+  image_to_json_prompt_label: "Imagem a analisar",
+  image_to_json_drop_title: "Envie ou arraste uma imagem para analisar",
+  image_to_json_drop_hint: "Foto, arte, logotipo, banner, captura de tela ou infográfico · até 12 MB",
+  image_to_json_reference_help: "O modelo multimodal cria um JSON independente da referência. OCR, fontes, dimensões e coordenadas são estimativas e podem conter erros; 100% de fidelidade não é garantido.",
+  image_to_json_uploading: "Enviando a imagem para análise visual e criação do JSON…",
+  image_to_json_ready: "Blueprint JSON gerado. Revise os detalhes estimados antes de reutilizar o prompt.",
+  image_to_json_copy: "Copiar JSON",
+  image_to_json_download: "Baixar JSON",
+  image_to_json_copied: "JSON copiado para a área de transferência.",
+  image_to_json_copy_error: "Não foi possível copiar automaticamente. Selecione e copie o JSON manualmente.",
+  image_to_json_downloaded: "Download do JSON iniciado.",
+  image_to_json_invalid_json: "O modelo retornou JSON inválido. Tente analisar a imagem novamente.",
+  image_to_json_required: "Envie uma imagem antes de converter para JSON.",
+  image_to_json_history_prompt: "Blueprint JSON gerado a partir de uma imagem",
+  image_to_json_result_title: "Blueprint visual em JSON",
+  image_to_json_image_status: "Nenhuma imagem selecionada para análise.",
+  image_to_json_image_added: "Imagem preparada para análise visual e conversão em JSON.",
   auth_provider_disabled: "Este provedor de login está desativado no Firebase Authentication. Confira a configuração do provedor.",
   auth_account_conflict: "Este e-mail já está associado a outro método de login. Entre pelo método original ou configure a vinculação de contas.",
   auth_browser_unsupported: "Este navegador não abriu a janela de login. Tente novamente; o site usará o redirecionamento quando possível.",
@@ -1613,6 +1715,26 @@ Object.assign(translations["pt-BR"], {
   auth_redirect_incomplete: "O login não foi concluído. Escolha o provedor e tente novamente."
 });
 Object.assign(translations.en, {
+  filter_image_to_json: "Image → JSON prompt",
+  image_to_json_button: "Convert image to JSON",
+  image_to_json_help: "Upload an image to create a detailed JSON blueprint with OCR text, colors, layers, positions, typography, and a recreation prompt for text → image.",
+  image_to_json_prompt_label: "Image to analyze",
+  image_to_json_drop_title: "Upload or drop an image to analyze",
+  image_to_json_drop_hint: "Photo, artwork, logo, banner, screenshot, or infographic · up to 12 MB",
+  image_to_json_reference_help: "A multimodal model creates JSON independent of the reference. OCR, fonts, dimensions, and coordinates are estimates and may be wrong; 100% fidelity is not guaranteed.",
+  image_to_json_uploading: "Uploading image for visual analysis and JSON creation…",
+  image_to_json_ready: "JSON blueprint generated. Review estimated details before reusing the prompt.",
+  image_to_json_copy: "Copy JSON",
+  image_to_json_download: "Download JSON",
+  image_to_json_copied: "JSON copied to the clipboard.",
+  image_to_json_copy_error: "Could not copy automatically. Select and copy the JSON manually.",
+  image_to_json_downloaded: "JSON download started.",
+  image_to_json_invalid_json: "The model returned invalid JSON. Try analyzing the image again.",
+  image_to_json_required: "Upload an image before converting to JSON.",
+  image_to_json_history_prompt: "JSON blueprint generated from an image",
+  image_to_json_result_title: "Visual JSON blueprint",
+  image_to_json_image_status: "No image selected for analysis.",
+  image_to_json_image_added: "Image prepared for visual analysis and JSON conversion.",
   auth_provider_disabled: "This sign-in provider is disabled in Firebase Authentication. Check the provider configuration.",
   auth_account_conflict: "This email is already associated with another sign-in method. Use the original method or configure account linking.",
   auth_browser_unsupported: "This browser could not open the sign-in window. Try again; the site will use a redirect when possible.",
