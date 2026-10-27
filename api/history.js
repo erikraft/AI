@@ -85,7 +85,7 @@ export default async function handler(req, res) {
       const type = ["image", "video", "audio", "text"].includes(body.type) ? body.type : null;
       const prompt = cleanText(body.prompt, 1500);
       const model = cleanText(body.model, 200);
-      const outputText = cleanText(body.outputText, 12000);
+      const outputText = cleanText(body.outputText, 50000);
       const mediaUrl = cleanText(body.mediaUrl, 2048);
       const messages = cleanMessages(body.messages);
       if (!type || !prompt || !model) return res.status(400).json({ error: "Invalid history entry." });
