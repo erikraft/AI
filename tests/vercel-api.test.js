@@ -7,6 +7,7 @@ import healthHandler from "../api/health.js";
 const MODEL_COSMOS = "DuoNeural/Cosmos3-Nano-Abliterated";
 const MODEL_QWEN = "0bserverx/Qwen3.8-27B-Heretic-Abliterated-Uncensored-GGUF";
 const MODEL_QWEN_IMAGE = "AtomicChat/Qwen-Image-2.1-Turbo-Uncensored-GGUF";
+const MODEL_IMAGE_TO_JSON = "erikraft/image-to-json-prompt";
 const SECRET = "test-secret-that-is-long-enough-to-pass-32-characters";
 
 function callHandler(handler, method = "GET") {
@@ -61,7 +62,9 @@ test("model API reports experimental routes fail-closed without backend credenti
     assert.equal(response.body.models[MODEL_COSMOS], false);
     assert.equal(response.body.models[MODEL_QWEN], false);
     assert.equal(response.body.models[MODEL_QWEN_IMAGE], false);
-    assert.equal(response.body.selectableModels.length, 6);
+    assert.equal(response.body.models[MODEL_IMAGE_TO_JSON], false);
+    assert.equal(response.body.selectableModels.length, 7);
+    assert.ok(response.body.selectableModels.includes(MODEL_IMAGE_TO_JSON));
     assert.equal(response.body.runtimeChecksRequired, true);
     assert.equal(response.headers["cache-control"], "no-store");
     assert.equal(response.headers["x-content-type-options"], "nosniff");
@@ -80,6 +83,7 @@ test("experimental model flags default on when backend credentials are configure
     assert.equal(response.body.models[MODEL_COSMOS], true);
     assert.equal(response.body.models[MODEL_QWEN], true);
     assert.equal(response.body.models[MODEL_QWEN_IMAGE], true);
+    assert.equal(response.body.models[MODEL_IMAGE_TO_JSON], true);
   });
 });
 
