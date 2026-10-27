@@ -16,7 +16,7 @@ const FLUX_MODEL = "aoxo/flux.1dev-abliterated";
 const COSMOS_MODEL = "DuoNeural/Cosmos3-Nano-Abliterated";
 const QWEN_MODEL = "0bserverx/Qwen3.8-27B-Heretic-Abliterated-Uncensored-GGUF";
 const QWEN_IMAGE_MODEL = "AtomicChat/Qwen-Image-2.1-Turbo-Uncensored-GGUF";
-const MODEL_AVAILABILITY = { cosmosVideo: false, qwenText: false, qwenImage: false };
+const MODEL_AVAILABILITY = { cosmosVideo: false, qwenText: false, qwenImage: false, imageToJson: false };
 
 function canUseStudio(user) {
   const hasPasswordProvider = Boolean(user?.providerData?.some(({ providerId }) => providerId === "password"));
@@ -736,7 +736,7 @@ function updateModelSelection() {
         : isQwenImage
           ? (english ? "Qwen Image 2.1 Turbo uses the linked uncensored Qwen3-VL GGUF text encoder with the matching Turbo denoiser and Qwen Image 2.1 VAE. Turbo sampling is fixed at 8 steps; CUDA and available GPU memory are required." : "Qwen Image 2.1 Turbo usa o encoder de texto Qwen3-VL GGUF do repositório indicado, junto do denoiser Turbo correspondente e do VAE Qwen Image 2.1. A amostragem Turbo é fixa em 8 passos; exige CUDA e memória de GPU disponível.")
           : languageText("model_help");
-  const enabled = isCosmos ? MODEL_AVAILABILITY.cosmosVideo : isQwen ? MODEL_AVAILABILITY.qwenText : isQwenImage ? MODEL_AVAILABILITY.qwenImage : true;
+  const enabled = isCosmos ? MODEL_AVAILABILITY.cosmosVideo : isQwen ? MODEL_AVAILABILITY.qwenText : isQwenImage ? MODEL_AVAILABILITY.qwenImage : isImageToJson ? MODEL_AVAILABILITY.imageToJson : true;
   $("model-runtime-pill").textContent = isVoice
     ? "Hugging Face Space · XTTS-v2"
     : isCosmos
@@ -746,12 +746,12 @@ function updateModelSelection() {
       : isQwenImage
         ? (enabled ? (english ? "Configured · CUDA/runtime checks apply" : "Configurado · sujeito às verificações de CUDA/runtime") : (english ? "Unavailable · backend/engine configuration required" : "Indisponível · requer configuração do backend/mecanismo"))
         : isImageToJson
-          ? (english ? "Hugging Face Space · visual analysis" : "Hugging Face Space · análise visual")
+          ? (enabled ? (english ? "Configured · vision model" : "Configurado · modelo visual") : (english ? "Unavailable · backend secret required" : "Indisponível · requer segredo do backend"))
           : (english ? "Available · provider limits apply" : "Disponível · sujeito aos limites do provedor");
   $("model-runtime-notice").textContent = isVoice
     ? (english ? "Uses Whisper to detect the spoken language in your reference audio, then multilingual XTTS-v2 to synthesize in that language—not the website language. Availability and queue time depend on Hugging Face; only clone voices you have permission to use." : "Usa o Whisper para detectar o idioma falado no áudio de referência e o XTTS-v2 multilíngue para sintetizar nesse idioma — não no idioma do site. A fila e a disponibilidade dependem do Hugging Face; clone apenas vozes que você tem autorização para usar.")
     : isImageToJson
-      ? languageText("image_to_json_reference_help")
+      ? (enabled ? languageText("image_to_json_reference_help") : (english ? "Unavailable until HF_SPACE_ID and the shared HF_SPACE_API_SECRET are configured in Vercel and the Space." : "Indisponível até configurar HF_SPACE_ID e o segredo HF_SPACE_API_SECRET no Vercel e no Space."))
     : isCosmos
     ? (english
         ? (enabled ? "The backend is configured to call Cosmos. The Space still checks its feature flag, available VRAM and disk at runtime; successful inference is not guaranteed." : "Unavailable until the backend API secret is configured. The Space also requires its Cosmos feature flag, suitable VRAM and enough disk space.")
@@ -992,10 +992,12 @@ async function loadModelAvailability() {
     MODEL_AVAILABILITY.cosmosVideo = data?.models?.[COSMOS_MODEL] === true;
     MODEL_AVAILABILITY.qwenText = data?.models?.[QWEN_MODEL] === true;
     MODEL_AVAILABILITY.qwenImage = data?.models?.[QWEN_IMAGE_MODEL] === true;
+    MODEL_AVAILABILITY.imageToJson = data?.models?.[IMAGE_TO_JSON_MODEL] === true;
   } catch {
     MODEL_AVAILABILITY.cosmosVideo = false;
     MODEL_AVAILABILITY.qwenText = false;
     MODEL_AVAILABILITY.qwenImage = false;
+    MODEL_AVAILABILITY.imageToJson = false;
   }
   const cosmosOption = [...modelSelect.options].find((o) => o.value === COSMOS_MODEL);
   const qwenOption = [...modelSelect.options].find((o) => o.value === QWEN_MODEL);
