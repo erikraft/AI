@@ -257,13 +257,14 @@ export default async function handler(req, res) {
     }
 
     const { prompt, model = "aoxo/flux.1dev-abliterated", width = 768, height = 768, steps = 20, referenceImage = null, voiceAudio = null } = req.body || {};
-    if (typeof prompt !== "string" || !prompt.trim() || prompt.trim().length > MAX_PROMPT_LENGTH) {
+    const isImageToJsonPrompt = model === "erikraft/image-to-json-prompt";
+    if (!isImageToJsonPrompt && (typeof prompt !== "string" || !prompt.trim() || prompt.trim().length > MAX_PROMPT_LENGTH)) {
       return res.status(400).json({
         error: localized(req, "O prompt deve ter entre 1 e 1500 caracteres.", "The prompt must contain between 1 and 1500 characters.")
       });
     }
 
-    const allowedModels = new Set([FLUX_MODEL_ID, QWYTHOS_MODEL_ID, COSMOS_MODEL_ID, QWEN_MODEL_ID, QWEN_IMAGE_MODEL_ID, VOICE_CLONE_MODEL_ID]);
+    const allowedModels = new Set([FLUX_MODEL_ID, QWYTHOS_MODEL_ID, COSMOS_MODEL_ID, QWEN_MODEL_ID, QWEN_IMAGE_MODEL_ID, VOICE_CLONE_MODEL_ID, "erikraft/image-to-json-prompt"]);
     const isQwythos = model === QWYTHOS_MODEL_ID;
     const isCosmos = model === COSMOS_MODEL_ID;
     const isQwen = model === QWEN_MODEL_ID;
@@ -273,14 +274,14 @@ export default async function handler(req, res) {
     if (isCosmos && !envEnabled(process.env.ENABLE_COSMOS_VIDEO)) return res.status(503).json({ error: localized(req, "O modo de vídeo Cosmos foi desativado pela configuração ENABLE_COSMOS_VIDEO. Defina-a como true para permitir a tentativa real; o Space continuará verificando GPU e disco.", "Cosmos video is disabled by ENABLE_COSMOS_VIDEO. Set it to true to allow a real attempt; the Space will still check GPU and disk resources.") });
     if (isQwen && !envEnabled(process.env.ENABLE_QWEN_TEXT)) return res.status(503).json({ error: localized(req, "O modo de texto Qwen foi desativado pela configuração ENABLE_QWEN_TEXT. Defina-a como true para permitir a tentativa real; o Space continuará verificando RAM e disco.", "Qwen text is disabled by ENABLE_QWEN_TEXT. Set it to true to allow a real attempt; the Space will still check RAM and disk.") });
     if (isQwenImage && !envEnabled(process.env.ENABLE_QWEN_IMAGE)) return res.status(503).json({ error: localized(req, "O modo Qwen Image está desativado por ENABLE_QWEN_IMAGE. Defina como true para permitir uma tentativa real; o Space ainda verificará o mecanismo CUDA, a GPU e o espaço em disco.", "Qwen Image is disabled by ENABLE_QWEN_IMAGE. Set it to true to allow a real attempt; the Space will still check the CUDA engine, GPU, and disk space.") });
-    if (isQwythos && !referenceImage) {
+    if ((isQwythos || isImageToJsonPrompt) && !referenceImage) {
       return res.status(400).json({
-        error: localized(req, "Envie uma imagem de referência para usar Qwythos com instruções.", "Upload a reference image to use Qwythos with instructions.")
+        error: localized(req, "Envie uma imagem para analisar.", "Upload an image to analyze.")
       });
     }
     if (isVoiceClone && (!voiceAudio || typeof voiceAudio !== "string" || !/^data:audio\x2f(?:wav|x-wav);base64,[A-Za-z0-9+/]+={0,2}$/i.test(voiceAudio) || voiceAudio.length > 4_200_000)) return res.status(400).json({ error: localized(req, "Envie um áudio que o navegador consiga decodificar, com 10 a 60 segundos; ele será convertido para WAV antes do envio.", "Upload audio that your browser can decode, between 10 and 60 seconds; it will be converted to WAV before upload.") });
     if (!isVoiceClone && voiceAudio !== null) return res.status(400).json({ error: localized(req, "O áudio de referência só é aceito no modelo de clonagem de voz.", "Voice reference audio is only accepted for the voice-cloning model.") });
-    if (referenceImage !== null && (!isQwythos || typeof referenceImage !== "string" || !/^data:image\/(?:png|jpeg|webp);base64,[A-Za-z0-9+/]+={0,2}$/i.test(referenceImage) || referenceImage.length > 4_200_000)) {
+    if (referenceImage !== null && (!(isQwythos || isImageToJsonPrompt) || typeof referenceImage !== "string" || !/^data:image\/(?:png|jpeg|webp);base64,[A-Za-z0-9+/]+={0,2}$/i.test(referenceImage) || referenceImage.length > 4_200_000)) {
       return res.status(400).json({ error: localized(req, "Imagem inválida ou grande demais. Envie uma imagem compatível; a versão preparada para inferência pode ter até 3 MB.", "Invalid or oversized image. Upload a supported image; the prepared inference image may be up to 3 MB.") });
     }
     let referenceImageFile = null;
@@ -315,13 +316,13 @@ export default async function handler(req, res) {
       });
     }
     const spaceApiSecret = String(process.env.HF_SPACE_API_SECRET || "").trim();
-    if ((isCosmos || isQwen || isQwenImage) && spaceApiSecret.length < 32) {
+    if ((isCosmos || isQwen || isQwenImage || isImageToJsonPrompt) && spaceApiSecret.length < 32) {
       return res.status(503).json({ error: localized(req, "Os modelos experimentais exigem HF_SPACE_API_SECRET como segredo no backend Vercel e no Space do Hugging Face.", "Experimental models require HF_SPACE_API_SECRET as a secret in both the Vercel backend and the Hugging Face Space.") });
     }
 
     phase = "quota-check";
     db = getFirestore(app);
-    const quotaKey = isQwythos ? "qwythos" : isCosmos ? "cosmos" : isQwen ? "qwen" : isQwenImage ? "qwen-image" : isVoiceClone ? "voice" : "flux";
+    const quotaKey = isImageToJsonPrompt ? "image-to-json" : isQwythos ? "qwythos" : isCosmos ? "cosmos" : isQwen ? "qwen" : isQwenImage ? "qwen-image" : isVoiceClone ? "voice" : "flux";
     const limit = isQwythos ? getQwythosMaxPerWindow() : getAccountMaxPerWindow();
     // Separate transactional buckets keep the larger Qwythos allowance model-specific.
     quotaRef = db.collection("generation_limits").doc(`${user.uid}_${quotaKey}`);
@@ -503,6 +504,40 @@ export default async function handler(req, res) {
         remaining: Math.max(0, limit - reservation.count),
         tier: "account"
       });
+    } else if (isImageToJsonPrompt) {
+      phase = "space-image-to-json";
+      result = await predictWithTimeout(
+        client,
+        "/generate_image_to_json_prompt",
+        [referenceImageFile, spaceApiSecret],
+        QWYTHOS_STEP_TIMEOUT_MS,
+        localized(req, "A análise da imagem excedeu o limite de tempo. Aguarde antes de tentar novamente.", "Image analysis exceeded the time limit. Wait before retrying.")
+      );
+      const firstJson = result?.data?.[0];
+      const rawJson = typeof firstJson === "string" ? firstJson : (firstJson?.text || firstJson?.value || firstJson?.content || "");
+      if (typeof rawJson !== "string" || !rawJson.trim()) throw new Error("The visual model returned no JSON blueprint.");
+      const jsonSource = rawJson.trim().replace(/^\s*```(?:json)?\s*/i, "").replace(/\s*```\s*$/, "");
+      let blueprint;
+      try {
+        blueprint = JSON.parse(jsonSource);
+      } catch {
+        const start = jsonSource.indexOf("{");
+        const end = jsonSource.lastIndexOf("}");
+        if (start < 0 || end <= start) throw new Error("The visual model returned invalid or incomplete JSON.");
+        blueprint = JSON.parse(jsonSource.slice(start, end + 1));
+      }
+      if (!blueprint || typeof blueprint !== "object" || Array.isArray(blueprint) || !blueprint.canvas || !Array.isArray(blueprint.elements)) {
+        throw new Error("The visual model returned JSON without the required canvas/elements structure.");
+      }
+      const prettyJson = JSON.stringify(blueprint, null, 2);
+      if (prettyJson.length > 50000) throw new Error("The JSON blueprint exceeded the supported output size.");
+      return res.status(200).json({
+        type: "json",
+        text: prettyJson,
+        limit,
+        remaining: Math.max(0, limit - reservation.count),
+        tier: "account"
+      });
     } else if (isQwenImage) {
       phase = "space-qwen-image";
       result = await predictWithTimeout(
@@ -594,7 +629,7 @@ export default async function handler(req, res) {
 
     console.error("[image-generation:" + phase + "]", error?.stack || rawMessage);
 
-    if (phase === "space-generate" || phase === "space-interpret") {
+    if (phase === "space-generate" || phase === "space-interpret" || phase === "space-image-to-json") {
       const timedOut = error?.name === "InferenceTimeoutError" || /exceeded its server-side time budget/.test(normalized);
       if (timedOut) {
         return res.status(504).json({
