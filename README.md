@@ -2,7 +2,7 @@
 
 ErikrafT AI is an open-source AI model hub with a responsive dark interface and Portuguese (Brazil)/English UI. This repository uses **Vercel static hosting + Node.js Functions**. **`aoxo/flux.1dev-abliterated`** generates images from text. In the experimental **image-editing** workflow, Qwythos (`fluffy12222/Qwythos-9B-Claude-Mythos-5-1M-heretic-abliterated`) interprets a reference image and instructions; `FluxImg2ImgPipeline` then edits the actual source image using the same `aoxo/flux.1dev-abliterated` checkpoint. Qwythos shares the chatbot's base system prompt but receives image-edit-specific instructions, and the img2img strength defaults to `0.65` (configurable with `QWYTHOS_IMG2IMG_STRENGTH`, bounded to `0.45–0.85`) so requested edits are less likely to be suppressed by generic preservation rules. Exact identity or pixel-level matching is not guaranteed. Cosmos (`DuoNeural/Cosmos3-Nano-Abliterated`) generates video, Qwen (`0bserverx/Qwen3.8-27B-Heretic-Abliterated-Uncensored-GGUF`) generates text, and Qwen Image 2.1 Turbo (`AtomicChat/Qwen-Image-2.1-Turbo-Uncensored-GGUF`) provides an additional experimental text-to-image route through a CUDA-enabled `stable-diffusion.cpp` engine and its paired denoiser/VAE. XTTS-v2 clones a voice from a reference audio sample: the API detects the requested speech text's language when possible and uses the reference-audio language only as a fallback for very short text. The Vercel API validates Firebase identity and per-account Firestore quotas before calling Hugging Face. Provider capacity, quotas, cold starts, and successful inference are not guaranteed.
 
-- **Frontend:** static HTML/CSS/JavaScript hosted on Vercel.
+- **Frontend:** static HTML/CSS/JavaScript hosted on Vercel, including image-to-JSON visual blueprints from uploaded images (OCR, layout, colors, typography, and a recreation prompt).
 - **Authentication:** Firebase Authentication with Google, GitHub, Yahoo, and email/password; email/password accounts must verify their address before generating images.
 - **Generation:** Hugging Face Gradio Spaces route image, video, text, and voice-cloning requests. Voice cloning transcribes the reference audio with Whisper, detects the spoken language, and sends the prompt, reference audio, and explicit language to the multilingual `Nymbo/Voice-Clone-Multilingual` XTTS-v2 Space.
 - **Abuse prevention:** Firebase ID-token verification, verified-email enforcement for password accounts, and Firestore-backed per-model limits: up to 15 Qwythos edits per account per hour by default (configurable with `QWYTHOS_MAX_PER_HOUR`, 1–30), and up to 10 requests per hour for each other model by default (`GENERATION_MAX_PER_HOUR`, 1–20).
@@ -32,7 +32,8 @@ The Qwythos picker supports touch-friendly camera capture, the device photo gall
 - `assets/js/app.js` — Firebase sign-in, prompt form, API request, result preview, and download.
 - `assets/js/firebase-config.js` — Firebase Web app configuration used by the browser.
 - `assets/js/firebase-config.js.example` — template for reference.
-- `api/generate.js` — Vercel Node.js Function for authentication, quota enforcement, and Gradio calls.
+- `api/generate.js` — Vercel Node.js Function for authentication, quota enforcement, Gradio calls, and protected image-to-JSON analysis.
+- `api/history.js` — authenticated MongoDB Atlas history for JSON blueprints and other generated outputs.
 - `api/models.js` and `api/health.js` — Vercel model-availability and configuration-diagnostic endpoints.
 - `huggingface/app.py`, `huggingface/requirements.txt`, and `huggingface/README.md` — Gradio Space entry point, dependencies, and Space metadata. The GitHub Actions workflow syncs this directory to the Hugging Face Space when changes reach `main`.
 
