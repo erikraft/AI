@@ -616,7 +616,7 @@ test("Qwen Image 2.1 Turbo is wired to a protected, separate CUDA generation rou
   assert.match(api, /\[prompt\.trim\(\), Number\(width\), Number\(height\), spaceApiSecret\]/);
   assert.match(api, /phase = "space-qwen-image"/);
   assert.match(models, /\[QWEN_IMAGE_MODEL_ID\]: backendConfigured && featureEnabled\(process\.env\.ENABLE_QWEN_IMAGE\)/);
-  assert.match(models, /QWEN_IMAGE_MODEL_ID, VOICE_CLONE_MODEL_ID/);
+  assert.match(models, /QWEN_IMAGE_MODEL_ID,[\s\S]*VOICE_CLONE_MODEL_ID/);
   assert.match(health, /qwenImage: experimentalSecretConfigured && hfSpaceIdValid && featureEnabled\(process\.env\.ENABLE_QWEN_IMAGE\)/);
   assert.match(account, /"qwen-image"/);
   assert.match(space, /@spaces\.GPU\(duration=_authorize_qwen_image_request\)/);
