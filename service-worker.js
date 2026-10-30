@@ -1,4 +1,4 @@
-const CACHE_NAME = "erikraft-ai-pwa-v1";
+const CACHE_NAME = "erikraft-ai-pwa-2026-10-29";
 const APP_SHELL = ["/", "/manifest.webmanifest", "/assets/icons/erikraft-ai.svg"];
 
 self.addEventListener("install", (event) => {
