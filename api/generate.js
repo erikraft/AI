@@ -108,9 +108,12 @@ function detectReferenceLanguage(transcript) {
   return VOICE_LANGUAGE_CODES[code] || null;
 }
 
-function detectVoicePromptLanguage(prompt) {
+export function detectVoicePromptLanguage(prompt) {
   if (typeof prompt !== "string" || prompt.trim().length < 12) return null;
   const code = franc(prompt.trim());
+  // An undetermined prompt is not an unsupported language; let the caller
+  // fall back to the language detected from the reference audio.
+  if (code === "und") return null;
   const language = VOICE_LANGUAGE_CODES[code];
   if (!language) {
     const error = new Error("The requested voice output language is not supported by the multilingual voice model.");
