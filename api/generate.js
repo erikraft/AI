@@ -108,11 +108,11 @@ function detectReferenceLanguage(transcript) {
   return VOICE_LANGUAGE_CODES[code] || null;
 }
 
-function detectVoicePromptLanguage(prompt) {
+export function detectVoicePromptLanguage(prompt) {
   if (typeof prompt !== "string" || prompt.trim().length < 12) return null;
   const code = franc(prompt.trim());
-  // Ambiguous prompts (for example numbers or names) should defer to the
-  // reference-audio language instead of being treated as unsupported.
+  // An undetermined prompt is not an unsupported language; let the caller
+  // fall back to the language detected from the reference audio.
   if (code === "und") return null;
   const language = VOICE_LANGUAGE_CODES[code];
   if (!language) {
