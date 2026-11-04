@@ -504,6 +504,8 @@ test("multilingual voice cloning chooses the requested text language rather than
   const api = readFileSync(new URL("../api/generate.js", import.meta.url), "utf8");
   assert.match(api, /voiceLanguage = detectVoicePromptLanguage\(prompt\)[\s\S]*?await detectVoiceReferenceLanguage/);
   assert.match(api, /UnsupportedVoiceTargetLanguageError/);
+  assert.match(api, /if \(code === "und"\) return null;/, "ambiguous prompts must fall back to the reference-audio language");
+  assert.match(api, /const language = VOICE_LANGUAGE_CODES\[code\];[\s\S]*?if \(!language\)/, "detected but unsupported languages must still be rejected");
   assert.match(api, /\[prompt\.trim\(\), voiceAudioFile, voiceLanguage\]/);
   assert.match(api, /O idioma solicitado para a fala/);
   assert.match(api, /The requested speech language/);
