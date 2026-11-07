@@ -152,8 +152,8 @@ test("experimental inference has a bounded server-side timeout and actionable ti
   assert.ok(source.includes("QWEN_INFERENCE_TIMEOUT_MS = 235_000"));
   assert.ok(source.includes("Client.connect(targetSpaceId, clientOptions)"));
   assert.ok(source.includes("Timed out connecting to the Hugging Face Space."));
-  assert.ok(source.includes('predictWithTimeout(client, "/generate_video"'));
-  assert.ok(source.includes('"/generate_text"'));
+  assert.match(source, /runTrackedInference\(client, "\/generate_video", \[prompt\.trim\(\), spaceApiSecret\]\)/);
+  assert.match(source, /runTrackedInference\([\s\S]*?"\/generate_text",\s*\[prompt\.trim\(\), "auto", spaceApiSecret/);
   assert.ok(source.includes("JSON.stringify(toolset.tools)"));
   assert.ok(source.includes("InferenceTimeoutError"));
   assert.ok(source.includes("status(timedOut ? 504 : 503)"));
