@@ -437,7 +437,7 @@ test("voice cloning detects language from reference speech instead of website lo
   assert.ok(pkg.dependencies["franc-min"]);
   assert.ok(api.includes('const VOICE_LANGUAGE_SPACE_ID = "hf-audio/whisper-large-v3"'));
   assert.ok(api.includes('const VOICE_CLONE_SPACE_ID = "Nymbo/Voice-Clone-Multilingual"'));
-  assert.ok(api.includes("detectVoiceReferenceLanguage(voiceAudioFile, clientOptions)"));
+  assert.match(api, /detectVoiceReferenceLanguage\(voiceAudioFile, clientOptions, \(\) => \{ inferenceSubmitted = true; \}\)/);
   assert.ok(api.includes("franc(transcript.trim())"));
   assert.ok(api.includes("[prompt.trim(), voiceAudioFile, voiceLanguage]"));
   assert.ok(api.includes("detectedLanguage: voiceLanguage"));
