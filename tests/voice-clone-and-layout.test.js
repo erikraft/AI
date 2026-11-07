@@ -21,7 +21,7 @@ test("voice cloning routes through authenticated API with reference-language det
   const api = read("../api/generate.js");
   assert.ok(api.includes('VOICE_CLONE_SPACE_ID = "Nymbo/Voice-Clone-Multilingual"'));
   assert.ok(api.includes('VOICE_LANGUAGE_SPACE_ID = "hf-audio/whisper-large-v3"'));
-  assert.ok(api.includes("detectVoiceReferenceLanguage(voiceAudioFile, clientOptions)"));
+  assert.match(api, /detectVoiceReferenceLanguage\(voiceAudioFile, clientOptions, \(\) => \{ inferenceSubmitted = true; \}\)/);
   assert.ok(api.includes("[prompt.trim(), voiceAudioFile, voiceLanguage]"));
   assert.match(api, /Client\.connect\(targetSpaceId/);
   assert.ok(api.includes('"/predict"'));
@@ -204,9 +204,12 @@ test("image inference is bounded before the Vercel gateway deadline", () => {
   const api = read("../api/generate.js");
   assert.match(api, /IMAGE_INFERENCE_TIMEOUT_MS = 225_000/);
   assert.match(api, /QWYTHOS_STEP_TIMEOUT_MS = 105_000/);
-  assert.match(api, /predictWithTimeout\(\s*client,\s*"\/generate_image"/);
-  assert.match(api, /predictWithTimeout\(\s*client,\s*"\/generate_image_from_image"/);
-  assert.match(api, /predictWithTimeout\(\s*client,\s*"\/generate_image_from_image_render"/);
+  assert.match(api, /runTrackedInference\(\s*client,\s*"\/generate_image"/);
+  assert.match(api, /runTrackedInference\(\s*client,\s*"\/generate_image_from_image"/);
+  assert.match(api, /runTrackedInference\(\s*client,\s*"\/generate_image_from_image_render"/);
+  assert.match(api, /const submission = client\.submit\(endpoint, args\);[\s\S]*?onInferenceSubmitted\(\);/);
+  assert.match(api, /predictWithTimeout\(\s*whisper,\s*endpoint,\s*\[audioFile, "transcribe"\],\s*VOICE_LANGUAGE_TIMEOUT_MS,\s*undefined,\s*onInferenceSubmitted/);
+  assert.match(api, /return predictWithTimeout\(\s*inferenceClient,\s*endpoint,\s*args,\s*timeoutMs,\s*timeoutMessage,\s*\(\) => \{ inferenceSubmitted = true; \}/);
   assert.match(api, /phase === "space-generate" \|\| phase === "space-interpret"[\s\S]*?res\.status\(504\)/);
 });
 

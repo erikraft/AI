@@ -152,8 +152,8 @@ test("experimental inference has a bounded server-side timeout and actionable ti
   assert.ok(source.includes("QWEN_INFERENCE_TIMEOUT_MS = 235_000"));
   assert.ok(source.includes("Client.connect(targetSpaceId, clientOptions)"));
   assert.ok(source.includes("Timed out connecting to the Hugging Face Space."));
-  assert.ok(source.includes('predictWithTimeout(client, "/generate_video"'));
-  assert.ok(source.includes('"/generate_text"'));
+  assert.match(source, /runTrackedInference\(client, "\/generate_video", \[prompt\.trim\(\), spaceApiSecret\]\)/);
+  assert.match(source, /runTrackedInference\([\s\S]*?"\/generate_text",\s*\[prompt\.trim\(\), "auto", spaceApiSecret/);
   assert.ok(source.includes("JSON.stringify(toolset.tools)"));
   assert.ok(source.includes("InferenceTimeoutError"));
   assert.ok(source.includes("status(timedOut ? 504 : 503)"));
@@ -437,7 +437,7 @@ test("voice cloning detects language from reference speech instead of website lo
   assert.ok(pkg.dependencies["franc-min"]);
   assert.ok(api.includes('const VOICE_LANGUAGE_SPACE_ID = "hf-audio/whisper-large-v3"'));
   assert.ok(api.includes('const VOICE_CLONE_SPACE_ID = "Nymbo/Voice-Clone-Multilingual"'));
-  assert.ok(api.includes("detectVoiceReferenceLanguage(voiceAudioFile, clientOptions)"));
+  assert.match(api, /detectVoiceReferenceLanguage\(voiceAudioFile, clientOptions, \(\) => \{ inferenceSubmitted = true; \}\)/);
   assert.ok(api.includes("franc(transcript.trim())"));
   assert.ok(api.includes("[prompt.trim(), voiceAudioFile, voiceLanguage]"));
   assert.ok(api.includes("detectedLanguage: voiceLanguage"));
