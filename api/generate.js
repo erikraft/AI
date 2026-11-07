@@ -463,7 +463,7 @@ export default async function handler(req, res) {
       const maxToolRounds = toolset.tools.length ? 2 : 4;
       const qwenRoundTimeout = toolset.tools.length ? 65_000 : QWEN_INFERENCE_TIMEOUT_MS;
       for (let round = 0; round < maxToolRounds; round += 1) {
-        result = await predictWithTimeout(
+        result = await runTrackedInference(
           client,
           "/generate_text",
           [prompt.trim(), "auto", spaceApiSecret, JSON.stringify(toolset.tools), JSON.stringify(messages)],
