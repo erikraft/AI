@@ -208,6 +208,8 @@ test("image inference is bounded before the Vercel gateway deadline", () => {
   assert.match(api, /runTrackedInference\(\s*client,\s*"\/generate_image_from_image"/);
   assert.match(api, /runTrackedInference\(\s*client,\s*"\/generate_image_from_image_render"/);
   assert.match(api, /const submission = client\.submit\(endpoint, args\);[\s\S]*?onInferenceSubmitted\(\);/);
+  assert.match(api, /predictWithTimeout\\(\\s*whisper,\\s*endpoint,\\s*\\[audioFile, "transcribe"\\],\\s*VOICE_LANGUAGE_TIMEOUT_MS,\\s*undefined,\\s*onInferenceSubmitted/);
+  assert.match(api, /return predictWithTimeout\\(\\s*inferenceClient,\\s*endpoint,\\s*args,\\s*timeoutMs,\\s*timeoutMessage,\\s*\\(\\) => \\{ inferenceSubmitted = true; \\}/);
   assert.match(api, /phase === "space-generate" \|\| phase === "space-interpret"[\s\S]*?res\.status\(504\)/);
 });
 
