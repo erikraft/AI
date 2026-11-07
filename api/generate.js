@@ -135,6 +135,11 @@ async function findWhisperTranscriptionEndpoint(client) {
   return match[0];
 }
 
+/**
+ * Detect the spoken language in a reference recording through the Whisper Space.
+ * Invoke the reservation callback only after endpoint discovery and immediately
+ * before the provider inference request is started.
+ */
 async function detectVoiceReferenceLanguage(audioFile, clientOptions, onInferenceSubmitted = () => {}) {
   const whisper = await withTimeout(
     Client.connect(VOICE_LANGUAGE_SPACE_ID, clientOptions),
@@ -146,8 +151,8 @@ async function detectVoiceReferenceLanguage(audioFile, clientOptions, onInferenc
     SPACE_CONNECT_TIMEOUT_MS,
     "Timed out discovering the speech-language detector endpoint."
   );
-  // The remote Whisper task may continue after the local timeout. Mark it submitted
-  // before awaiting so the account quota is not refunded while provider work may run.
+  // The endpoint was discovered from the live Space API. Mark the reservation
+  // immediately before invoking the SDK so a timeout cannot refund queued work.
   onInferenceSubmitted();
   const result = await predictWithTimeout(
     whisper,
@@ -198,9 +203,11 @@ function referenceImageToGradioFile(dataUrl) {
   return handle_file(new File([bytes], "reference-image." + extension, { type: mimeType }));
 }
 
+/**
+ * Determines whether a failed generation request can safely release its quota hold.
+ * Reservations are refundable only while no provider inference has been submitted.
+ */
 export function shouldRefundGenerationReservation(reservation, inferenceSubmitted) {
-  // Before a provider task is submitted, a failed request has not consumed inference
-  // resources. After submission, Promise.race cannot cancel the remote Gradio job.
   return Boolean(reservation?.allowed) && !inferenceSubmitted;
 }
 
@@ -408,7 +415,20 @@ export default async function handler(req, res) {
       "Timed out connecting to the Hugging Face Space."
     );
 
-    const runTrackedInference = (inferenceClient, endpoint, args, timeoutMs, timeoutMessage) => {
+    /**
+     * Validate the configured endpoint before consuming quota, then retain the hold
+     * once the request is handed to the Gradio SDK; a local timeout cannot cancel it.
+     */
+    const runTrackedInference = async (inferenceClient, endpoint, args, timeoutMs, timeoutMessage) => {
+      const api = await withTimeout(
+        inferenceClient.view_api(),
+        SPACE_CONNECT_TIMEOUT_MS,
+        "Timed out validating the Hugging Face Space inference endpoint."
+      );
+      if (!Object.prototype.hasOwnProperty.call(api?.named_endpoints || {}, endpoint)) {
+        throw new Error("Hugging Face Space does not expose the configured inference endpoint: " + endpoint);
+      }
+
       inferenceSubmitted = true;
       return predictWithTimeout(inferenceClient, endpoint, args, timeoutMs, timeoutMessage);
     };
