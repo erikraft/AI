@@ -81,8 +81,36 @@ async function withTimeout(promise, timeoutMs, message) {
   }
 }
 
-async function predictWithTimeout(client, endpoint, args, timeoutMs = EXPERIMENTAL_INFERENCE_TIMEOUT_MS, timeoutMessage = "Experimental inference exceeded its server-side time budget.") {
-  return withTimeout(client.predict(endpoint, args), timeoutMs, timeoutMessage);
+/**
+ * Submit a Gradio inference and wait for its final data event within the API budget.
+ * The callback runs only after the SDK synchronously accepts the endpoint and returns
+ * its submission iterator; synchronous pre-submit errors therefore remain refundable.
+ */
+async function predictWithTimeout(
+  client,
+  endpoint,
+  args,
+  timeoutMs = EXPERIMENTAL_INFERENCE_TIMEOUT_MS,
+  timeoutMessage = "Experimental inference exceeded its server-side time budget.",
+  onInferenceSubmitted = () => {}
+) {
+  const submission = client.submit(endpoint, args);
+  onInferenceSubmitted();
+
+  return withTimeout((async () => {
+    let resultData;
+    for await (const event of submission) {
+      if (event.type === "data") resultData = event.data;
+      if (event.type === "status" && event.stage === "error") {
+        throw new Error(event.message || "Hugging Face inference failed.");
+      }
+      if (event.type === "status" && event.stage === "complete") {
+        return { data: resultData };
+      }
+    }
+    if (resultData !== undefined) return { data: resultData };
+    throw new Error("Hugging Face inference completed without a data event.");
+  })(), timeoutMs, timeoutMessage);
 }
 
 function getAdminApp() {
@@ -151,14 +179,13 @@ async function detectVoiceReferenceLanguage(audioFile, clientOptions, onInferenc
     SPACE_CONNECT_TIMEOUT_MS,
     "Timed out discovering the speech-language detector endpoint."
   );
-  // The endpoint was discovered from the live Space API. Mark the reservation
-  // immediately before invoking the SDK so a timeout cannot refund queued work.
-  onInferenceSubmitted();
   const result = await predictWithTimeout(
     whisper,
     endpoint,
     [audioFile, "transcribe"],
-    VOICE_LANGUAGE_TIMEOUT_MS
+    VOICE_LANGUAGE_TIMEOUT_MS,
+    undefined,
+    onInferenceSubmitted
   );
   const transcript = result?.data?.find((value) => typeof value === "string") || "";
   const language = detectReferenceLanguage(transcript);
@@ -377,7 +404,7 @@ export default async function handler(req, res) {
     }
 
     phase = "space-connect";
-    const clientOptions = process.env.HF_TOKEN ? { token: process.env.HF_TOKEN } : {};
+    const clientOptions = { events: ["data", "status"], ...(process.env.HF_TOKEN ? { token: process.env.HF_TOKEN } : {}) };
     let voiceLanguage = null;
     if (isVoiceClone) {
       phase = "voice-language-detection";
@@ -416,21 +443,18 @@ export default async function handler(req, res) {
     );
 
     /**
-     * Validate the configured endpoint before consuming quota, then retain the hold
-     * once the request is handed to the Gradio SDK; a local timeout cannot cancel it.
+     * Submit an inference through Gradio and retain quota only after the SDK accepts
+     * the endpoint and returns its submission iterator.
      */
-    const runTrackedInference = async (inferenceClient, endpoint, args, timeoutMs, timeoutMessage) => {
-      const api = await withTimeout(
-        inferenceClient.view_api(),
-        SPACE_CONNECT_TIMEOUT_MS,
-        "Timed out validating the Hugging Face Space inference endpoint."
+    const runTrackedInference = (inferenceClient, endpoint, args, timeoutMs, timeoutMessage) => {
+      return predictWithTimeout(
+        inferenceClient,
+        endpoint,
+        args,
+        timeoutMs,
+        timeoutMessage,
+        () => { inferenceSubmitted = true; }
       );
-      if (!Object.prototype.hasOwnProperty.call(api?.named_endpoints || {}, endpoint)) {
-        throw new Error("Hugging Face Space does not expose the configured inference endpoint: " + endpoint);
-      }
-
-      inferenceSubmitted = true;
-      return predictWithTimeout(inferenceClient, endpoint, args, timeoutMs, timeoutMessage);
     };
 
     let result;
