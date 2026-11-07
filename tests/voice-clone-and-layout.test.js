@@ -204,9 +204,10 @@ test("image inference is bounded before the Vercel gateway deadline", () => {
   const api = read("../api/generate.js");
   assert.match(api, /IMAGE_INFERENCE_TIMEOUT_MS = 225_000/);
   assert.match(api, /QWYTHOS_STEP_TIMEOUT_MS = 105_000/);
-  assert.match(api, /runTrackedInference\\(\\s*client,\\s*"\\/generate_image"/);
-  assert.match(api, /runTrackedInference\\(\\s*client,\\s*"\\/generate_image_from_image"/);
-  assert.match(api, /runTrackedInference\\(\\s*client,\\s*"\\/generate_image_from_image_render"/);
+  assert.match(api, /runTrackedInference\(\s*client,\s*"\/generate_image"/);
+  assert.match(api, /runTrackedInference\(\s*client,\s*"\/generate_image_from_image"/);
+  assert.match(api, /runTrackedInference\(\s*client,\s*"\/generate_image_from_image_render"/);
+  assert.match(api, /const submission = client\.submit\(endpoint, args\);[\s\S]*?onInferenceSubmitted\(\);/);
   assert.match(api, /phase === "space-generate" \|\| phase === "space-interpret"[\s\S]*?res\.status\(504\)/);
 });
 
