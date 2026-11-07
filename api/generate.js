@@ -135,7 +135,7 @@ async function findWhisperTranscriptionEndpoint(client) {
   return match[0];
 }
 
-async function detectVoiceReferenceLanguage(audioFile, clientOptions) {
+async function detectVoiceReferenceLanguage(audioFile, clientOptions, onInferenceSubmitted = () => {}) {
   const whisper = await withTimeout(
     Client.connect(VOICE_LANGUAGE_SPACE_ID, clientOptions),
     SPACE_CONNECT_TIMEOUT_MS,
@@ -146,6 +146,9 @@ async function detectVoiceReferenceLanguage(audioFile, clientOptions) {
     SPACE_CONNECT_TIMEOUT_MS,
     "Timed out discovering the speech-language detector endpoint."
   );
+  // The remote Whisper task may continue after the local timeout. Mark it submitted
+  // before awaiting so the account quota is not refunded while provider work may run.
+  onInferenceSubmitted();
   const result = await predictWithTimeout(
     whisper,
     endpoint,
@@ -195,6 +198,12 @@ function referenceImageToGradioFile(dataUrl) {
   return handle_file(new File([bytes], "reference-image." + extension, { type: mimeType }));
 }
 
+export function shouldRefundGenerationReservation(reservation, inferenceSubmitted) {
+  // Before a provider task is submitted, a failed request has not consumed inference
+  // resources. After submission, Promise.race cannot cancel the remote Gradio job.
+  return Boolean(reservation?.allowed) && !inferenceSubmitted;
+}
+
 async function releaseGenerationReservation(db, ref, reservation) {
   if (!db || !ref || !reservation?.allowed) return;
   try {
@@ -237,6 +246,7 @@ export default async function handler(req, res) {
   let db = null;
   let quotaRef = null;
   let reservation = null;
+  let inferenceSubmitted = false;
 
   try {
     const app = getAdminApp();
@@ -368,10 +378,12 @@ export default async function handler(req, res) {
         // XTTS language selection follows the requested speech text, not the website locale.
         // For very short text, fall back to the detected reference voice language.
         voiceLanguage = detectVoicePromptLanguage(prompt)
-          || await detectVoiceReferenceLanguage(voiceAudioFile, clientOptions);
+          || await detectVoiceReferenceLanguage(voiceAudioFile, clientOptions, () => { inferenceSubmitted = true; });
       } catch (error) {
         console.error("[image-generation:voice-language-detection]", error?.stack || error?.message || error);
-        await releaseGenerationReservation(db, quotaRef, reservation);
+        if (shouldRefundGenerationReservation(reservation, inferenceSubmitted)) {
+          await releaseGenerationReservation(db, quotaRef, reservation);
+        }
         reservation = null;
         const unsupported = error?.name === "UnsupportedReferenceLanguageError"
           || error?.name === "UnsupportedVoiceTargetLanguageError";
@@ -396,10 +408,15 @@ export default async function handler(req, res) {
       "Timed out connecting to the Hugging Face Space."
     );
 
+    const runTrackedInference = (inferenceClient, endpoint, args, timeoutMs, timeoutMessage) => {
+      inferenceSubmitted = true;
+      return predictWithTimeout(inferenceClient, endpoint, args, timeoutMs, timeoutMessage);
+    };
+
     let result;
     if (isVoiceClone) {
       phase = "space-voice-clone";
-      result = await predictWithTimeout(
+      result = await runTrackedInference(
         client,
         "/predict",
         [prompt.trim(), voiceAudioFile, voiceLanguage],
@@ -411,7 +428,7 @@ export default async function handler(req, res) {
       return res.status(200).json({ type: "audio", audioUrl, detectedLanguage: voiceLanguage, limit, remaining: Math.max(0, limit - reservation.count), tier: "account" });
     } else if (isCosmos) {
       phase = "space-video";
-      result = await predictWithTimeout(client, "/generate_video", [prompt.trim(), spaceApiSecret]);
+      result = await runTrackedInference(client, "/generate_video", [prompt.trim(), spaceApiSecret]);
       const first = result?.data?.[0];
       const videoUrl = typeof first === "string" ? first : (first?.url || first?.path || first?.video?.url || first?.video?.path);
       if (!videoUrl) throw new Error("Space returned no recognized video URL.");
@@ -509,7 +526,7 @@ export default async function handler(req, res) {
       });
     } else if (isImageToJsonPrompt) {
       phase = "space-image-to-json";
-      result = await predictWithTimeout(
+      result = await runTrackedInference(
         client,
         "/generate_image_to_json_prompt",
         [referenceImageFile, spaceApiSecret],
@@ -543,7 +560,7 @@ export default async function handler(req, res) {
       });
     } else if (isQwenImage) {
       phase = "space-qwen-image";
-      result = await predictWithTimeout(
+      result = await runTrackedInference(
         client,
         "/generate_qwen_image",
         [prompt.trim(), Number(width), Number(height), spaceApiSecret],
@@ -552,7 +569,7 @@ export default async function handler(req, res) {
       );
     } else if (isQwythos) {
       phase = "space-interpret";
-      const interpretation = await predictWithTimeout(
+      const interpretation = await runTrackedInference(
         client,
         "/generate_image_from_image",
         [prompt.trim(), referenceImageFile, "auto"],
@@ -570,7 +587,7 @@ export default async function handler(req, res) {
       // Keep model calls separate: Qwythos interpretation and FLUX rendering each use
       // their own GPU duration budget instead of requesting 450 seconds in one call.
       phase = "space-generate";
-      result = await predictWithTimeout(
+      result = await runTrackedInference(
         client,
         "/generate_image_from_image_render",
         [generatedPrompt.trim().slice(0, MAX_PROMPT_LENGTH), referenceImageFile, Number(width), Number(height), Number(steps)],
@@ -579,7 +596,7 @@ export default async function handler(req, res) {
       );
     } else {
       phase = "space-generate";
-      result = await predictWithTimeout(
+      result = await runTrackedInference(
         client,
         "/generate_image",
         [prompt.trim(), Number(width), Number(height), Number(steps)],
@@ -599,7 +616,9 @@ export default async function handler(req, res) {
         dataLength: Array.isArray(result?.data) ? result.data.length : null,
         firstResultKeys: first && typeof first === "object" ? Object.keys(first) : []
       });
-      await releaseGenerationReservation(db, quotaRef, reservation);
+      if (shouldRefundGenerationReservation(reservation, inferenceSubmitted)) {
+        await releaseGenerationReservation(db, quotaRef, reservation);
+      }
       reservation = null;
       return res.status(502).json({
         error: localized(req,
@@ -625,10 +644,10 @@ export default async function handler(req, res) {
     const rawMessage = String(error?.message || error || "Unknown error");
     const normalized = rawMessage.toLowerCase();
 
-    if (reservation?.allowed) {
+    if (shouldRefundGenerationReservation(reservation, inferenceSubmitted)) {
       await releaseGenerationReservation(db, quotaRef, reservation);
-      reservation = null;
     }
+    reservation = null;
 
     console.error("[image-generation:" + phase + "]", error?.stack || rawMessage);
 
