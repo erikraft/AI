@@ -49,6 +49,19 @@ test("Vercel config restores clean URLs, Fluid Compute, and the Hobby max durati
   assert.ok(config.headers.some((entry) => entry.source === "/assets/(.*)"));
 });
 
+test("Vercel applies baseline browser security headers globally", () => {
+  const config = JSON.parse(readFileSync(new URL("../vercel.json", import.meta.url), "utf8"));
+  const globalHeaders = config.headers.find((entry) => entry.source === "/(.*)")?.headers || [];
+  const byName = Object.fromEntries(globalHeaders.map((entry) => [entry.key.toLowerCase(), entry.value]));
+
+  assert.equal(byName["strict-transport-security"], "max-age=63072000; includeSubDomains");
+  assert.equal(byName["x-frame-options"], "DENY");
+  assert.equal(byName["x-content-type-options"], "nosniff");
+  assert.equal(byName["referrer-policy"], "strict-origin-when-cross-origin");
+  assert.match(byName["permissions-policy"], /camera=\(self\)/);
+  assert.match(byName["permissions-policy"], /microphone=\(self\)/);
+});
+
 test("model API reports experimental routes fail-closed without backend credentials", () => {
   withEnv({
     HF_SPACE_ID: null,
