@@ -60,6 +60,9 @@ test("Vercel applies baseline browser security headers globally", () => {
   assert.equal(byName["referrer-policy"], "strict-origin-when-cross-origin");
   assert.match(byName["permissions-policy"], /camera=\(self\)/);
   assert.match(byName["permissions-policy"], /microphone=\(self\)/);
+  assert.match(byName["content-security-policy"], /default-src 'self'/);
+  assert.match(byName["content-security-policy"], /frame-ancestors 'none'/);
+  assert.match(byName["content-security-policy"], /object-src 'none'/);
 });
 
 test("model API reports experimental routes fail-closed without backend credentials", () => {
